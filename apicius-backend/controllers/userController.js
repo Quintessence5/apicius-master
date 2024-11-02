@@ -133,17 +133,35 @@ exports.resetPassword = async (req, res) => {
         res.status(500).json({ message: 'Invalid or expired token' });
     }
 };
+
 // Dashboard - display message to logged-in user
 exports.dashboard = async (req, res) => {
     try {
-        const userId = req.user.userId; // Get userId from verified token
-        const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [userId]);
-        if (!userResult.rows.length) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.status(200).json({ message: `Welcome to your dashboard, ${userResult.rows[0].email}!` });
+        res.status(200).json({ message: "Welcome to your dashboard!" });
     } catch (error) {
         console.error('Error accessing dashboard:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+useEffect(() => {
+    const fetchDashboard = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('Token not found');
+                setMessage('No token found');
+                return;
+            }
+            const response = await axios.get('http://localhost:5010/dashboard', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setMessage(response.data.message);  // Check if this line sets the message
+        } catch (error) {
+            console.error('Error fetching dashboard:', error);
+            setMessage('Failed to load dashboard');
+        }
+    };
+    fetchDashboard();
+}, []);
+

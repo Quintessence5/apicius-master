@@ -7,7 +7,13 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
-                const token = localStorage.getItem('token'); // assuming token is stored in localStorage
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    console.error('Token not found');
+                    setMessage('No token found');
+                    return;
+                }
+                console.log('Token:', token); // Check token value
                 const response = await axios.get('http://localhost:5010/dashboard', {
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -17,7 +23,6 @@ const Dashboard = () => {
                 setMessage('Failed to load dashboard');
             }
         };
-
         fetchDashboard();
     }, []);
 
