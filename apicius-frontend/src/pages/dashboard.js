@@ -8,13 +8,9 @@ const Dashboard = () => {
         const fetchDashboard = async () => {
             try {
                 const token = localStorage.getItem('token');
-                if (!token) {
-                    console.error('Token not found');
-                    setMessage('No token found');
-                    return;
-                }
-                console.log('Token:', token); // Check token value
-                const response = await axios.get('http://localhost:5010/dashboard', {
+                if (!token) throw new Error('Token not found');
+
+                const response = await axios.get('http://localhost:5010/api/users/dashboard', {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 setMessage(response.data.message);
@@ -29,7 +25,7 @@ const Dashboard = () => {
     return (
         <div>
             <h1>Dashboard</h1>
-            <p>{message}</p>
+            <p>{message || 'Loading...'}</p>
         </div>
     );
 };

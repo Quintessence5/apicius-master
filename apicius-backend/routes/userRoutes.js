@@ -1,13 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser, forgotPassword, resetPassword, googleLogin, dashboard } = require('../controllers/userController');
-const verifyToken = require('../middleware/verifyToken'); // Middleware to verify token
+const { loginUser, registerUser, dashboard, forgotPassword, resetPassword } = require('../controllers/userController');
 
+// User registration route
 router.post('/register', registerUser);
+
+// User login route
 router.post('/login', loginUser);
+
+// Dashboard route
+router.get('/dashboard', dashboard);
+
+// Forgot password route
 router.post('/forgot-password', forgotPassword);
+
+// Reset password route
 router.post('/reset-password', resetPassword);
-router.post('/google-login', googleLogin);
-router.get('/dashboard', verifyToken, dashboard); // Protected route for dashboard
 
 module.exports = router;

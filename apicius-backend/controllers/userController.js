@@ -2,8 +2,6 @@ const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
-const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Configure Nodemailer with Gmail
 const transporter = nodemailer.createTransport({
@@ -13,39 +11,6 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASSWORD,
     },
 });
-
-// Google Login
-exports.googleLogin = async (req, res) => {
-    const { token } = req.body;
-    try {
-        const ticket = await client.verifyIdToken({
-            idToken: token,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        const payload = ticket.getPayload();
-        const { email } = payload;
-
-        // Check if the user already exists
-        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        let user = userResult.rows[0];
-
-        // Register the user if they don’t exist
-        if (!user) {
-            const newUser = await pool.query(
-                'INSERT INTO users (email, google_user) VALUES ($1, $2) RETURNING *',
-                [email, true]
-            );
-            user = newUser.rows[0];
-        }
-
-        // Create and send token
-        const jwtToken = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.status(200).json({ token: jwtToken });
-    } catch (error) {
-        console.error('Google login failed:', error);
-        res.status(500).json({ message: 'Google login failed' });
-    }
-};
 
 // Register User
 exports.registerUser = async (req, res) => {
@@ -143,25 +108,3 @@ exports.dashboard = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
-
-useEffect(() => {
-    const fetchDashboard = async () => {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                console.error('Token not found');
-                setMessage('No token found');
-                return;
-            }
-            const response = await axios.get('http://localhost:5010/dashboard', {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            setMessage(response.data.message);  // Check if this line sets the message
-        } catch (error) {
-            console.error('Error fetching dashboard:', error);
-            setMessage('Failed to load dashboard');
-        }
-    };
-    fetchDashboard();
-}, []);
-

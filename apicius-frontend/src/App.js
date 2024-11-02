@@ -10,10 +10,10 @@ const App = () => {
     return (
         <Router>
             <Routes>
+                <Route path="/" element={<Login />} /> {/* Redirect to Login page */}
                 <Route path="/register" element={<Register />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} /> {/* New Route for Forgot Password */}
-                <Route path="/dashboard" element={Dashboard} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route 
                     path="/dashboard" 
                     element={

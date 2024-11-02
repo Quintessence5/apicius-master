@@ -15,6 +15,7 @@ const Register = () => {
             navigate('/login'); // Redirect to login after registration
         } catch (err) {
             setError('Registration failed. Please try again.');
+            console.error('Registration error:', err); // Log the error for debugging
         }
     };
 
@@ -37,7 +38,7 @@ const Register = () => {
                     required
                 />
                 <button type="submit">Register</button>
-                {error && <p>{error}</p>}
+                {error && <p>{error}</p>} {/* Show error message if registration fails */}
             </form>
 
             {/* Button to navigate to Login */}
