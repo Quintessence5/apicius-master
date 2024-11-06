@@ -1,8 +1,11 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+
 const app = express();
 const PORT = process.env.PORT || 5010;
+
+// Import routes
 const userRoutes = require('./routes/userRoutes');
 const recipeRoutes = require('./routes/recipeRoutes');
 const ingredientRoutes = require('./routes/ingredientRoutes');
@@ -13,13 +16,15 @@ app.use(bodyParser.json());
 
 // Route setup
 app.use('/api/users', userRoutes);
-app.use('/api/recipes', recipeRoutes); // New route for recipes
+app.use('/api/recipes', recipeRoutes);
 app.use('/api/ingredients', ingredientRoutes);
 
+// Test route
 app.get('/', (req, res) => {
     res.send('Apicius Backend is Running');
 });
 
+// Start the server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });

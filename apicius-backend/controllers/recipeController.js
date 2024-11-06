@@ -1,70 +1,142 @@
-const pool = require('../config/db'); // Ensure this points to your database connection file
+const pool = require('../config/db'); // Ensure this is correctly pointing to your database configuration
 
-// Add a new recipe
-exports.addRecipe = async (req, res) => {
-    const client = await pool.connect(); // Open a new client connection for the transaction
+// 1. Get all recipes
+const getAllRecipes = async (req, res) => {
     try {
-        const { name, instructions, ingredients } = req.body;
-
-        // Validate required fields
-        if (!name || !instructions || !ingredients || !Array.isArray(ingredients)) {
-            return res.status(400).json({ message: 'Please provide name, instructions, and a list of ingredients' });
-        }
-
-        await client.query('BEGIN'); // Start a transaction
-
-        // Insert the new recipe into the recipes table
-        const recipeResult = await client.query(
-            'INSERT INTO recipes (name, instructions) VALUES ($1, $2) RETURNING *',
-            [name, instructions]
-        );
-        const recipeId = recipeResult.rows[0].id;
-
-        // Insert each ingredient into recipe_ingredients, linking to the recipe
-        for (const ingredient of ingredients) {
-            const { id, quantity } = ingredient;
-
-            // Ensure ingredient fields are present
-            if (!id || !quantity) {
-                throw new Error('Each ingredient must have an id and a quantity');
-            }
-
-            await client.query(
-                'INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity) VALUES ($1, $2, $3)',
-                [recipeId, id, quantity]
-            );
-        }
-
-        await client.query('COMMIT'); // Commit the transaction if all goes well
-        res.status(201).json({ message: 'Recipe added successfully', recipe: recipeResult.rows[0] });
+        const recipes = await pool.query('SELECT * FROM recipes');
+        res.json(recipes.rows);
     } catch (error) {
-        await client.query('ROLLBACK'); // Rollback changes if an error occurs
-        console.error('Error adding recipe:', error.message);
-        res.status(500).json({ message: 'Failed to add recipe', error: error.message });
-    } finally {
-        client.release(); // Release the client connection
+        res.status(500).json({ message: error.message });
     }
 };
 
-// Retrieve all recipes with their ingredients
-exports.getAllRecipes = async (req, res) => {
+// 2. Get a single recipe by ID
+const getRecipeById = async (req, res) => {
+    const { id } = req.params;
     try {
-        // Fetch all recipes from the recipes table
-        const recipeResult = await pool.query('SELECT * FROM recipes');
-        const recipes = recipeResult.rows;
+        const recipe = await pool.query('SELECT * FROM recipes WHERE id = $1', [id]);
+        if (recipe.rows.length === 0) return res.status(404).json({ message: 'Recipe not found' });
+        res.json(recipe.rows[0]);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 
-        // For each recipe, fetch the associated ingredients
-        for (let recipe of recipes) {
+// 3. Add a new recipe
+const addRecipe = async (req, res) => {
+    const { title, description, notes, prep_time, cook_time, difficulty, ingredients } = req.body;
+
+    try {
+        // Calculate total_time before insertion
+        const total_time = prep_time + cook_time;
+
+        // Insert into recipes table
+        const recipeResult = await pool.query(
+            `INSERT INTO recipes (title, description, notes, prep_time, cook_time, total_time, difficulty)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+            [title, description, notes, prep_time, cook_time, total_time, difficulty]
+        );
+
+        const recipeId = recipeResult.rows[0].id;
+
+        // Insert ingredients into recipe_ingredients table
+        for (const ingredient of ingredients) {
             const ingredientResult = await pool.query(
-                'SELECT i.id, i.name, ri.quantity FROM ingredients i JOIN recipe_ingredients ri ON i.id = ri.ingredient_id WHERE ri.recipe_id = $1',
-                [recipe.id]
+                `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
+                [ingredient.name]
             );
-            recipe.ingredients = ingredientResult.rows; // Add ingredients to each recipe
+            let ingredientId = ingredientResult.rows[0]?.id; // Use optional chaining
+
+            // Check if ingredient was inserted or exists
+            if (!ingredientId) {
+                const existingIngredient = await pool.query('SELECT id FROM ingredients WHERE name = $1', [ingredient.name]);
+                if (existingIngredient.rows.length > 0) {
+                    ingredientId = existingIngredient.rows[0].id;
+                }
+            }
+
+            await pool.query(
+                `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
+                VALUES ($1, $2, $3, $4)`,
+                [recipeId, ingredientId, ingredient.quantity, ingredient.unit]
+            );
         }
 
-        res.status(200).json(recipes); // Return recipes with ingredients
+        res.status(201).json({ message: 'Recipe added successfully' });
     } catch (error) {
-        console.error('Error retrieving recipes:', error.message);
-        res.status(500).json({ message: 'Failed to retrieve recipes', error: error.message });
+        console.error(error);
+        res.status(500).json({ message: 'Error adding recipe' });
     }
+};
+
+// 4. Update a recipe by ID
+const updateRecipe = async (req, res) => {
+    const { id } = req.params;
+    const { title, description, notes, prep_time, cook_time, difficulty } = req.body;
+
+    try {
+        const total_time = prep_time + cook_time; // Calculate total time
+
+        const updatedRecipe = await pool.query(
+            `UPDATE recipes 
+            SET title = $1, description = $2, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7 
+            WHERE id = $8 RETURNING *`,
+            [title, description, notes, prep_time, cook_time, total_time, difficulty, id]
+        );
+
+        if (updatedRecipe.rows.length === 0) return res.status(404).json({ message: 'Recipe not found' });
+        res.json(updatedRecipe.rows[0]);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// 5. Delete a recipe by ID
+const deleteRecipe = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const deleteResult = await pool.query('DELETE FROM recipes WHERE id = $1', [id]);
+        if (deleteResult.rowCount === 0) return res.status(404).json({ message: 'Recipe not found' });
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// 6. Get all ingredients
+const getAllIngredients = async (req, res) => {
+    try {
+        const ingredients = await pool.query('SELECT * FROM ingredients');
+        res.json(ingredients.rows);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// 7. Add ingredient to a recipe
+const addIngredientToRecipe = async (req, res) => {
+    const recipeId = req.params.id;
+    const { ingredientId, quantity, unit } = req.body;
+
+    try {
+        await pool.query(
+            `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit) 
+            VALUES ($1, $2, $3, $4)`,
+            [recipeId, ingredientId, quantity, unit]
+        );
+        res.status(201).send('Ingredient added to recipe');
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).send('Server error');
+    }
+};
+
+module.exports = {
+    getAllRecipes,
+    getRecipeById,
+    addRecipe,
+    updateRecipe,
+    deleteRecipe,
+    getAllIngredients,
+    addIngredientToRecipe,
 };

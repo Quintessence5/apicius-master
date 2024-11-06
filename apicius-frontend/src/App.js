@@ -5,6 +5,8 @@ import Login from './pages/login';
 import Dashboard from './pages/dashboard';
 import PrivateRoute from './components/privateRoute';
 import ForgotPassword from './pages/forgotPassword';
+import AddRecipe from './pages/addRecipe';
+
 
 const App = () => {
     return (
@@ -19,6 +21,16 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <Dashboard />
+                        </PrivateRoute>
+                    } 
+                />
+
+                {/* Additional protected route */}
+                <Route 
+                    path="/add-recipe" 
+                    element={
+                        <PrivateRoute>
+                            <AddRecipe />
                         </PrivateRoute>
                     } 
                 />
