@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 const AddRecipe = () => {
     const [recipe, setRecipe] = useState({
@@ -11,32 +12,43 @@ const AddRecipe = () => {
         total_time: '',
         difficulty: '',
     });
-    const [ingredients, setIngredients] = useState([{ ingredientId: '', quantity: 0, unit: '' }]);
+    const [ingredients, setIngredients] = useState([{ ingredientId: '', quantity: '', unit: '' }]);
     const [availableIngredients, setAvailableIngredients] = useState([]);
     const [availableUnits, setAvailableUnits] = useState([]);
 
+    const navigate = useNavigate();
+
     // Fetch available ingredients and units on component mount
     useEffect(() => {
-        // Inside your component or function
-        const fetchIngredientsAndUnits = async () => {
+        const fetchIngredients = async () => {
             try {
-                const response = await axios.get('/api/recipes/ingredients'); // Ensure this matches your backend route
-                // Handle the response data
+                const ingredientResponse = await axios.get('/api/ingredients');
+                setAvailableIngredients(ingredientResponse.data || []);
             } catch (error) {
-                console.error("Error fetching ingredients or units:", error);
+                console.error("Error fetching ingredients:", error);
             }
         };
-        
-        fetchIngredientsAndUnits();
+
+        const fetchUnits = async () => {
+            try {
+                const unitResponse = await axios.get('/api/units');
+                setAvailableUnits(unitResponse.data || []);
+            } catch (error) {
+                console.error("Error fetching units:", error);
+            }
+        };
+
+        fetchIngredients();
+        fetchUnits();
     }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        const newValue = name === 'prep_time' || name === 'cook_time' ? parseInt(value) || 0 : value; // Handle NaN
+        const newValue = (name === 'prep_time' || name === 'cook_time') ? parseInt(value) || 0 : value;
         setRecipe(prev => ({
             ...prev,
             [name]: newValue,
-            total_time: (name === 'prep_time' ? newValue : recipe.prep_time) + (name === 'cook_time' ? newValue : recipe.cook_time),
+            total_time: (name === 'prep_time' ? newValue : prev.prep_time) + (name === 'cook_time' ? newValue : prev.cook_time),
         }));
     };
 
@@ -63,6 +75,7 @@ const AddRecipe = () => {
                 })),
             });
             alert("Recipe added successfully!");
+            navigate('/all-recipes'); // Redirect to AllRecipes page
         } catch (error) {
             console.error("Error adding recipe:", error);
         }
@@ -100,7 +113,7 @@ const AddRecipe = () => {
                     >
                         <option value="">Select Unit</option>
                         {availableUnits.map((unit) => (
-                            <option key={unit.id} value={unit.unit_name}>{unit.unit_name}</option>
+                            <option key={unit.id} value={unit.abbreviation}>{unit.name} ({unit.abbreviation})</option>
                         ))}
                     </select>
                 </div>
