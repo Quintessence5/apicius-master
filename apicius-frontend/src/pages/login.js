@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import logo from '../assets/images/apicius-icon.png';
+import googleLogo from '../assets/images/google-icon.png';
+import appleLogo from '../assets/images/apple-icon.png';
+import facebookLogo from '../assets/images/facebook-icon.png';
+import '../styles/loginSignup.css';
 
 function Login() {
     const navigate = useNavigate();
@@ -23,29 +28,57 @@ function Login() {
     };
 
     return (
-        <div>
-            <h2>Login</h2>
-            <form onSubmit={handleLogin}>
-                <input
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
-                <input
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
-                <button type="submit">Login</button>
-            </form>
-            {message && <p>{message}</p>}
-            <p>
-                <Link to="/forgot-password">Forgot Password?</Link>
-            </p>
+        <div className="login-page">
+            <header className="header">
+                <div className="title-container">
+                    <img src={logo} alt="Logo" className="logo" />
+                    <div className="app-title">Apicius</div>
+                </div>
+                <button className="register-btn" onClick={() => navigate('/register')}>Register</button>
+            </header>
+            
+            <div className="login-card">
+                <h2>C’est un plaisir de vous revoir !</h2>
+                
+                {/* Social Login Buttons */}
+                <div className="social-login-buttons">
+                    <button className="google-btn">
+                        <img src={googleLogo} alt="Google logo" className="icon" />
+                        Google
+                        </button>
+                    <button className="apple-btn">
+                        <img src={appleLogo} alt="Apple logo" className="icon" />
+                        Apple
+                    </button>
+                    <button className="facebook-btn">
+                        <img src={facebookLogo} alt="Facebook logo" className="icon" />
+                        Facebook
+                    </button>    
+                </div>
+                
+                <p>Ou identifiez-vous avec votre adresse e-mail.</p>
+                
+                <form onSubmit={handleLogin}>
+                    <input
+                        type="email"
+                        placeholder="Entrer votre e-mail"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                    <input
+                        type="password"
+                        placeholder="Entrer votre Mot de passe"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                    <Link to="/forgot-password" className="forgot-password">Mot de passe oublié ?</Link>
+                    <button type="submit">Se connecter</button>
+                </form>
+
+                {message && <p>{message}</p>}
+            </div>
         </div>
     );
 }

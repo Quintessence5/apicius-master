@@ -14,16 +14,35 @@ const transporter = nodemailer.createTransport({
 
 // Register User
 exports.registerUser = async (req, res) => {
-    const { email, password } = req.body;
+    console.log("registerUser function called");  // Debugging line
+    const { email, password, firstName, lastName, birthdate } = req.body;
     try {
         const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ message: 'User already exists' });
         }
+        
+        // Basic validation for input fields
+    if (!email || !password || !firstName || !lastName || !birthdate) {
+        return res.status(400).json({ message: 'All fields are required' });
+    }
+    if (password.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+    }
 
+        // Hash password before saving
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = await pool.query('INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *', [email, hashedPassword]);
-        res.status(201).json({ message: 'User registered successfully', user: newUser.rows[0] });
+        const newUser = await pool.query(
+            'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id',
+            [email, hashedPassword]
+        );
+        const userId = newUser.rows[0].id;
+        await pool.query(
+            'INSERT INTO user_profile (user_id, first_name, last_name, birthdate) VALUES ($1, $2, $3, $4)',
+            [userId, firstName, lastName, birthdate]
+        );
+
+        res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
         console.error('Error registering user:', error);
         res.status(500).json({ message: 'Server error' });

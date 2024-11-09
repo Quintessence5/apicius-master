@@ -1,20 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { loginUser, registerUser, dashboard, forgotPassword, resetPassword } = require('../controllers/userController');
+const { registerUser, loginUser, dashboard, forgotPassword, resetPassword } = require('../controllers/userController'); // Single import
 
-// User registration route
+// Registration route
 router.post('/register', registerUser);
 
-// User login route
+// Other routes
 router.post('/login', loginUser);
-
-// Dashboard route
 router.get('/dashboard', dashboard);
-
-// Forgot password route
 router.post('/forgot-password', forgotPassword);
-
-// Reset password route
 router.post('/reset-password', resetPassword);
 
 module.exports = router;
