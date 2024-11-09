@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { auth, googleProvider } from '../config/firebaseConfig';
+import { signInWithPopup } from 'firebase/auth';
+
 import logo from '../assets/images/apicius-icon.png';
 import googleLogo from '../assets/images/google-icon.png';
 import appleLogo from '../assets/images/apple-icon.png';
@@ -13,6 +16,20 @@ function Login() {
     const [password, setPassword] = useState('');
     const [message, setMessage] = useState('');
 
+    // Google Sign in
+    const handleGoogleSignIn = async () => {
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
+            const token = await user.getIdToken(); // Get Firebase ID token
+            // Send the token to your backend to handle further authentication
+            await axios.post('http://localhost:5010/api/users/google-login', { token });
+            navigate('/dashboard'); // Redirect to dashboard
+        } catch (error) {
+            console.error('Google Sign-In Error:', error);
+        }
+    };
+    
     // Handles standard email/password login
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -42,7 +59,7 @@ function Login() {
                 
                 {/* Social Login Buttons */}
                 <div className="social-login-buttons">
-                    <button className="google-btn">
+                    <button className="google-btn" onClick={handleGoogleSignIn}>
                         <img src={googleLogo} alt="Google logo" className="icon" />
                         Google
                         </button>

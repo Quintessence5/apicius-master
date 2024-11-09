@@ -2,6 +2,9 @@ const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
+const admin = require('firebase-admin');
+const serviceAccount = require('../config/apicius05-firebase-adminsdk-w5v1o-505d701e82.json'); // Update the path
+
 
 // Configure Nodemailer with Gmail
 const transporter = nodemailer.createTransport({
@@ -11,6 +14,47 @@ const transporter = nodemailer.createTransport({
         pass: process.env.EMAIL_PASSWORD,
     },
 });
+
+// Google Sign in
+exports.googleLogin = async (req, res) => {
+    const { token, email, firstName, lastName } = req.body;
+
+    try {
+        // Verify the Firebase ID token
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        const { uid } = decodedToken;
+
+        // Check if the user exists in the 'user' table
+        const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+
+        let userId;
+        if (existingUser.rows.length === 0) {
+            // Insert the new user in 'users' table
+            const newUser = await pool.query(
+                'INSERT INTO users (email) VALUES ($1) RETURNING id',
+                [email]
+            );
+            userId = newUser.rows[0].id;
+
+            // Insert additional profile data in 'user_profile'
+            await pool.query(
+                'INSERT INTO user_profile (user_id, first_name, last_name) VALUES ($1, $2, $3)',
+                [userId, firstName, lastName]
+            );
+        } else {
+            // If user exists, get their user_id
+            userId = existingUser.rows[0].id;
+        }
+
+        // Generate a JWT token for your application
+        const appToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.status(200).json({ message: 'Google login successful', token: appToken });
+    } catch (error) {
+        console.error('Google Login Error:', error);
+        res.status(500).json({ message: 'Authentication failed' });
+    }
+};
+
 
 // Register User
 exports.registerUser = async (req, res) => {

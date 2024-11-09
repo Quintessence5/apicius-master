@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { auth, googleProvider } from '../config/firebaseConfig';
+import { signInWithPopup } from 'firebase/auth';
+
 import logo from '../assets/images/apicius-icon.png';
 import googleLogo from '../assets/images/google-icon.png';
 import appleLogo from '../assets/images/apple-icon.png';
@@ -16,6 +19,29 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
 
+    //Google Sign in
+    const handleGoogleSignIn = async () => {
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
+    
+            // Extract necessary user data
+            const userData = {
+                token: await user.getIdToken(),
+                email: user.email,
+                firstName: user.displayName?.split(' ')[0] || '', // Extract first name
+                lastName: user.displayName?.split(' ')[1] || '',  // Extract last name
+            };
+    
+            // Send user data to your backend
+            await axios.post('http://localhost:5010/api/users/google-login', userData);
+            navigate('/dashboard'); // Redirect to dashboard after login
+        } catch (error) {
+            console.error('Google Sign-In Error:', error);
+        }
+    };
+    
+    // Regular Sign in
     const handleRegister = async (e) => {
         e.preventDefault();
         try {
@@ -44,7 +70,7 @@ const Register = () => {
 
                 {/* Social Login Buttons */}
                 <div className="social-login-buttons">
-                    <button className="google-btn"><img src={googleLogo} alt="Google logo" className="icon" />Google</button>
+                    <button className="google-btn" onClick={handleGoogleSignIn}><img src={googleLogo} alt="Google logo" className="icon" />Google</button>
                     <button className="apple-btn"><img src={appleLogo} alt="Apple logo" className="icon" />Apple</button>
                     <button className="facebook-btn"><img src={facebookLogo} alt="Facebook logo" className="icon" />Facebook</button>    
                 </div>
