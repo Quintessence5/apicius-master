@@ -15,38 +15,43 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Google Sign in
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+});
+
+// Google Sign-in Logic
 exports.googleLogin = async (req, res) => {
-    const { token, email, firstName, lastName } = req.body;
-
+    const { token } = req.body;
     try {
-        // Verify the Firebase ID token
+        // Verify the ID token with Firebase Admin
         const decodedToken = await admin.auth().verifyIdToken(token);
-        const { uid } = decodedToken;
+        const { uid, email, name, picture } = decodedToken;
 
-        // Check if the user exists in the 'user' table
+        // Split name into first and last name (if possible)
+        const [firstName, lastName] = name.split(' ');
+
+        // Check if user already exists in the 'user' table
         const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
 
         let userId;
         if (existingUser.rows.length === 0) {
-            // Insert the new user in 'users' table
+            // Create a new user if they don't exist in the 'user' table
             const newUser = await pool.query(
                 'INSERT INTO users (email) VALUES ($1) RETURNING id',
                 [email]
             );
             userId = newUser.rows[0].id;
 
-            // Insert additional profile data in 'user_profile'
+            // Insert into 'user_profile' table with additional Google info
             await pool.query(
-                'INSERT INTO user_profile (user_id, first_name, last_name) VALUES ($1, $2, $3)',
-                [userId, firstName, lastName]
+                'INSERT INTO user_profile (user_id, first_name, last_name, firebase_uid, photo_url) VALUES ($1, $2, $3, $4, $5)',
+                [userId, firstName, lastName, uid, picture]
             );
         } else {
-            // If user exists, get their user_id
             userId = existingUser.rows[0].id;
         }
 
-        // Generate a JWT token for your application
+        // Generate a JWT token for your app
         const appToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
         res.status(200).json({ message: 'Google login successful', token: appToken });
     } catch (error) {
