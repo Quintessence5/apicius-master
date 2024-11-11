@@ -51,11 +51,11 @@ function Login() {
                     <img src={logo} alt="Logo" className="logo" />
                     <div className="app-title">Apicius</div>
                 </div>
-                <button className="register-btn" onClick={() => navigate('/register')}>Register</button>
+                <button className="header-btn" onClick={() => navigate('/register')}>Register</button>
             </header>
             
             <div className="login-card">
-                <h2>C’est un plaisir de vous revoir !</h2>
+                <h2>Great to see you again !</h2>
                 
                 {/* Social Login Buttons */}
                 <div className="social-login-buttons">
@@ -73,25 +73,25 @@ function Login() {
                     </button>    
                 </div>
                 
-                <p>Ou identifiez-vous avec votre adresse e-mail.</p>
+                <p>Or login with your e-mail.</p>
                 
-                <form onSubmit={handleLogin}>
+                <form className="login-form" onSubmit={handleLogin}>
                     <input
                         type="email"
-                        placeholder="Entrer votre e-mail"
+                        placeholder="Enter your e-mail"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
                     />
                     <input
                         type="password"
-                        placeholder="Entrer votre Mot de passe"
+                        placeholder="Enter your Password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
                     />
-                    <Link to="/forgot-password" className="forgot-password">Mot de passe oublié ?</Link>
-                    <button type="submit">Se connecter</button>
+                    <Link to="/forgot-password" className="forgot-password">Forgot your password ?</Link>
+                    <button type="submit" className="login-btn">Login</button>
                 </form>
 
                 {message && <p>{message}</p>}

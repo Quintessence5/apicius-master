@@ -1,16 +1,4 @@
-/* General page styling */
-.login-page {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background-image: url('../assets/images/loginBackground.jpg');
-    background-size: cover;
-    background-position: center;
-}
-
-/* Header styling */
+/* ----__________________________Header styling___________________________--- */
 .header {
     position: fixed;
     top: 0;
@@ -19,25 +7,22 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background-color: rgba(255, 255, 255, 0.908); /* Slight transparency */
+    background-color: rgba(255, 255, 255, 0.908); /* Color & transparency */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .header .logo {
-    width: 40px; /* Adjust this size as needed */
+    width: 40px;
     height: auto;
     margin-left: 20px;
-    margin-right: 10px;
-    
+    margin-right: 10px; 
 }
 
-/* Group logo and title together */
 .header .title-container {
     display: flex;
     align-items: center;
     gap: 10px;
 }
-
 
 .header .app-title {
     font-size: 1.8rem;
@@ -46,86 +31,24 @@
     margin: 0;
 }
 
-.register-btn {
+.header-btn {
     
     background-color: #f4a318;
     color: white;
-    padding: 8px 16px;
+    padding: 10px 16px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
     font-weight: bold;
-    font-size: 1.1rem;
+    font-size: 1rem;
     margin-right: 15px;
 }
 
-.register-btn:hover {
+.header-btn:hover {
     background-color: #b23f01;
 }
 
-/* Card container for login form */
-.login-card {
-    background-color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 90%;
-    max-width: 400px;
-    text-align: center;
-}
-
-/* Form styling */
-.login-card h2 {
-    margin-bottom: 20px;
-    font-size: 1.5rem;
-    color: #333;
-}
-
-.login-card form {
-    display: flex;
-    flex-direction: column;
-}
-
-.login-card input {
-    margin-bottom: 15px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    font-size: 1rem;
-}
-
-.login-card button {
-    background-color: orange;
-    color: white;
-    padding: 10px;
-    border: none;
-    border-radius: 5px;
-    font-size: 1rem;
-    cursor: pointer;
-    font-weight: bold;
-}
-
-.login-card button:hover {
-    background-color: rgb(233, 66, 0);
-}
-
-.login-card h2 {
-    font-size: 1.6rem;
-    color: #333;
-    font-weight: bold;
-    margin-bottom: 30px;
-    margin-top: 10px;
-}
-
-.login-card p {
-    font-size: 1rem;
-    color: #666;
-    margin-top: 20px;
-    margin-bottom: 20px;
-}
-
-
-/* Styling for social login buttons */
+/* ---____________________Styling Social buttons___________________--- */
 .social-login-buttons {
     display: flex;
     justify-content: space-between;
@@ -142,33 +65,86 @@
     border-radius: 10px;
     cursor: pointer;
     font-size: 1rem;
-    width: 40%; /* Make buttons take the full width of the container */
-    max-width: 300px; /* Adjust the max-width for consistent sizing */
+    width: 40%; /* size of buttons in container */
+    max-width: 200px;
     position: relative;
+    font-weight: bold;
 }
 
 .social-login-buttons .google-btn { 
-    font-weight: bold;
     background-color: #4285F4; 
     color: white; 
 }
 
 .social-login-buttons .apple-btn {
-    font-weight: bold; 
     background-color: #333333; 
     color: white; 
 }
 
 .social-login-buttons .facebook-btn {
-    font-weight: bold; 
     background-color: #4267B2; 
     color: white; 
 }
-/* Icon spacing */
+/* ___Icon spacing___ */
 .social-login-buttons .icon {
     margin-right: 8px;
-    width: 20px; /* Adjust to fit next to button text */
+    width: 20px;
     height: 20px;
+}
+
+/* ---_______________________Unique page styling_________________________--- */
+
+
+/* ____________Login______________ */
+.login-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-image: url('../assets/images/loginBackground.jpg');
+    background-size: cover;
+    background-position: center;
+}
+
+.login-card {
+   width: 400px;
+    max-width: 100%;
+    margin: auto;
+    padding: 20px; /* Space around fields */
+    border-radius: 20px; /* Roundness of card */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    background-color: #fff;
+    text-align: center;
+    font-family: Arial, sans-serif;
+}
+
+.login-form input {
+    width: 100%;
+    padding: 10px; /* Height of input field */
+    margin-bottom: 20px; /* Margins from card */
+    border: 1px solid #ddd; /* Presence, Size, color of border */
+    border-radius: 5px; /* Roundness of the box */
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+
+.login-btn {
+    background-color: orange; /* Color of main login button */
+    color: white;
+    padding: 17px;
+    border: none;
+    border-radius: 5px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%; /* Ensures it spans the full form width */
+    margin-top: 15px;
+}
+
+.login-btn:hover {
+    background-color: rgb(233, 66, 0); /* Hover effect */
 }
 
 
@@ -180,13 +156,26 @@
     text-decoration: underline;
     cursor: pointer;
     margin-top: 0px;
+    margin-bottom: 10px;
+}
+
+/* Styling Text of the card */
+.login-card h2 {
+    font-size: 1.6rem;
+    color: #333;
+    font-weight: bold;
+    margin-bottom: 30px;
+    margin-top: 10px;
+}
+
+.login-card p {
+    font-size: 1rem;
+    color: #666;
+    margin-top: 20px;
     margin-bottom: 20px;
 }
 
-
-
-/* ________________________Register Page___________________________*/
-
+/* ________________Register Page_________________*/
 .register-page {
     display: flex;
     flex-direction: column;
@@ -199,57 +188,30 @@
 }
 
 .register-card {
-    max-width: 400px;
+    width: 400px;
+    max-width: 100%;
     margin: auto;
-    padding: 30px;
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 30px; /* Space around fields */
+    border-radius: 20px; /* Roundness of card */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
     background-color: #fff;
     text-align: center;
     font-family: Arial, sans-serif;
 }
 
-.register-card h2 {
-    font-size: 1.5rem;
-    margin-bottom: 10px;
-    color: #333;
-}
-
-.register-card p {
-    font-size: 1rem;
-    color: #666;
-    margin: 5px 0 15px;
-}
-
-.login-btn {
-    
-    background-color: #f4a318;
-    color: white;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 1.1rem;
-    margin-right: 15px;
-}
-
-.login-btn:hover {
-    background-color: #b23f01;
-}
-
 .register-form input {
     width: 100%;
-    padding: 10px;
-    margin: 10px 0;
+    padding: 10px; /* Height of input field */
+    margin-bottom: 20px; /* Margins from card */
+    border: 1px solid #ddd; /* Presence, Size, color of border */
     border-radius: 5px;
-    border: 1px solid #ddd;
     font-size: 1rem;
+    box-sizing: border-box;
 }
 
 .register-form button {
     width: 100%;
-    padding: 12px;
+    padding: 17px;
     margin-top: 15px;
     background-color: orange;
     color: white;
@@ -265,12 +227,45 @@
     background-color: rgb(233, 66, 0);
 }
 
+.loginR-btn {
+    
+    background-color: #f4a318;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-right: 15px;
+}
+
+.loginR-btn:hover {
+    background-color: #b23f01;
+}
+
+/* Register form - Date input styling */
+.register-form input[type="date"] {
+    font-family: inherit; /* Match font family */
+    font-size: 1rem; /* Ensure font size is consistent */
+    width: 100%; /* Full width of form */
+    padding: 10px; /* Match padding of other inputs */
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-sizing: border-box;
+    color: #666;
+    background-color: white; /* Optional: ensures consistency across browsers */
+}
+
+
 .error-message {
     color: red;
-    font-size: 0.9rem;
+    font-size: 1.1rem;
     margin-top: 10px;
 }
 
+/* -Styling Text of the card- */
 .register-card h2 {
     font-size: 1.6rem;
     color: #333;

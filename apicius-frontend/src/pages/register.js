@@ -61,12 +61,12 @@ const Register = () => {
                     <img src={logo} alt="Logo" className="logo" />
                     <div className="app-title">Apicius</div>
                 </div>
-                <button className="login-btn" onClick={() => navigate('/login')}>Login</button>
+                <button className="header-btn" onClick={() => navigate('/login')}>Login</button>
                 </header>
             
             
             <div className="register-card">
-            <h2>Inscrivez-vous sur Apicius</h2>
+            <h2>Join our tasty community !</h2>
 
                 {/* Social Login Buttons */}
                 <div className="social-login-buttons">
@@ -75,26 +75,26 @@ const Register = () => {
                     <button className="facebook-btn"><img src={facebookLogo} alt="Facebook logo" className="icon" />Facebook</button>    
                 </div>
             
-            <p>Ou inscrivez-vous avec votre adresse e-mail.</p>
+            <p>Or register with your e-mail.</p>
 
             <form onSubmit={handleRegister} className="register-form">
                 <input
                     type="text"
-                    placeholder="Prénom"
+                    placeholder="First Name"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     required
                 />
                 <input
                     type="text"
-                    placeholder="Nom de famille"
+                    placeholder="Last Name"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     required
                 />
                 <input
                     type="date"
-                    placeholder="Date de naissance"
+                    placeholder="Date of Birth"
                     value={birthdate}
                     onChange={(e) => setBirthdate(e.target.value)}
                     required
@@ -108,16 +108,16 @@ const Register = () => {
                 />
                 <input
                     type="password"
-                    placeholder="Mot de passe"
+                    placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                 />
-                <button type="submit">Créer un compte</button>
+                <button type="submit">Create an account</button>
                 {error && <p className="error-message">{error}</p>}
             </form>
-            <p>Vous avez déjà un compte ?</p>
-            <button className="login-btn" onClick={() => navigate('/login')}>Connectez-vous</button>
+            <p>Already have an account ?</p>
+            <button className="loginR-btn" onClick={() => navigate('/login')}>Login</button>
         </div>
     </div>
     );
