@@ -12,114 +12,85 @@ import '../styles/loginSignup.css';
 
 const Register = () => {
     const navigate = useNavigate();
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [birthdate, setBirthdate] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
 
-    //Google Sign in
+    // Google Sign-in
     const handleGoogleSignIn = async () => {
         try {
             const result = await signInWithPopup(auth, googleProvider);
             const user = result.user;
-    
-            // Extract necessary user data
-            const userData = {
-                token: await user.getIdToken(),
-                email: user.email,
-                firstName: user.displayName?.split(' ')[0] || '', // Extract first name
-                lastName: user.displayName?.split(' ')[1] || '',  // Extract last name
-            };
-    
-            // Send user data to your backend
+            const userData = { token: await user.getIdToken(), email: user.email };
             await axios.post('http://localhost:5010/api/users/google-login', userData);
-            navigate('/dashboard'); // Redirect to dashboard after login
+            navigate('/dashboard');
         } catch (error) {
             console.error('Google Sign-In Error:', error);
+            setError('Google Sign-In failed. Please try again.');
         }
     };
-    
-    // Regular Sign in
+
+    // Regular Email/Password Registration
     const handleRegister = async (e) => {
-        e.preventDefault();
+        e.preventDefault();  // Fix the event handling issue here
         try {
-            await axios.post('http://localhost:5010/api/users/register', {email, password, firstName, lastName, birthdate, });
-            navigate('/login'); // Redirect to login after registration
+            await axios.post('http://localhost:5010/api/users/register', { email, password });
+            navigate('/registerForm'); // Redirect to profile form
         } catch (err) {
             setError('Registration failed. Please try again.');
-            console.error('Registration error:', err); // Log the error for debugging
+            console.error('Registration error:', err);
         }
     };
 
     return (
-        
-        <div className="login-page">
+        <div className="register-page">
             <header className="header">
                 <div className="title-container">
                     <img src={logo} alt="Logo" className="logo" />
                     <div className="app-title">Apicius</div>
                 </div>
                 <button className="header-btn" onClick={() => navigate('/login')}>Login</button>
-                </header>
-            
-            
-            <div className="register-card">
-            <h2>Join our tasty community !</h2>
+            </header>
 
+            <div className="register-card">
+                <h2>Join our tasty community!</h2>
                 {/* Social Login Buttons */}
                 <div className="social-login-buttons">
-                    <button className="google-btn" onClick={handleGoogleSignIn}><img src={googleLogo} alt="Google logo" className="icon" />Google</button>
-                    <button className="apple-btn"><img src={appleLogo} alt="Apple logo" className="icon" />Apple</button>
-                    <button className="facebook-btn"><img src={facebookLogo} alt="Facebook logo" className="icon" />Facebook</button>    
+                    <button className="google-btn" onClick={handleGoogleSignIn}>
+                        <img src={googleLogo} alt="Google logo" className="icon" />Google
+                    </button>
+                    <button className="apple-btn">
+                        <img src={appleLogo} alt="Apple logo" className="icon" />Apple
+                    </button>
+                    <button className="facebook-btn">
+                        <img src={facebookLogo} alt="Facebook logo" className="icon" />Facebook
+                    </button>    
                 </div>
-            
-            <p>Or register with your e-mail.</p>
 
-            <form onSubmit={handleRegister} className="register-form">
-                <input
-                    type="text"
-                    placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                />
-                <input
-                    type="text"
-                    placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                />
-                <input
-                    type="date"
-                    placeholder="Date of Birth"
-                    value={birthdate}
-                    onChange={(e) => setBirthdate(e.target.value)}
-                    required
-                />
-                <input
-                    type="email"
-                    placeholder="E-mail"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                />
-                <input
-                    type="password"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                />
-                <button type="submit">Create an account</button>
-                {error && <p className="error-message">{error}</p>}
-            </form>
-            <p>Already have an account ?</p>
-            <button className="loginR-btn" onClick={() => navigate('/login')}>Login</button>
+                <p>Or register with your e-mail.</p>
+
+                <form onSubmit={handleRegister} className="register-form">
+                    <input
+                        type="email"
+                        placeholder="E-mail"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                    />
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                    <button type="submit">Create an account</button>
+                    {error && <p className="error-message">{error}</p>}
+                </form>
+                <p>Already have an account?</p>
+                <button className="loginR-btn" onClick={() => navigate('/login')}>Login</button>
+            </div>
         </div>
-    </div>
     );
 };
 

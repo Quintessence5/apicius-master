@@ -5,7 +5,6 @@ const nodemailer = require('nodemailer');
 const admin = require('firebase-admin');
 const serviceAccount = require('../config/apicius05-firebase-adminsdk-w5v1o-505d701e82.json'); // Update the path
 
-
 // Configure Nodemailer with Gmail
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -23,26 +22,20 @@ admin.initializeApp({
 exports.googleLogin = async (req, res) => {
     const { token } = req.body;
     try {
-        // Verify the ID token with Firebase Admin
         const decodedToken = await admin.auth().verifyIdToken(token);
         const { uid, email, name, picture } = decodedToken;
 
-        // Split name into first and last name (if possible)
-        const [firstName, lastName] = name.split(' ');
-
-        // Check if user already exists in the 'user' table
+        const [firstName, lastName] = name ? name.split(' ') : ['', ''];
         const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
 
         let userId;
         if (existingUser.rows.length === 0) {
-            // Create a new user if they don't exist in the 'user' table
             const newUser = await pool.query(
                 'INSERT INTO users (email) VALUES ($1) RETURNING id',
                 [email]
             );
             userId = newUser.rows[0].id;
 
-            // Insert into 'user_profile' table with additional Google info
             await pool.query(
                 'INSERT INTO user_profile (user_id, first_name, last_name, firebase_uid, photo_url) VALUES ($1, $2, $3, $4, $5)',
                 [userId, firstName, lastName, uid, picture]
@@ -51,7 +44,6 @@ exports.googleLogin = async (req, res) => {
             userId = existingUser.rows[0].id;
         }
 
-        // Generate a JWT token for your app
         const appToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
         res.status(200).json({ message: 'Google login successful', token: appToken });
     } catch (error) {
@@ -60,35 +52,26 @@ exports.googleLogin = async (req, res) => {
     }
 };
 
-
 // Register User
 exports.registerUser = async (req, res) => {
-    console.log("registerUser function called");  // Debugging line
-    const { email, password, firstName, lastName, birthdate } = req.body;
+    const { email, password } = req.body;
     try {
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email and password are required' });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+        }
+
         const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         if (existingUser.rows.length > 0) {
             return res.status(400).json({ message: 'User already exists' });
         }
-        
-        // Basic validation for input fields
-    if (!email || !password || !firstName || !lastName || !birthdate) {
-        return res.status(400).json({ message: 'All fields are required' });
-    }
-    if (password.length < 8) {
-        return res.status(400).json({ message: 'Password must be at least 8 characters long' });
-    }
 
-        // Hash password before saving
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = await pool.query(
+        await pool.query(
             'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id',
             [email, hashedPassword]
-        );
-        const userId = newUser.rows[0].id;
-        await pool.query(
-            'INSERT INTO user_profile (user_id, first_name, last_name, birthdate) VALUES ($1, $2, $3, $4)',
-            [userId, firstName, lastName, birthdate]
         );
 
         res.status(201).json({ message: 'User registered successfully' });

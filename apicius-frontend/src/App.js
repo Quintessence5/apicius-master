@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Register from './pages/register';
+import RegisterForm from './pages/registerForm';
 import Login from './pages/login';
 import Dashboard from './pages/dashboard';
 import PrivateRoute from './components/privateRoute';
@@ -13,6 +14,7 @@ const App = () => {
         <Router>
             <Routes>
                 <Route path="/register" element={<Register />} />
+                <Route path="/registerForm" element={<RegisterForm />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route
