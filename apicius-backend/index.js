@@ -9,9 +9,8 @@ const PORT = process.env.PORT || 5010;
 const userRoutes = require('./routes/userRoutes');
 const recipeRoutes = require('./routes/recipeRoutes');
 const ingredientRoutes = require('./routes/ingredientRoutes');
-const unitsRoutes = require('./routes/unitsRoutes'); // Import the new units route
+const unitsRoutes = require('./routes/unitsRoutes');
 const countryRoutes = require('./routes/countryRoutes');
-const languageRoutes = require('./routes/languageRoutes');
 
 // Middleware setup
 app.use(cors());
@@ -23,7 +22,6 @@ app.use('/api/recipes', recipeRoutes);
 app.use('/api/ingredients', ingredientRoutes);
 app.use('/api/units', unitsRoutes);
 app.use('/api/country', countryRoutes);
-app.use('/api/language', languageRoutes);
 
 // Test route
 app.get('/', (req, res) => {
