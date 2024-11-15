@@ -15,6 +15,7 @@ const countryRoutes = require('./routes/countryRoutes');
 // Middleware setup
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.json()); // Parses JSON request bodies
 
 // Route setup
 app.use('/api/users', userRoutes);

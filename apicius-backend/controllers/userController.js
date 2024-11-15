@@ -94,9 +94,10 @@ exports.saveUserProfile = async (req, res) => {
     
     try {
         await pool.query(
-            `INSERT INTO user_profile (user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-            [user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition]
+            `INSERT INTO user_profile 
+            (first_name, last_name, birthdate, user_id, firebase_uid, photo_url, username, origin_country, language, phone, newsletter, terms_condition)
+            VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6, $7, $8, $9, $10)`,
+            [first_name, last_name, birthdate, user_id, username, origin_country, language, phone, newsletter, terms_condition]
         );
         res.status(201).json({ message: 'Profile saved successfully' });
     } catch (error) {

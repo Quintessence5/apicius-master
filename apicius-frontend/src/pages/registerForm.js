@@ -26,8 +26,7 @@ const RegisterForm = () => {
     const [countries, setCountries] = useState([]);
     const [languages, setLanguages] = useState([]);
     const [phoneCodes, setPhoneCodes] = useState([]);
-    const [showCountryDropdown, setShowCountryDropdown] = useState(false);
-
+    
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -53,7 +52,9 @@ const RegisterForm = () => {
         }
 
         try {
-            await axios.post('http://localhost:5010/api/user_profile', {
+            const extractedPhoneCode = phoneCode.split(' ')[1];
+            console.log("Submitting form to: http://localhost:5010/api/users/user_profile");
+            await axios.post('http://localhost:5010/api/users/user_profile', {
                 user_id: userId,
                 username,
                 first_name: firstName,
@@ -61,7 +62,7 @@ const RegisterForm = () => {
                 birthdate,
                 origin_country: originCountry,
                 language,
-                phone: `${phoneCode}${phone}`,
+                phone: `${extractedPhoneCode}${phone}`,
                 newsletter,
                 terms_condition: termsCondition
             });
@@ -70,11 +71,6 @@ const RegisterForm = () => {
             setError('Submission failed. Please try again.');
             console.error('Error submitting form:', err);
         }
-    };
-
-    const handleCountrySelect = (country) => {
-        setOriginCountry(country.name);
-        setShowCountryDropdown(false);
     };
 
     return (
@@ -92,32 +88,19 @@ const RegisterForm = () => {
                     <input type="text" placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
                     <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                     <input type="date" placeholder="Date of Birth" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} required />
-
-                    {/* Custom Country Dropdown with Flags */}
-                    <div className="form-group">
-                        <div className="custom-select" onClick={() => setShowCountryDropdown(!showCountryDropdown)}>
-                            <div className="dropdown-option">
-                                {originCountry ? originCountry : "Select Country of Origin"}
-                            </div>
-                            {showCountryDropdown && (
-                                <div className="options-container">
-                                    {countries.map((country) => (
-                                        <div
-                                            key={country.iso}
-                                            className="countryname-option"
-                                            onClick={() => handleCountrySelect(country)}
-                                        >
-                                            <img src={country.flag} alt={`${country.name} flag`} className="flag-icon" />
-                                            {country.name}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
+                    
+                    {/* Origin Country Dropdown */}
+                    <div className="dropdowns-group">
+                        <select value={originCountry} onChange={(e) => setOriginCountry(e.target.value)} required>
+                            <option value="">Select Country of Origin</option>
+                            {countries.map((country) => (
+                                <option key={country.iso} value={country.name}>{country.name}</option>
+                            ))}
+                        </select>
                     </div>
 
-                    {/* Preferred Language Dropdown */}
-                    <div className="language-field">
+                    {/* Language Dropdown */}
+                    <div className="dropdowns-group">
                         <select value={language} onChange={(e) => setLanguage(e.target.value)} required>
                             <option value="">Select Preferred Language</option>
                             {languages.map((lang, index) => (
