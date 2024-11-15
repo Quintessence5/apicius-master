@@ -25,7 +25,9 @@
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.16",
     "pg": "^8.13.1",
-    "punycode": "^2.3.1"
+    "punycode": "^2.3.1",
+    "react-select": "^5.8.3",
+    "react-world-flags": "^1.6.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

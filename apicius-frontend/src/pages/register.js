@@ -32,10 +32,11 @@ const Register = () => {
 
     // Regular Email/Password Registration
     const handleRegister = async (e) => {
-        e.preventDefault();  // Fix the event handling issue here
+        e.preventDefault();
         try {
-            await axios.post('http://localhost:5010/api/users/register', { email, password });
-            navigate('/registerForm'); // Redirect to profile form
+            const response = await axios.post('http://localhost:5010/api/users/register', { email, password });
+            const { userId } = response.data;
+            navigate('/registerForm', { state: { userId } }); // Pass userId to the profile form
         } catch (err) {
             setError('Registration failed. Please try again.');
             console.error('Registration error:', err);

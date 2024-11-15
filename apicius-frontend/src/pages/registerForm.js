@@ -1,12 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
+
 import logo from '../assets/images/apicius-icon.png';
 import '../styles/loginSignup.css';
 
 const RegisterForm = () => {
     const navigate = useNavigate();
+    const { state } = useLocation();
+    const userId = state?.userId;
+
     const [username, setUsername] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -17,10 +21,12 @@ const RegisterForm = () => {
     const [phoneCode, setPhoneCode] = useState('');
     const [newsletter, setNewsletter] = useState(false);
     const [termsCondition, setTermsCondition] = useState(false);
-    const [phoneCodes, setPhoneCodes] = useState([]);
+    const [error, setError] = useState(null);
+
     const [countries, setCountries] = useState([]);
     const [languages, setLanguages] = useState([]);
-    const [error, setError] = useState(null);
+    const [phoneCodes, setPhoneCodes] = useState([]);
+    const [showCountryDropdown, setShowCountryDropdown] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -48,6 +54,7 @@ const RegisterForm = () => {
 
         try {
             await axios.post('http://localhost:5010/api/user_profile', {
+                user_id: userId,
                 username,
                 first_name: firstName,
                 last_name: lastName,
@@ -58,11 +65,16 @@ const RegisterForm = () => {
                 newsletter,
                 terms_condition: termsCondition
             });
-            navigate('/dashboard');
+            navigate('/dashboard'); // Redirect to dashboard after completion
         } catch (err) {
             setError('Submission failed. Please try again.');
             console.error('Error submitting form:', err);
         }
+    };
+
+    const handleCountrySelect = (country) => {
+        setOriginCountry(country.name);
+        setShowCountryDropdown(false);
     };
 
     return (
@@ -81,16 +93,31 @@ const RegisterForm = () => {
                     <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                     <input type="date" placeholder="Date of Birth" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} required />
 
+                    {/* Custom Country Dropdown with Flags */}
                     <div className="form-group">
-                        <select value={originCountry} onChange={(e) => setOriginCountry(e.target.value)} required>
-                            <option value="">Select Country of Origin</option>
-                            {countries.map((country) => (
-                                <option key={country.iso} value={country.name}>{country.name}</option>
-                            ))}
-                        </select>
+                        <div className="custom-select" onClick={() => setShowCountryDropdown(!showCountryDropdown)}>
+                            <div className="dropdown-option">
+                                {originCountry ? originCountry : "Select Country of Origin"}
+                            </div>
+                            {showCountryDropdown && (
+                                <div className="options-container">
+                                    {countries.map((country) => (
+                                        <div
+                                            key={country.iso}
+                                            className="countryname-option"
+                                            onClick={() => handleCountrySelect(country)}
+                                        >
+                                            <img src={country.flag} alt={`${country.name} flag`} className="flag-icon" />
+                                            {country.name}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    <div className="form-group">
+                    {/* Preferred Language Dropdown */}
+                    <div className="language-field">
                         <select value={language} onChange={(e) => setLanguage(e.target.value)} required>
                             <option value="">Select Preferred Language</option>
                             {languages.map((lang, index) => (
@@ -99,30 +126,33 @@ const RegisterForm = () => {
                         </select>
                     </div>
 
+                    {/* Phone Code and Number Fields */}
                     <div className="form-group phone-group">
-                      <div className="phone-field">
-                        <select className="phone-code" value={phoneCode} onChange={(e) => setPhoneCode(e.target.value)} required>
-                            <option value="">Code</option>
-                            {phoneCodes.map((code, index) => (
-                            <option key={index} value={code}>{code}</option>
-                            ))}
-                        </select>
-                    <div className="divider"></div> {/* Divider */}
-                    <input className="phone-number" type="tel" placeholder="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-                    </div>
+                        <div className="phone-field">
+                            <select className="phone-code" value={phoneCode} onChange={(e) => setPhoneCode(e.target.value)} required>
+                                <option value="">Phone code</option>
+                                {phoneCodes.map((code, index) => (
+                                    <option key={index} value={code}>{code}</option>
+                                ))}
+                            </select>
+                            <div className="divider"></div> {/* Divider */}
+                            <input className="phone-number" type="tel" placeholder="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                        </div>
                     </div>
 
-
+                    {/* Newsletter Subscription */}
                     <label className="checkbox-label">
                         <input type="checkbox" checked={newsletter} onChange={(e) => setNewsletter(e.target.checked)} />
                         Subscribe to Newsletter
                     </label>
                     
+                    {/* Terms and Conditions */}
                     <label className="checkbox-label">
                         <input type="checkbox" checked={termsCondition} onChange={(e) => setTermsCondition(e.target.checked)} required />
                         Agree to Terms and Conditions
                     </label>
 
+                    {/* Submit Button */}
                     <button type="submit">Submit Profile</button>
                     {error && <p className="error-message">{error}</p>}
                 </form>

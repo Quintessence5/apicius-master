@@ -312,20 +312,33 @@
     position: relative;
 }
 
-/* Style for the select (phone code) field */
 .phone-field .phone-code {
-    width: 20%;
-    border: none;
-    height: 100%;
-    padding: 0 8px;
-    box-sizing: border-box;
+    flex: 1;
+    background-color: #ffffff; /* Add your background color */
+    border: 0px solid #ccc;
+    padding: 8px 10px;
+    width: 100%; /* Adjust width as needed */
+    font-size: 1rem;
+    position: relative;
+    padding-right: 0px; /* Space for the custom arrow */
     appearance: none;
-    text-align: right;
 }
+
+.phone-field .phone-code::after {
+    content: '▼'; /* Custom arrow */
+    font-size: 0.8rem;
+    color: #333;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    }
+
+
 
 /* Style for the input (phone number) field */
 .phone-field .phone-number {
-    width: 80%;
+    width: 70%;
     border: none;
     height: 100%;
     padding: 0 8px;
@@ -341,7 +354,6 @@
     margin: 0 0px; /* Add space on either side if needed */
 }
 
-/* Optional: Add a focus style for the unified field */
 .phone-field:focus-within {
     border-color: #007bff;
 }
@@ -351,18 +363,113 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 0.9rem;
-    color: #555;
+    font-size: 1.1rem;
+    color: #747272;
     margin-bottom: 10px;
+    font-weight: bold;
 }
 
 .checkbox-label input[type="checkbox"] {
     flex: 0 0 10%; /* Set checkbox to take up 10% of the container */
+    width: 19px;
+    height: 19px;
+    color: #666;
     margin: 0; /* Optional: remove default margin */
 }
 
 .checkbox-label span {
     flex: 1; /* Set descriptive text to take up the remaining space */
     text-align: left; /* Optional: align text to the left */
+}
+
+/* Flag Dropdown Styling */
+.custom-select {
+    position: relative;
+    width: 100%;
+}
+
+.dropdown-option {
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    color: #555; /* Color of text */
+    font-size: 16px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Aligns text and dropdown icon */
+    cursor: pointer;
+}
+
+.dropdown-option::after {
+    content: '▼';
+    font-size: 12px;
+    color: #999;
+    margin-left: 8px;
+}
+
+.options-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    z-index: 1;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.countryname-option {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    font-size: 16px;
+    color: #555; /* Country Name color */
+    cursor: pointer;
+}
+
+.countryname-option:hover {
+    background-color: #c6cbcd; 
+}
+
+.flag-icon {
+    width: 20px;
+    height: auto;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+/* Style for the language select field */
+.language-field {
+    position: relative;
+    width: 100%;
+}
+
+.language-field select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    color: #555;
+    font-size: 16px;
+    border-radius: 4px;
+    appearance: none;
+    cursor: pointer;
+    box-sizing: border-box;
+    margin-bottom: 20px;
+}
+
+.language-field::after {
+    content: '▼';
+    font-size: 12px;
+    color: #999;
+    position: absolute;
+    right: 10px;
+    top: 22px;
+    transform: translateY(-50%);
+    pointer-events: none;
 }
 

@@ -56,28 +56,52 @@ exports.googleLogin = async (req, res) => {
 exports.registerUser = async (req, res) => {
     const { email, password } = req.body;
     try {
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Email and password are required' });
-        }
-        if (password.length < 8) {
-            return res.status(400).json({ message: 'Password must be at least 8 characters long' });
-        }
+        if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
+        if (password.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters long' });
 
         const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (existingUser.rows.length > 0) {
-            return res.status(400).json({ message: 'User already exists' });
-        }
+        if (existingUser.rows.length > 0) return res.status(400).json({ message: 'User already exists' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        await pool.query(
+        const userResult = await pool.query(
             'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id',
             [email, hashedPassword]
         );
 
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({ message: 'User registered successfully', userId: userResult.rows[0].id });
     } catch (error) {
         console.error('Error registering user:', error);
         res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Get all countries with details
+exports.getCountries = async (req, res) => {
+    try {
+        // Select `iso` code, `name`, and `flag` from the `country` table
+        const result = await pool.query('SELECT iso, name, flag FROM country');
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error fetching countries:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+
+
+exports.saveUserProfile = async (req, res) => {
+    const { user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition } = req.body;
+    
+    try {
+        await pool.query(
+            `INSERT INTO user_profile (user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition]
+        );
+        res.status(201).json({ message: 'Profile saved successfully' });
+    } catch (error) {
+        console.error('Error saving profile:', error);
+        res.status(500).json({ message: 'Failed to save profile' });
     }
 };
 
