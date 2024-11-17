@@ -1,0 +1,196 @@
+/* -----------------React Date Picker--------------- */
+.datepicker-container {
+    position: relative; /* For positioning the floating label */
+    margin-bottom: -10px; /* Space between form fields */
+    display: block; /* Make it a block-level element */
+    box-sizing: border-box; /* Include padding and border in width calculation */
+}
+  
+  /* Style the input field */
+  .datepicker-container input {
+    display: flex;
+    width: 100%;
+    max-width: 400px; /* Full width of the container */
+    padding: 10px 10px 10px 15px; /* Inner padding for text */
+    font-size: 16px; /* Text size */
+    border: 1px solid #cecece; /* Border for the input */
+    border-radius: 4px; /* Rounded corners */
+    outline: none; /* Removes the default focus outline */
+    transition: border-color 0.2s ease-in-out; /* Smooth focus effect */
+  }
+  
+  .responsive-date-picker-wrapper {
+    width: 100%; /* Make the wrapper take full width */
+}
+
+.responsive-date-picker-wrapper .custom-date-picker {
+    width: 100%; /* Ensure the input inside the wrapper takes full width */
+}
+
+  .custom-date-picker {
+    width: 100%; /* Full width of the container */
+    padding: 10px; /* Inner padding for text */
+    font-size: 16px; /* Text size */
+    border: 1px solid #cecece; /* Border for the input */
+    border-radius: 4px; /* Rounded corners */
+    box-sizing: border-box; /* Ensure padding doesn't exceed width */
+}  
+  
+  /* Placeholder styling */
+  .datepicker-container input::placeholder {
+    color: #aaa; /* Placeholder text color */
+    transition: opacity 0.2s ease-in-out; /* Fade effect */
+  }
+  
+  /* Input focus styling */
+  .datepicker-container input:focus {
+    border-color: #007bff; /* Highlight the border when focused */
+  }
+  
+  /* Hide placeholder when typing */
+  .datepicker-container input:not(:placeholder-shown)::placeholder {
+    opacity: 0; /* Hide placeholder */
+  }
+  
+  /* Style the label */
+  .datepicker-container label {
+    position: absolute;
+    top: 12px; /* Same as input padding */
+    left: 6px; /* Align with input text */
+    margin-left: 12px;
+    font-size: 16px; /* Same as input font size */
+    color: #777; /* Light gray label */
+    pointer-events: none; /* Prevent interaction */
+    transition: all 0.2s ease-in-out; /* Smooth floating transition */
+  }
+  
+  /* Floating effect for label */
+  .datepicker-container input:focus + label,
+  .datepicker-container label.float {
+    top: -8px; /* Float the label above the input */
+    left: 10px;
+    background-color: #ffffff;
+    font-size: 14px; /* Smaller font size for the label */
+    color: #007bff; /* Highlighted label color */
+    padding: 0 8px; /* Add padding to avoid overlap */
+  }
+
+ /* Calendar container */
+ .react-datepicker {
+    font-family: Arial, sans-serif; /* Default font */
+    font-size: 0.8rem; /* Small, readable font size */
+    border: 1px solid #ddd; /* Light gray border */
+    border-radius: 8px; /* Rounded corners */
+    background-color: #fff; /* White background */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Light shadow for depth */
+}
+
+/* Header (month/year navigation) */
+.react-datepicker__header {
+    background-color: #f0f0f0; /* Light gray header */
+    border-bottom: 1px solid #ddd; /* Subtle divider */
+    padding: 0px 0; /* Space around the header content */
+    text-align: center; /* Center-align the month and year */
+    font-weight: bold; /* Make text slightly bolder */
+    padding: 15px 0;
+}
+
+/* -----Dropdown Styles----- */
+.react-datepicker__header__dropdown {
+    margin-top: 15px; /* Adds space between the header and dropdowns */
+}
+
+/* Month and year display */
+.react-datepicker__current-month {
+    font-size: 1rem; /* Standard size for month/year text */
+    color: #777; /* Dark gray for better contrast */
+    margin-top: 40px;
+}
+
+/* Navigation arrows */
+.react-datepicker__navigation {
+    position: absolute; /* Positioned relative to header */
+    top: 10px; /* Vertically align with header */
+    width: 20px; /* Standard size */
+    height: 20px; /* Ensures arrows are square */
+    cursor: pointer; /* Indicate clickability */
+    background: none; /* Removes any background color */
+    border: none; /* No border */
+    z-index: 1; /* Keeps it clickable */
+}
+
+.react-datepicker__navigation:hover {
+    background-color: #0c6318; /* Light blue on hover */
+}
+
+.react-datepicker__navigation--selected {
+    background-color: #12c005; /* Light blue on hover */
+}
+
+/* ----Previous navigation arrow (left)---- */
+.react-datepicker__navigation--previous {
+    left: 10px; /* Positioned on the left */
+    border-right: 6px solid #333; /* Creates the arrow shape */
+    border-top: 6px solid transparent; /* Top part of arrow */
+    border-bottom: 6px solid transparent; /* Bottom part of arrow */
+    margin-top: 5px;
+}
+
+/* ----Next navigation arrow (right)---- */
+.react-datepicker__navigation--next {
+    right: 5px; /* Positioned on the right */
+    border-left: 6px solid #333; /* Creates the arrow shape */
+    border-top: 6px solid transparent; /* Top part of arrow */
+    border-bottom: 6px solid transparent; /* Bottom part of arrow */
+    margin-top: 5px;
+}
+
+/* Day cells */
+.react-datepicker__day {
+    width: 30px; /* Width of day cells */
+    height: 30px; /* Makes cells square */
+    line-height: 30px; /* Centers the text vertically */
+    margin: 1px; /* Spacing between cells */
+    text-align: center; /* Centers the text */
+    border-radius: 6px; /* Slightly rounded for modern look */
+    cursor: pointer; /* Indicates that cells are clickable */
+    color: #555; /* Default text color */
+    
+}
+
+/* ----Style day of week---- */
+.react-datepicker__day-names {
+   margin-top: 5px;
+   margin-bottom: -10px;
+}
+
+/* Selected day */
+.react-datepicker__day--selected {
+    background-color: #007bff; /* Blue background for selection */
+    color: #fff; /* White text for contrast */
+}
+
+/* Hover effect on days */
+.react-datepicker__day:hover {
+    background-color: #e6f7ff; /* Light blue on hover */
+}
+
+/* Today's date */
+.react-datepicker__day--today {
+    font-weight: bold; /* Highlights today */
+    border: 1px solid #007bff; /* Blue border for emphasis */
+}
+
+/* Disabled days */
+.react-datepicker__day--disabled {
+    color: #ccc; /* Gray text for disabled days */
+    cursor: not-allowed; /* Prevent clicking */
+}
+ 
+ /* ----Styling Text of the card---- */
+.react-datepicker h2 {
+    font-size: 1.1rem;
+    color: #555;
+    font-weight: bold;
+    margin-top: 6px !important;
+}

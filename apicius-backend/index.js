@@ -13,7 +13,10 @@ const unitsRoutes = require('./routes/unitsRoutes');
 const countryRoutes = require('./routes/countryRoutes');
 
 // Middleware setup
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:3000', // Replace with your frontend URL
+    credentials: true, // Enable cookies and other credentials
+}));
 app.use(bodyParser.json());
 app.use(express.json()); // Parses JSON request bodies
 

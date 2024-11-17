@@ -15,6 +15,7 @@ function Login() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [message, setMessage] = useState('');
+    
 
     // Google Sign in
     const handleGoogleSignIn = async () => {
@@ -34,7 +35,11 @@ function Login() {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('http://localhost:5010/api/users/login', { email, password });
+            const response = await axios.post(
+                'http://localhost:5010/api/users/login',
+                { email, password },
+                { withCredentials: true } // Include credentials in the request
+            );
             localStorage.setItem('token', response.data.token);
             setMessage('Login successful! Redirecting...');
             navigate('/dashboard');

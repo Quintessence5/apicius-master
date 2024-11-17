@@ -2,9 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
+import ReactDatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+import { HiArrowCircleDown } from 'react-icons/hi';
 
 import logo from '../assets/images/apicius-icon.png';
 import '../styles/loginSignup.css';
+import '../styles/registerForm.css';
+import '../styles/datePicker.css';
 
 const RegisterForm = () => {
     const navigate = useNavigate();
@@ -50,12 +55,12 @@ const RegisterForm = () => {
             setError('You must agree to the terms and conditions.');
             return;
         }
-
+    
         try {
             const extractedPhoneCode = phoneCode.split(' ')[1];
             console.log("Submitting form to: http://localhost:5010/api/users/user_profile");
             await axios.post('http://localhost:5010/api/users/user_profile', {
-                user_id: userId,
+                user_id: userId, // Ensure this is passed correctly
                 username,
                 first_name: firstName,
                 last_name: lastName,
@@ -64,14 +69,14 @@ const RegisterForm = () => {
                 language,
                 phone: `${extractedPhoneCode}${phone}`,
                 newsletter,
-                terms_condition: termsCondition
+                terms_condition: termsCondition,
             });
-            navigate('/dashboard'); // Redirect to dashboard after completion
+            navigate('/dashboard', { state: { userId } }); // Redirect after submission keeping the user id
         } catch (err) {
             setError('Submission failed. Please try again.');
             console.error('Error submitting form:', err);
         }
-    };
+    };      
 
     return (
         <div className="register-page">
@@ -81,45 +86,138 @@ const RegisterForm = () => {
                     <div className="app-title">Apicius</div>
                 </div>
             </header>
+            <div className="header-spacer"></div>
             <div className="register-card">
                 <h2>Complete Your Profile</h2>
                 <form onSubmit={handleSubmit} className="register-form">
-                    <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-                    <input type="text" placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                    <input type="text" placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                    <input type="date" placeholder="Date of Birth" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} required />
+                    
+                <div className="input-container">
+                    <input
+                        type="text"
+                        id="username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                        />
+                    <label htmlFor="username" className={username ? "float" : ""}>
+                        Username
+                    </label>
+                </div>
+
+                <div className="input-container">
+                    <input
+                        type="text"
+                        id="firstName"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                        />
+                    <label htmlFor="firstName" className={firstName ? "float" : ""}>
+                        First Name
+                    </label>
+                </div>
+
+                <div className="input-container">
+                    <input
+                        type="text"
+                        id="lastName"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                        />
+                    <label htmlFor="lastName" className={lastName ? "float" : ""}>
+                    Last Name
+                    </label>
+                </div>
+
+                <div className="datepicker-container">
+                        <ReactDatePicker
+                        selected={birthdate}
+                        onChange={(date) => setBirthdate(date)}
+                        placeholderText=" " // Keeps browser placeholder hidden
+                        className="custom-date-picker"
+                        wrapperClassName="responsive-date-picker-wrapper"
+                        dateFormat="dd/MM/yyyy" // Custom date format
+                        maxDate={new Date()} // Disallow future dates
+                        showMonthDropdown
+                        showYearDropdown
+                        dropdownMode="select"
+                    />
+                        <label htmlFor="birthdate" className={birthdate ? "float" : ""}>
+                        Date of Birth
+                     </label>
+                </div>
                     
                     {/* Origin Country Dropdown */}
-                    <div className="dropdowns-group">
-                        <select value={originCountry} onChange={(e) => setOriginCountry(e.target.value)} required>
-                            <option value="">Select Country of Origin</option>
+                    <div className="origin-country-container">
+                    <div className="custom-select-wrapper">
+                             <select
+                                value={originCountry}
+                                onChange={(e) => setOriginCountry(e.target.value)}
+                                required
+                                className="custom-origin-select"
+                            >
+                            <option value="" disabled></option>
                             {countries.map((country) => (
-                                <option key={country.iso} value={country.name}>{country.name}</option>
+                            <option key={country.iso} value={country.name}>
+                                {country.name}
+                            </option>
                             ))}
-                        </select>
-                    </div>
+                            </select>
+                            <HiArrowCircleDown className="dropdown-icon" />
+                            <label
+                            htmlFor="originCountry"
+                        className={originCountry ? "float" : ""}
+                        >
+                            Country of Origin
+                        </label>
+                        </div>
+                        </div>
 
                     {/* Language Dropdown */}
-                    <div className="dropdowns-group">
-                        <select value={language} onChange={(e) => setLanguage(e.target.value)} required>
-                            <option value="">Select Preferred Language</option>
+                    <div className="origin-country-container">
+                    <div className="custom-select-wrapper">
+                        <select
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        required
+                        className="custom-origin-select"
+                        >
+                            <option value="" disabled></option>
                             {languages.map((lang, index) => (
-                                <option key={index} value={lang}>{lang}</option>
+                            <option key={index} value={lang}>{lang}</option>
                             ))}
                         </select>
+                        <HiArrowCircleDown className="dropdown-icon" />
+                        <label
+                        htmlFor="language"
+                        className={language ? "float" : ""}
+                        >
+                        Preferred Language
+                        </label>
+                    </div>
                     </div>
 
                     {/* Phone Code and Number Fields */}
                     <div className="form-group phone-group">
                         <div className="phone-field">
-                            <select className="phone-code" value={phoneCode} onChange={(e) => setPhoneCode(e.target.value)} required>
+                            <select className="phone-code" id="phoneCode" placeholder=" " value={phoneCode} onChange={(e) => setPhoneCode(e.target.value)} required>
                                 <option value="">Phone code</option>
                                 {phoneCodes.map((code, index) => (
                                     <option key={index} value={code}>{code}</option>
                                 ))}
                             </select>
+                            <label
+                            htmlFor="phoneCode"
+                            className={`phone-code-label ${phoneCode ? "float" : ""}`}
+                            >
+                            Phone Code
+                        </label>
                             <div className="divider"></div> {/* Divider */}
-                            <input className="phone-number" type="tel" placeholder="Phone Number" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                            <input className="phone-number" id="phoneNumber" type="tel" placeholder=" " value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                            <label htmlFor="phoneNumber" className={`phone-number-label ${phone ? "float" : ""}`}>
+                            Phone number
+                            </label>
                         </div>
                     </div>
 

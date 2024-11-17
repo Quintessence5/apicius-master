@@ -7,11 +7,8 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
-                const token = localStorage.getItem('token');
-                if (!token) throw new Error('Token not found');
-
                 const response = await axios.get('http://localhost:5010/api/users/dashboard', {
-                    headers: { Authorization: `Bearer ${token}` },
+                    withCredentials: true, // Include cookies in the request
                 });
                 setMessage(response.data.message);
             } catch (error) {

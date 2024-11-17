@@ -1,0 +1,286 @@
+/* _________________________Register Form__________________________ */
+/* --------------Style the input containers----------------- */
+.input-container {
+    position: relative; /* For positioning the floating label */
+    margin-bottom: 0px; /* Space between form fields */
+    width: 100%; /* Adjust as needed for input width */
+  }
+  
+  /* Style the input field */
+  .input-container input {
+    display: flex;
+    width: 100%; /* Full width of the container */
+    padding: 10px 10px 10px 15px; /* Inner padding for text */
+    font-size: 16px; /* Text size */
+    border: 1px solid #cecece; /* Border for the input */
+    border-radius: 4px; /* Rounded corners */
+    outline: none; /* Removes the default focus outline */
+    transition: border-color 0.2s ease-in-out; /* Smooth focus effect */
+  }
+  
+  
+  /* Placeholder styling */
+  .input-container input::placeholder {
+    color: #aaa; /* Placeholder text color */
+    transition: opacity 0.2s ease-in-out; /* Fade effect */
+  }
+  
+  /* Input focus styling */
+  .input-container input:focus {
+    border-color: #007bff; /* Highlight the border when focused */
+  }
+  
+  /* Hide placeholder when typing */
+  .input-container input:not(:placeholder-shown)::placeholder {
+    opacity: 0; /* Hide placeholder */
+  }
+  
+  /* Style the label */
+  .input-container label {
+    position: absolute;
+    top: 12px; /* Same as input padding */
+    left: 5px; /* Align with input text */
+    margin-left: 12px;
+    font-size: 16px; /* Same as input font size */
+    color: #777; /* Light gray label */
+    pointer-events: none; /* Prevent interaction */
+    transition: all 0.2s ease-in-out; /* Smooth floating transition */
+  }
+  
+  /* Floating effect for label */
+  .input-container input:focus + label,
+  .input-container label.float {
+    top: -8px; /* Float the label above the input */
+    left: 10px;
+    background-color: #ffffff;
+    font-size: 14px; /* Smaller font size for the label */
+    color: #007bff; /* Highlighted label color */
+    padding: 0 8px; /* Add padding to avoid overlap */
+  }
+
+/* ---------------Country and Language Style--------------- */
+/* Placeholder styling (disabled option) */
+.origin-country-container select.custom-origin-select option[value=""] {
+    color: #aaa; /* Placeholder text color */
+}
+
+/* Focus effect for dropdown */
+.origin-country-container select.custom-origin-select:focus {
+    border-color: #007bff; /* Blue border on focus */
+}
+
+/* Floating label specific to origin country */
+.origin-country-container label {
+    position: absolute;
+    top: 21px; /* Same as input padding */
+    left: 5px; /* Align with input text */
+    margin-left: 12px;
+    font-size: 16px; /* Same as input font size */
+    color: #777; /* Light gray label */
+    pointer-events: none; /* Prevent interaction */
+    transition: all 0.2s ease-in-out; /* Smooth floating transition */
+}
+
+/* Floating label effect for origin country */
+.origin-country-container select.custom-origin-select:focus + label,
+.origin-country-container label.float {
+    top: 2px; /* Float the label above */
+    left: 10px; /* Align label with select text */
+    background-color: #fff; /* White background to overlap select */
+    font-size: 14px; /* Smaller font for floating label */
+    color: #007bff; /* Highlighted label color */
+    padding: 0 8px; /* Add padding to avoid overlap */
+}
+    
+    /* Wrapper for the dropdown and the icon */
+.custom-select-wrapper {
+    position: relative; /* For positioning the icon */
+    display: inline-block; /* Inline container for dropdown */
+    width: 100%; /* Ensure the dropdown spans full width */
+}
+
+/* Style the select element */
+.custom-origin-select {
+    width: 100%;
+    padding: 10px 10px 10px 10px; /* Space for the icon */
+    font-size: 16px; /* Adjust text size */
+    border: 1px solid #cecece; /* Border for dropdown */
+    border-radius: 4px; /* Rounded corners */
+    background-color: #fff; /* Background color */
+    color: #333; /* Text color */
+}
+
+
+/* Container for the origin country dropdown */
+.origin-country-container {
+    position: relative; /* For floating label positioning */
+    margin-bottom: 10px; /* Space between form fields */
+    width: 100%; /* Adjust width as needed */
+}
+
+/* Style the dropdown field */
+.origin-country-container select.custom-origin-select {
+    width: 100%; /* Adjust width */
+    padding: 10px 10px 10px 15px; /* Inner padding */
+    font-size: 16px; /* Font size for text */
+    border: 1px solid #cecece; /* Border color */
+    border-radius: 4px; /* Rounded corners */
+    background-color: #fff; /* Background color */
+    appearance: none; /* Remove default dropdown arrow */
+    outline: none; /* Remove default focus outline */
+    transition: border-color 0.2s ease-in-out; /* Smooth focus effect */
+    margin-top: 10px; /* Ensure separation from label */
+}
+
+/* Style the dropdown icon */
+.dropdown-icon {
+    position: absolute; /* Absolute position to place it inside the wrapper */
+    top: 60%; /* Center vertically */
+    right: 20px; /* Position from the right */
+    transform: translateY(-50%); /* Adjust for vertical alignment */
+    font-size: 1.5rem; /* Icon size */
+    color: #777; /* Icon color */
+    pointer-events: none; /* Prevent interaction with the icon */
+}
+
+/* -----------------Phone Form Style-------------------- */
+.phone-group {
+    display: flex;
+    max-height: 42px;
+    width: 100%;
+    margin-bottom: 35px;
+}
+ /* Phone group field */
+.phone-field {
+    display: flex;
+    width: 100%;
+    height: 42px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    overflow: visible;
+    margin-top: 8px;
+}
+
+/* Phone Code Dropdown */
+.phone-field .phone-code {
+    width: 40%;
+    border: none;
+    height: 100%;
+    padding: 0 8px;
+    box-sizing: border-box;
+    color: #777;
+    appearance: none;
+    text-align: left;
+    padding-left: 15px;
+    }
+
+/* Style for the input phone number field */
+.phone-field .phone-number {
+    width: 60%;
+    border: none;
+    height: 100%;
+    padding: 0 8px;
+    box-sizing: border-box;
+    position: relative;
+    padding-left: 15px;
+}
+
+.phone-field .divider {
+    width: 1px; /* Width of the divider */
+    background-color:  #ccc; /* Color of the divider */
+    height: 80%; /* Adjust height as needed */
+    align-self: center; /* Center the divider vertically */
+    margin: 0 0px; /* Add space on either side if needed */
+}
+
+.phone-field:focus-within {
+    border-color: #007bff;
+}
+
+/* Floating effect for phone code label */
+.phone-field .phone-code:focus + label,
+.phone-field label.phone-code-label.float {
+    position: absolute; /* Absolute to control placement */
+    top: -10px; /* Float the label above */
+    left: 14px; /* Align label properly */
+    transform: translateY(0); /* Center vertically */
+    z-index: 0;
+    background-color: #fff; /* White background for label */
+    font-size: 14px; /* Smaller font for floating label */
+    color: #007bff; /* Highlighted label color */
+    padding: 0 4px; /* Add padding to avoid overlap */
+}
+
+/* Default position for phone code label */
+.phone-field label.phone-code-label {
+    position: absolute;
+    top: 50%; /* Center vertically inside the field */
+    left: 10px;
+    transform: translateY(-50%); /* Adjust vertical alignment */
+    font-size: 16px;
+    color: #77777700; /* Default color for unselected label */
+    pointer-events: none; /* Prevent interference with input */
+    transition: all 0.2s ease; /* Smooth transition for floating effect */
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden; /* Hide overflowing text */
+    text-overflow: ellipsis; /* Add ellipsis for overflowing text */
+    font-size: 14px; /* Fixed font size for consistent appearance */
+}
+
+/* Floating effect for phone number label */
+.phone-field .phone-number:focus + label,
+.phone-field label.phone-number-label.float {
+    position: absolute; /* Absolute to control placement */
+    top: -2px; /* Float the label above */
+    left: 170px; /* Align label properly */
+    transform: translateY(-50%); /* Center vertically */
+    background-color: #fff; /* White background for label */
+    font-size: 14px; /* Smaller font for floating label */
+    color: #007bff; /* Highlighted label color (customizable) */
+    padding: 0 8px; /* Add padding to avoid overlap */
+}
+
+
+/* Default position for phone number label */
+.phone-field label.phone-number-label {
+    position: absolute;
+    top: 50%; /* Center vertically inside the field */
+    left: 180px; /* Align with the input field */
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: #777; /* Default color for unselected label */
+    pointer-events: none;
+    transition: all 0.2s ease;
+}
+
+.phone-field .phone-number:valid {
+    padding-left: 15px; /* Adjust left padding for valid input */
+}
+
+
+/* ----------------Checkbox Labels----------------- */
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1rem;
+    color: #747272;
+    margin-bottom: 15px;
+    margin-top: 17px;
+    font-weight: bold;
+}
+
+.checkbox-label input[type="checkbox"] {
+    flex: 0 0 10%; /* Set checkbox to take up 10% of the container */
+    width: 19px;
+    height: 19px;
+    color: #666;
+    margin: 0; 
+}
+
+.checkbox-label span {
+    flex: 1; /* Set descriptive text to take up the remaining space */
+    text-align: left; /* Optional: align text to the left */
+}

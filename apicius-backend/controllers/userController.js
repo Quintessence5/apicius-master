@@ -56,24 +56,34 @@ exports.googleLogin = async (req, res) => {
 exports.registerUser = async (req, res) => {
     const { email, password } = req.body;
     try {
-        if (!email || !password) return res.status(400).json({ message: 'Email and password are required' });
-        if (password.length < 8) return res.status(400).json({ message: 'Password must be at least 8 characters long' });
-
-        const existingUser = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-        if (existingUser.rows.length > 0) return res.status(400).json({ message: 'User already exists' });
+        if (!email || !password) {
+            return res.status(400).json({ message: 'Email and password are required' });
+        }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const userResult = await pool.query(
             'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id',
             [email, hashedPassword]
         );
+        const userId = userResult.rows[0].id;
 
-        res.status(201).json({ message: 'User registered successfully', userId: userResult.rows[0].id });
+        // Generate JWT token with user_id
+        const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        // Send token as a secure cookie
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 3600000,
+        });
+
+        res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
         console.error('Error registering user:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 
 // Get all countries with details
 exports.getCountries = async (req, res) => {
@@ -107,6 +117,7 @@ exports.saveUserProfile = async (req, res) => {
 };
 
 // Login User
+
 exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -122,13 +133,23 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
+        // Generate JWT token with user_id
         const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.status(200).json({ message: 'Login successful', token });
+
+        // Send token as a secure cookie
+        res.cookie('token', token, {
+            httpOnly: true, // Prevent access via JavaScript
+            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+            maxAge: 3600000, // 1 hour
+        });
+
+        res.status(200).json({ message: 'Login successful' });
     } catch (error) {
         console.error('Error logging in:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 
 // Forgot Password
 exports.forgotPassword = async (req, res) => {
@@ -184,3 +205,80 @@ exports.dashboard = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+//Register Form 
+
+exports.updateUserProfile = async (req, res) => {
+    const {
+        user_id,
+        username,
+        first_name,
+        last_name,
+        birthdate,
+        origin_country,
+        language,
+        phone,
+        newsletter,
+        terms_condition,
+    } = req.body;
+
+    try {
+        // Check if a profile already exists for the given user_id
+        const existingProfile = await pool.query(
+            'SELECT * FROM user_profile WHERE user_id = $1',
+            [user_id]
+        );
+
+        if (existingProfile.rows.length > 0) {
+            // Update the existing profile
+            await pool.query(
+                `UPDATE user_profile
+                 SET username = $1,
+                     first_name = $2,
+                     last_name = $3,
+                     birthdate = $4,
+                     origin_country = $5,
+                     language = $6,
+                     phone = $7,
+                     newsletter = $8,
+                     terms_condition = $9
+                 WHERE user_id = $10`,
+                [
+                    username,
+                    first_name,
+                    last_name,
+                    birthdate,
+                    origin_country,
+                    language,
+                    phone,
+                    newsletter,
+                    terms_condition,
+                    user_id,
+                ]
+            );
+            res.status(200).json({ message: 'Profile updated successfully' });
+        } else {
+            // Insert a new profile
+            await pool.query(
+                `INSERT INTO user_profile (user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [
+                    user_id,
+                    username,
+                    first_name,
+                    last_name,
+                    birthdate,
+                    origin_country,
+                    language,
+                    phone,
+                    newsletter,
+                    terms_condition,
+                ]
+            );
+            res.status(201).json({ message: 'Profile created successfully' });
+        }
+    } catch (error) {
+        console.error('Error handling user profile:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};  
