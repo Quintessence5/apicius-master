@@ -9,6 +9,7 @@ import googleLogo from '../assets/images/google-icon.png';
 import appleLogo from '../assets/images/apple-icon.png';
 import facebookLogo from '../assets/images/facebook-icon.png';
 import '../styles/loginSignup.css';
+import '../App.css';
 
 function Login() {
     const navigate = useNavigate();

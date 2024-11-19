@@ -8,6 +8,7 @@ import PrivateRoute from './components/privateRoute';
 import ForgotPassword from './pages/forgotPassword';
 import AddRecipe from './pages/addRecipe';
 import AllRecipes from './pages/allRecipes';
+import Profile from './pages/profilePage';
 
 const App = () => {
     return (
@@ -22,6 +23,14 @@ const App = () => {
                     element={
                         <PrivateRoute>
                             <Dashboard />
+                        </PrivateRoute>
+                    }
+                />
+                <Route
+                    path="/profile"
+                    element={
+                        <PrivateRoute>
+                            <Profile />
                         </PrivateRoute>
                     }
                 />

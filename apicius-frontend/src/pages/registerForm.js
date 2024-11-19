@@ -10,6 +10,7 @@ import logo from '../assets/images/apicius-icon.png';
 import '../styles/loginSignup.css';
 import '../styles/registerForm.css';
 import '../styles/datePicker.css';
+import '../App.css';
 
 const RegisterForm = () => {
     const navigate = useNavigate();
