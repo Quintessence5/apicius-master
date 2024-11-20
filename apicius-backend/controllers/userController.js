@@ -84,38 +84,6 @@ exports.registerUser = async (req, res) => {
     }
 };
 
-
-// Get all countries with details
-exports.getCountries = async (req, res) => {
-    try {
-        // Select `iso` code, `name`, and `flag` from the `country` table
-        const result = await pool.query('SELECT iso, name, flag FROM country');
-        res.status(200).json(result.rows);
-    } catch (error) {
-        console.error('Error fetching countries:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-};
-
-
-
-exports.saveUserProfile = async (req, res) => {
-    const { user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition } = req.body;
-    
-    try {
-        await pool.query(
-            `INSERT INTO user_profile 
-            (first_name, last_name, birthdate, user_id, firebase_uid, photo_url, username, origin_country, language, phone, newsletter, terms_condition)
-            VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6, $7, $8, $9, $10)`,
-            [first_name, last_name, birthdate, user_id, username, origin_country, language, phone, newsletter, terms_condition]
-        );
-        res.status(201).json({ message: 'Profile saved successfully' });
-    } catch (error) {
-        console.error('Error saving profile:', error);
-        res.status(500).json({ message: 'Failed to save profile' });
-    }
-};
-
 // Login User
 
 exports.loginUser = async (req, res) => {
@@ -140,10 +108,12 @@ exports.loginUser = async (req, res) => {
         res.cookie('token', token, {
             httpOnly: true, // Prevent access via JavaScript
             secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+            sameSite: 'strict', // Prevents CSRF attacks
             maxAge: 3600000, // 1 hour
         });
 
-        res.status(200).json({ message: 'Login successful' });
+        res.status(200).json({ message: 'Login successful', token: token
+        });
     } catch (error) {
         console.error('Error logging in:', error);
         res.status(500).json({ message: 'Server error' });
@@ -199,14 +169,61 @@ exports.resetPassword = async (req, res) => {
 // Dashboard - display message to logged-in user
 exports.dashboard = async (req, res) => {
     try {
-        res.status(200).json({ message: "Welcome to your dashboard!" });
+        console.log('Received userId:', req.userId); // Log the received userId
+
+        // Fetch user's profile from the user_profile table
+        const result = await pool.query(
+            'SELECT username FROM user_profile WHERE user_id = $1', 
+            [req.userId]
+        );
+        console.log('Database query result:', result.rows); // Log the query result
+
+        if (!result.rows.length) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Extract the username
+        const username = result.rows[0].username;
+
+        // Respond with a personalized message
+        res.status(200).json({ message: `Welcome back, ${username}!` });
     } catch (error) {
-        console.error('Error accessing dashboard:', error);
+        console.error('Error fetching dashboard data:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
 
+
 //Register Form 
+
+// Get all countries with details
+exports.getCountries = async (req, res) => {
+    try {
+        // Select `iso` code, `name`, and `flag` from the `country` table
+        const result = await pool.query('SELECT iso, name, flag FROM country');
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error fetching countries:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+exports.saveUserProfile = async (req, res) => {
+    const { user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition } = req.body;
+    
+    try {
+        await pool.query(
+            `INSERT INTO user_profile 
+            (first_name, last_name, birthdate, user_id, firebase_uid, photo_url, username, origin_country, language, phone, newsletter, terms_condition)
+            VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6, $7, $8, $9, $10)`,
+            [first_name, last_name, birthdate, user_id, username, origin_country, language, phone, newsletter, terms_condition]
+        );
+        res.status(201).json({ message: 'Profile saved successfully' });
+    } catch (error) {
+        console.error('Error saving profile:', error);
+        res.status(500).json({ message: 'Failed to save profile' });
+    }
+};
 
 exports.updateUserProfile = async (req, res) => {
     const {

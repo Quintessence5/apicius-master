@@ -16,7 +16,10 @@ const countryRoutes = require('./routes/countryRoutes');
 app.use(cors({
     origin: 'http://localhost:3000', // Replace with your frontend URL
     credentials: true, // Enable cookies and other credentials
+    methods: 'GET,POST,PUT,DELETE',
+    allowedHeaders: 'Authorization, Content-Type'
 }));
+
 app.use(bodyParser.json());
 app.use(express.json()); // Parses JSON request bodies
 

@@ -1,36 +1,25 @@
 const jwt = require('jsonwebtoken');
 
-// Middleware to authenticate JWT
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Extract token from "Bearer <token>"
+    console.log('Authorization Header:', req.headers['authorization']); // Log the header
+    console.log('Received Headers:', req.headers); // Log all headers
+    
+    const authHeader = req.headers['authorization']; // Get Authorization header
+    console.log('Authorization Header:', authHeader); // Log the specific Authorization header
 
+    const token = authHeader && authHeader.split(' ')[1]; // Extract the token
+    
+    console.log('Extracted Token:', token); // Log the extracted token
+    
     if (!token) {
-        return res.status(401).json({ message: 'Access denied. Token missing.' });
+        console.error('Token not provided in request');
+        return res.status(401).json({ message: 'Unauthorized: Token is missing' });
     }
-
-    jwt.verify(token, process.env.JWT_SECRET || 'default_secret', (err, user) => {
-        if (err) {
-            return res.status(403).json({ message: 'Invalid or expired token' });
-        }
-        req.user = user; // Attach user to request
-        next(); // Proceed to the next middleware or route handler
-    });
-};
-
-exports.authenticate = (req, res, next) => {
-    const token = req.cookies.token; // Get the token from cookies
-
-    if (!token) {
-        return res.status(403).json({ message: 'No token provided' });
-    }
-
+    
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) {
-            return res.status(401).json({ message: 'Unauthorized' });
-        }
-
+        if (err) return res.status(403).json({ message: 'Forbidden: Invalid token' });
         req.userId = decoded.userId; // Attach user_id to the request object
+        console.log('Decoded userId:', req.userId); // Log the decoded userId
         next();
     });
 };
