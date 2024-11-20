@@ -36,14 +36,13 @@ function Login() {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post(
+            await axios.post(
                 'http://localhost:5010/api/users/login',
                 { email, password },
-                { withCredentials: true } // Include credentials in the request
+                { withCredentials: true } // Include credentials to receive cookies
             );
-            localStorage.setItem('token', response.data.token);
             setMessage('Login successful! Redirecting...');
-            navigate('/dashboard');
+            navigate('/dashboard'); // Redirect to the dashboard
         } catch (error) {
             console.error('Login failed:', error);
             setMessage('Login failed. Please check your credentials.');

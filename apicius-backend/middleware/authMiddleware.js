@@ -1,27 +1,37 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../config/db');
 
-const authenticateToken = (req, res, next) => {
-    console.log('Authorization Header:', req.headers['authorization']); // Log the header
-    console.log('Received Headers:', req.headers); // Log all headers
-    
-    const authHeader = req.headers['authorization']; // Get Authorization header
-    console.log('Authorization Header:', authHeader); // Log the specific Authorization header
+// Helper function to check if a token is revoked
+const checkIfTokenRevoked = async (token) => {
+    const result = await pool.query('SELECT revoked FROM refresh_tokens WHERE token = $1', [token]);
+    return result.rows.length > 0 && result.rows[0].revoked;
+};
 
-    const token = authHeader && authHeader.split(' ')[1]; // Extract the token
-    
-    console.log('Extracted Token:', token); // Log the extracted token
-    
+// Token Authentication Middleware
+const authenticateToken = async (req, res, next) => {
+    const token = req.cookies?.accessToken || req.headers['authorization']?.split(' ')[1];
+
     if (!token) {
-        console.error('Token not provided in request');
         return res.status(401).json({ message: 'Unauthorized: Token is missing' });
     }
-    
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err) return res.status(403).json({ message: 'Forbidden: Invalid token' });
-        req.userId = decoded.userId; // Attach user_id to the request object
-        console.log('Decoded userId:', req.userId); // Log the decoded userId
-        next();
-    });
+
+    try {
+        const isRevoked = await checkIfTokenRevoked(token);
+        if (isRevoked) {
+            return res.status(403).json({ message: 'Forbidden: Token has been revoked' });
+        }
+
+        jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+            if (err) {
+                return res.status(403).json({ message: 'Forbidden: Invalid token' });
+            }
+            req.userId = decoded.userId; // Attach user_id to the request object
+            next();
+        });
+    } catch (error) {
+        console.error('Error in token authentication:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 };
 
 module.exports = authenticateToken;

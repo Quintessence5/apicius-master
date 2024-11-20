@@ -4,7 +4,7 @@ import Register from './pages/register';
 import RegisterForm from './pages/registerForm';
 import Login from './pages/login';
 import Dashboard from './pages/dashboard';
-import PrivateRoute from './components/privateRoute';
+import ProtectedRoute from './components/protectedRoute';
 import ForgotPassword from './pages/forgotPassword';
 import AddRecipe from './pages/addRecipe';
 import AllRecipes from './pages/allRecipes';
@@ -21,40 +21,38 @@ const App = () => {
                 <Route
                     path="/dashboard"
                     element={
-                        <PrivateRoute>
+                        <ProtectedRoute>
                             <Dashboard />
-                        </PrivateRoute>
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/profile"
                     element={
-                        <PrivateRoute>
+                        <ProtectedRoute>
                             <Profile />
-                        </PrivateRoute>
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/add-recipe"
                     element={
-                        <PrivateRoute>
+                        <ProtectedRoute>
                             <AddRecipe />
-                        </PrivateRoute>
+                        </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/all-recipes"
                     element={
-                        <PrivateRoute>
+                        <ProtectedRoute>
                             <AllRecipes />
-                        </PrivateRoute>
+                        </ProtectedRoute>
                     }
                 />
             </Routes>
         </Router>
     );
 };
-
-
 
 export default App;

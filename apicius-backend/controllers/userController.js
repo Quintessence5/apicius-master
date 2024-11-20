@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const admin = require('firebase-admin');
 const serviceAccount = require('../config/apicius05-firebase-adminsdk-w5v1o-505d701e82.json'); // Update the path
@@ -14,9 +15,82 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-});
+// Generate Access Token
+const generateAccessToken = (userId) => {
+    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+};
+
+// Generate Refresh Token with Expiry
+const generateRefreshToken = async (userId) => {
+    // Delete old tokens for the user
+    await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+
+    // Generate a new token
+    const refreshToken = crypto.randomBytes(64).toString('hex'); // Should generate a random string
+    console.log('Generated Refresh Token:', refreshToken);
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    // Store the new token
+    await pool.query(
+        'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+        [userId, refreshToken, expiresAt]
+    );
+    console.log('Generated Refresh Token:', refreshToken);
+    return refreshToken;
+    console.log('Generated Refresh Token:', refreshToken);
+
+};
+
+// Refresh Tokens
+exports.refreshToken = async (req, res) => {
+    try {
+        const refreshToken = req.cookies?.refreshToken;
+
+        if (!refreshToken) {
+            console.log('No Refresh Token in Cookies');
+            return res.status(401).json({ message: 'Refresh token not provided' });
+        }
+
+        console.log('Received Refresh Token:', refreshToken);
+
+        const result = await pool.query(
+            'SELECT * FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()',
+            [refreshToken]
+        );
+        console.log('Token Query Result:', result.rows);
+
+        if (result.rows.length === 0) {
+            return res.status(403).json({ message: 'Invalid or expired refresh token' });
+        }
+
+        const userId = result.rows[0].user_id;
+
+        const newAccessToken = generateAccessToken(userId);
+        const newRefreshToken = await generateRefreshToken(userId); // Await the token
+
+        await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+
+        res.cookie('accessToken', newAccessToken, {
+            httpOnly: true,
+            secure: false,
+            maxAge: 15 * 60 * 1000,
+        });
+
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: false,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        return res.status(200).json({ message: 'Token refreshed successfully' });
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+
 
 // Google Sign-in Logic
 exports.googleLogin = async (req, res) => {
@@ -60,6 +134,11 @@ exports.registerUser = async (req, res) => {
             return res.status(400).json({ message: 'Email and password are required' });
         }
 
+        const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (existingUser.rows.length > 0) {
+            return res.status(409).json({ message: 'User already exists' });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         const userResult = await pool.query(
             'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id',
@@ -67,15 +146,24 @@ exports.registerUser = async (req, res) => {
         );
         const userId = userResult.rows[0].id;
 
-        // Generate JWT token with user_id
-        const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const accessToken = generateAccessToken(userId);
+        const refreshToken = await generateRefreshToken(userId); // Await the token
 
-        // Send token as a secure cookie
-        res.cookie('token', token, {
+        res.cookie('accessToken', accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 3600000,
+            secure: false,
+            maxAge: 15 * 60 * 1000,
+            sameSite: 'lax',
         });
+
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: false,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+            sameSite: 'lax',
+        });
+
+        console.log('Set Refresh Token Cookie:', refreshToken);
 
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
@@ -85,7 +173,6 @@ exports.registerUser = async (req, res) => {
 };
 
 // Login User
-
 exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -101,25 +188,32 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // Generate JWT token with user_id
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const accessToken = generateAccessToken(user.id);
+        const refreshToken = await generateRefreshToken(user.id); // Await the token
 
-        // Send token as a secure cookie
-        res.cookie('token', token, {
-            httpOnly: true, // Prevent access via JavaScript
-            secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-            sameSite: 'strict', // Prevents CSRF attacks
-            maxAge: 3600000, // 1 hour
+        // Set tokens as secure cookies
+        res.cookie('accessToken', accessToken, {
+            httpOnly: true,
+            secure: false, // Set to `true` in production
+            maxAge: 15 * 60 * 1000, // 15 minutes
+            sameSite: 'lax',
         });
 
-        res.status(200).json({ message: 'Login successful', token: token
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: false, // Set to `true` in production
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            sameSite: 'lax',
         });
+
+        console.log('Set Refresh Token Cookie:', refreshToken);
+
+        res.status(200).json({ message: 'Login successful' });
     } catch (error) {
         console.error('Error logging in:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
-
 
 // Forgot Password
 exports.forgotPassword = async (req, res) => {
@@ -166,6 +260,29 @@ exports.resetPassword = async (req, res) => {
     }
 };
 
+// Logout User
+exports.logoutUser = async (req, res) => {
+    try {
+        const refreshToken = req.cookies?.refreshToken;
+
+        if (!refreshToken) {
+            return res.status(400).json({ message: 'Refresh token not provided' });
+        }
+
+        // Remove refresh token from the database
+        await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+
+        // Clear cookies
+        res.clearCookie('accessToken');
+        res.clearCookie('refreshToken');
+
+        res.status(200).json({ message: 'Logged out successfully' });
+    } catch (error) {
+        console.error('Error logging out:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 // Dashboard - display message to logged-in user
 exports.dashboard = async (req, res) => {
     try {
@@ -193,9 +310,35 @@ exports.dashboard = async (req, res) => {
     }
 };
 
+// Profile Page
+const getProfile = async (req, res) => {
+    try {
+        const userId = req.userId; // Assuming `verifyToken` middleware adds `userId`
+        const [rows] = await db.query(
+            "SELECT username, email, createdAt FROM users WHERE id = ?", 
+            [userId]
+        );
+
+        const user = rows[0]; // Extract the first result (or undefined if none)
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Send user profile as a JSON response
+        res.status(200).json({
+            username: user.username,
+            email: user.email,
+            createdAt: user.createdAt,
+        });
+    } catch (error) {
+        console.error('Error fetching profile:', error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 
 //Register Form 
-
 // Get all countries with details
 exports.getCountries = async (req, res) => {
     try {
@@ -290,6 +433,7 @@ exports.updateUserProfile = async (req, res) => {
                     phone,
                     newsletter,
                     terms_condition,
+                    getProfile,
                 ]
             );
             res.status(201).json({ message: 'Profile created successfully' });
@@ -299,3 +443,4 @@ exports.updateUserProfile = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };  
+

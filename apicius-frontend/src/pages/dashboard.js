@@ -17,11 +17,28 @@ const Dashboard = () => {
                 setMessage(response.data.message);
             } catch (error) {
                 console.error('Error fetching dashboard:', error);
-                setMessage('Failed to load dashboard');
+                if (error.response && error.response.status === 401) {
+                    setMessage('Unauthorized: Please log in again.');
+                    navigate('/login'); // Redirect to login if unauthorized
+                } else {
+                    setMessage('Failed to load dashboard');
+                }
             }
         };
+
         fetchDashboard();
-    }, []);
+    }, [navigate]);
+
+    // Logout function
+    const handleLogout = async () => {
+        try {
+            await axios.post('http://localhost:5010/api/users/logout', {}, { withCredentials: true });
+            navigate('/login'); // Redirect to login page
+        } catch (error) {
+            console.error('Error logging out:', error);
+        }
+    };
+    
 
     return (
         <div>
@@ -31,7 +48,7 @@ const Dashboard = () => {
                     <img src={logo} alt="Logo" className="logo" />
                     <div className="app-title">Apicius</div>
                 </div>
-                <button className="header-btn" onClick={() => navigate('/login')}>Logout</button>
+                <button className="header-btn" onClick={handleLogout}>Logout</button>
             </header>
 
             {/* Dashboard Content */}
