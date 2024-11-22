@@ -14,8 +14,9 @@ import '../App.css';
 
 const RegisterForm = () => {
     const navigate = useNavigate();
-    const { state } = useLocation();
-    const userId = state?.userId;
+    useLocation(); // Keep this if you need it for navigation or future features
+    const [userId, setUserId] = useState();
+
 
     const [username, setUsername] = useState('');
     const [firstName, setFirstName] = useState('');
@@ -32,23 +33,57 @@ const RegisterForm = () => {
     const [countries, setCountries] = useState([]);
     const [languages, setLanguages] = useState([]);
     const [phoneCodes, setPhoneCodes] = useState([]);
+
+    const decodeToken = (token) => {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const decodedPayload = JSON.parse(atob(base64));
+            console.log('Decoded Payload:', decodedPayload); // Debug: Log payload
+            return decodedPayload;
+        } catch (error) {
+            console.error('Error decoding token:', error);
+            return null;
+        }
+    };
     
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const countriesResponse = await axios.get('http://localhost:5010/api/country/countries');
-                const languagesResponse = await axios.get('http://localhost:5010/api/country/languages');
-                const phoneCodesResponse = await axios.get('http://localhost:5010/api/country/phonecodes');
-
-                setCountries(countriesResponse.data);
-                setLanguages(languagesResponse.data.map(lang => lang.language));
-                setPhoneCodes(phoneCodesResponse.data);
-            } catch (error) {
-                console.error('Error fetching dropdown data:', error);
+            // Debug cookies
+            const accessToken = document.cookie
+                .split('; ')
+                .find((row) => row.startsWith('accessToken='))
+                ?.split('=')[1];
+        
+            if (accessToken) {
+                const decoded = decodeToken(accessToken);
+                if (decoded?.userId) {
+                    setUserId(decoded.userId);
+                    console.log('UserId set to:', decoded.userId);
+                } else {
+                    console.error('Invalid access token');
+                    navigate('/register');
+                }
+            } else {
+                console.error('No access token found');
+                navigate('/register');
             }
-        };
-        fetchData();
-    }, []);
+        
+            // Fetch countries, languages, and phone codes
+            const fetchData = async () => {
+                try {
+                    const countriesResponse = await axios.get('http://localhost:5010/api/country/countries');
+                    const languagesResponse = await axios.get('http://localhost:5010/api/country/languages');
+                    const phoneCodesResponse = await axios.get('http://localhost:5010/api/country/phonecodes');
+        
+                    setCountries(countriesResponse.data);
+                    setLanguages(languagesResponse.data.map((lang) => lang.language));
+                    setPhoneCodes(phoneCodesResponse.data);
+                } catch (error) {
+                    console.error('Error fetching dropdown data:', error);
+                }
+            };
+            fetchData();
+        }, [navigate]);        
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -58,8 +93,8 @@ const RegisterForm = () => {
         }
     
         try {
-            const extractedPhoneCode = phoneCode.split(' ')[1];
-            console.log("Submitting form to: http://localhost:5010/api/users/user_profile");
+            const extractedPhoneCode = phoneCode ? phoneCode.split(' ')[1] : '';
+            const formattedPhone = phone ? `${extractedPhoneCode}${phone}` : '';
             await axios.post('http://localhost:5010/api/users/user_profile', {
                 user_id: userId, // Ensure this is passed correctly
                 username,
@@ -68,9 +103,10 @@ const RegisterForm = () => {
                 birthdate,
                 origin_country: originCountry,
                 language,
-                phone: `${extractedPhoneCode}${phone}`,
+                phone: formattedPhone,
                 newsletter,
                 terms_condition: termsCondition,
+                withCredentials: true // Ensure cookies are sent with the request
             });
             navigate('/dashboard', { state: { userId } }); // Redirect after submission keeping the user id
         } catch (err) {
@@ -202,7 +238,7 @@ const RegisterForm = () => {
                     {/* Phone Code and Number Fields */}
                     <div className="form-group phone-group">
                         <div className="phone-field">
-                            <select className="phone-code" id="phoneCode" placeholder=" " value={phoneCode} onChange={(e) => setPhoneCode(e.target.value)} required>
+                            <select className="phone-code" id="phoneCode" placeholder=" " value={phoneCode} onChange={(e) => setPhoneCode(e.target.value)} >
                                 <option value="">Phone code</option>
                                 {phoneCodes.map((code, index) => (
                                     <option key={index} value={code}>{code}</option>
@@ -215,7 +251,7 @@ const RegisterForm = () => {
                             Phone Code
                         </label>
                             <div className="divider"></div> {/* Divider */}
-                            <input className="phone-number" id="phoneNumber" type="tel" placeholder=" " value={phone} onChange={(e) => setPhone(e.target.value)} required />
+                            <input className="phone-number" id="phoneNumber" type="tel" placeholder=" " value={phone} onChange={(e) => setPhone(e.target.value)} />
                             <label htmlFor="phoneNumber" className={`phone-number-label ${phone ? "float" : ""}`}>
                             Phone number
                             </label>

@@ -150,22 +150,23 @@ exports.registerUser = async (req, res) => {
         const refreshToken = await generateRefreshToken(userId); // Await the token
 
         res.cookie('accessToken', accessToken, {
-            httpOnly: true,
-            secure: false,
-            maxAge: 15 * 60 * 1000,
-            sameSite: 'lax',
-        });
+            httpOnly: false,  // Allow browser-side JavaScript to access the cookie
+            secure: false,    // Set `true` only if using HTTPS in production
+            maxAge: 5 * 60 * 1000,  // 5 minutes
+            sameSite: 'Lax',  // Adjust as needed for cross-origin scenarios
+        });        
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: false,
-            maxAge: 7 * 24 * 60 * 60 * 1000,
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             sameSite: 'lax',
         });
 
-        console.log('Set Refresh Token Cookie:', refreshToken);
-
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({
+            message: 'User registered successfully',
+            userId, // Include userId in the response
+        });
     } catch (error) {
         console.error('Error registering user:', error);
         res.status(500).json({ message: 'Server error' });
@@ -346,7 +347,6 @@ exports.getCountries = async (req, res) => {
         const result = await pool.query('SELECT iso, name, flag FROM country');
         res.status(200).json(result.rows);
     } catch (error) {
-        console.error('Error fetching countries:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -359,7 +359,7 @@ exports.saveUserProfile = async (req, res) => {
             `INSERT INTO user_profile 
             (first_name, last_name, birthdate, user_id, firebase_uid, photo_url, username, origin_country, language, phone, newsletter, terms_condition)
             VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6, $7, $8, $9, $10)`,
-            [first_name, last_name, birthdate, user_id, username, origin_country, language, phone, newsletter, terms_condition]
+            [first_name, last_name, birthdate, user_id, username, origin_country, language, phone || null, newsletter, terms_condition]
         );
         res.status(201).json({ message: 'Profile saved successfully' });
     } catch (error) {

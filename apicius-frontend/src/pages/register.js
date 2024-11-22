@@ -24,7 +24,7 @@ const Register = () => {
             const user = result.user;
             const userData = { token: await user.getIdToken(), email: user.email };
             await axios.post('http://localhost:5010/api/users/google-login', userData);
-            navigate('/dashboard');
+            navigate('/registerForm');
         } catch (error) {
             console.error('Google Sign-In Error:', error);
             setError('Google Sign-In failed. Please try again.');
@@ -35,9 +35,13 @@ const Register = () => {
     const handleRegister = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post('http://localhost:5010/api/users/register', { email, password });
+            const response = await axios.post(
+                'http://localhost:5010/api/users/register', 
+                { email, password },
+                { withCredentials: true } // Include cookies in the request
+            );
             const { userId } = response.data;
-            navigate('/registerForm', { state: { userId } }); // Pass userId to the profile form
+            navigate('/registerForm', { state: { userId } });
         } catch (err) {
             setError('Registration failed. Please try again.');
             console.error('Registration error:', err);
