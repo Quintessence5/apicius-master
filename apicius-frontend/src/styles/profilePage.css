@@ -1,0 +1,76 @@
+/* Profile Page Styles */
+.profile-page {
+    font-family: Arial, sans-serif;
+    margin-top: 7rem;
+}
+
+.profile-title {
+    font-family: Arial, sans-serif;
+    font-weight: bolder;
+    text-align: center;
+    margin-bottom: -0.5rem;
+    color: #555;
+}
+
+.profile-text {
+    display: flex;
+    flex-direction: column;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    justify-self: center;
+    margin-bottom: 3rem;
+    margin-left: 10rem;
+    margin-right: 10rem;
+    color: #777;
+}
+
+.main-content {
+    text-align: left;
+    margin-top: 2rem;
+}
+
+.profile-cards {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+.profile-card {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    width: 300px;
+    padding: 20px;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profile-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.card-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.card-title {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+
+.card-description {
+    font-size: 14px;
+    color: #666;
+}

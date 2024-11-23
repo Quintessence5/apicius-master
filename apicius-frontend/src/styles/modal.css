@@ -1,0 +1,103 @@
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .modal-container {
+    background: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    padding: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    margin-top: -100px;
+    align-items: right;
+  }
+  
+  .modal-header {
+    display: flex;
+    flex-direction: column; /* Stack items vertically */
+    justify-content: center; /* Center items vertically */
+    align-items: center; /* Center items horizontally */
+    text-align: center; /* Ensure text is centered */
+    margin: 0; /* Remove extra margins */
+    margin-bottom: -5px; /* Add some space below the header */
+}
+
+.modal-icon {
+    display: flex;
+    flex-direction: column; /* Stack items vertically */
+    justify-content: center; /* Center items vertically */
+    align-items: center; /* Center items horizontally */
+    text-align: center; /* Ensure text is centered */
+    font-size: 2.5rem; /* Adjust icon size */
+    margin-top: 20px;
+    margin-bottom: -10px; /* Add space between the icon and header text */
+    color: #555; /* Optional: Set a consistent color for the icon */
+}
+  
+  .modal-text {
+    font-size: 1rem;
+    color: #555;
+    margin-top: 5px;
+    text-align: center;
+    margin-bottom: 50px;
+  }
+
+.modal-save {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    margin-top: 40px;
+    margin-left: 20px;
+    margin-bottom: 20px;
+    cursor: pointer;
+  }
+  
+  .modal-save:hover {
+    background-color: #0056b3;
+  }
+
+  .modal-content form > div {
+    display: grid;
+    grid-template-columns: 160px 1fr; /* Adjust label width */
+    gap: 20px; /* Space between label and input */
+    align-items: center;
+    overflow-y: auto;
+    max-height: 400px;
+    margin-bottom: 10px;
+}
+
+.modal-content form label {
+    display: block;
+    font-size: 16px;
+    margin-right: 1px; /* Space between the label and input field */
+    margin-left: 30px;
+}
+
+.modal-content form input {
+    width: 50%; /* Control input field width */
+    height: 10px;
+    padding: 10px; /* Add padding inside input fields */
+    border: 1px solid #e0e0e0; /* Define border style */
+    border-radius: 4px; /* Rounded corners */
+    font-size: 14px; /* Control font size */
+}

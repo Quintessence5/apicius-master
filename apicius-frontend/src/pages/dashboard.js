@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import apiClient from '../services/apiClient'; // Import the client
+import HamburgerMenu from '../components/hamburgerMenu';
+
+
 import logo from '../assets/images/apicius-icon.png'; // Adjust path as needed
 import '../App.css'; // Assuming you have header styles
 
+// Dashboard Logic
 const Dashboard = () => {
     const [message, setMessage] = useState('');
     const navigate = useNavigate();
@@ -11,15 +16,14 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchDashboard = async () => {
             try {
-                const response = await axios.get('http://localhost:5010/api/users/dashboard', {
-                    withCredentials: true, // Include cookies in the request
-                });
+                // Use apiClient to make a GET request
+                const response = await apiClient.get('/users/dashboard');
                 setMessage(response.data.message);
             } catch (error) {
                 console.error('Error fetching dashboard:', error);
                 if (error.response && error.response.status === 401) {
                     setMessage('Unauthorized: Please log in again.');
-                    navigate('/login'); // Redirect to login if unauthorized
+                    navigate('/login');
                 } else {
                     setMessage('Failed to load dashboard');
                 }
@@ -29,8 +33,8 @@ const Dashboard = () => {
         fetchDashboard();
     }, [navigate]);
 
-    // Logout function
-    const handleLogout = async () => {
+// Logout function
+ const handleLogout = async () => {
         try {
             await axios.post('http://localhost:5010/api/users/logout', {}, { withCredentials: true });
             navigate('/login'); // Redirect to login page
@@ -50,6 +54,8 @@ const Dashboard = () => {
                 </div>
                 <button className="header-btn" onClick={handleLogout}>Logout</button>
             </header>
+
+            <HamburgerMenu/>
 
             {/* Dashboard Content */}
             <div className="main-content">

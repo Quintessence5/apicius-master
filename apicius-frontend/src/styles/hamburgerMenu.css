@@ -1,0 +1,81 @@
+/* Hamburger button */
+
+/* Hb Menu Icon */
+.menu-toggle {
+    display: flex;
+    position: fixed;
+    top: 12px;
+    left: 10px;
+    z-index: 1001; /* Ensure it's above other elements */
+    background: none;
+    border: none;
+    color: chocolate;
+    font-size: 24px;
+    cursor: pointer;
+    align-items: center;
+}
+.menu-toggle::after {
+    content: "";
+    display: block;
+    width: 1px; /* Width of the divider */
+    height: 34px; /* Match icon size */
+    background-color: #ccc; /* Divider color */
+    margin-left: 15px; /* Space between icon and divider */
+}
+
+/* Side menu container */
+.side-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%; /* Full height of the viewport */
+    background-color: #777; /* Dark background for contrast */
+    color: white;
+    width: 0; /* Start with no width */
+    max-width: 100px; /* Limit maximum width */
+    overflow-x: hidden; /* Prevent horizontal scroll */
+    transition: width 0.3s ease, padding 0.3s ease; /* Smooth opening effect */
+    z-index: 999; /* Behind the header but above content */
+    padding: 0; /* No padding initially */
+}
+
+/* When menu is open */
+.side-menu.open {
+    width: 80%; /* Adjust width as needed */
+    max-width: 150px; /* Use the maximum width */
+    padding: 20px; /* Add padding when open */
+}
+
+/* Menu links */
+.menu-links ul {
+    list-style: none;
+    padding: 0;
+    margin-left: 20px;
+    margin-top: 70px;
+    font-weight: bold;
+}
+
+.menu-links li {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.menu-links a {
+    color: white;
+    text-decoration: none;
+    font-size: 18px;
+}
+
+.menu-links a:hover {
+    color: #007bff; /* Highlight on hover */
+}
+
+/* Adjust main content when menu is open */
+.main-content {
+    transition: margin-left 0.8s ease; /* Smooth content shift */
+}
+
+.side-menu.open ~ .main-content {
+    margin-left: 180px; /* Matches the menu's width */
+    max-width: calc(100% - 100px); /* Ensure it adapts */
+}
