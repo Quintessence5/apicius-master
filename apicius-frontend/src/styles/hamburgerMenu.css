@@ -67,7 +67,13 @@
 }
 
 .menu-links a:hover {
-    color: #007bff; /* Highlight on hover */
+    font-size: 120%;
+    color: #6faff3; /* Highlight on hover */
+}
+
+/* Adjust main content when menu is open */
+.main-content {
+    transition: margin-left 0.8s ease; /* Smooth content shift */
 }
 
 /* Adjust main content when menu is open */
@@ -77,5 +83,20 @@
 
 .side-menu.open ~ .main-content {
     margin-left: 180px; /* Matches the menu's width */
+    max-width: calc(100% - 100px); /* Ensure it adapts */
+}
+
+.side-menu.open ~ .profile-title {
+    margin-left: 120px; /* Matches the menu's width */
+    max-width: calc(100% - 100px); /* Ensure it adapts */
+}
+
+.side-menu.open ~ .profile-text {
+    margin-left: 240px; /* Matches the menu's width */
+    max-width: calc(100% - 100px); /* Ensure it adapts */
+}
+
+.side-menu.open ~ .profile-cards {
+    margin-left: 160px; /* Matches the menu's width */
     max-width: calc(100% - 100px); /* Ensure it adapts */
 }

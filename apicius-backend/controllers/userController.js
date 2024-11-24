@@ -22,25 +22,33 @@ const generateAccessToken = (userId) => {
 
 // Generate Refresh Token with Expiry
 const generateRefreshToken = async (userId) => {
-    // Delete old tokens for the user
-    await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+    try {
+        // Remove previous tokens for the user
+        await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
 
-    // Generate a new token
-    const refreshToken = crypto.randomBytes(64).toString('hex'); // Should generate a random string
-    console.log('Generated Refresh Token:', refreshToken);
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7);
+        // Generate a new refresh token
+        const refreshToken = crypto.randomBytes(64).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
 
-    // Store the new token
-    await pool.query(
-        'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-        [userId, refreshToken, expiresAt]
-    );
-    console.log('Generated Refresh Token:', refreshToken);
-    return refreshToken;
-    console.log('Generated Refresh Token:', refreshToken);
+        // Attempt to insert the token into the database
+        await pool.query(
+            'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+            [userId, refreshToken, expiresAt]
+        );
 
+        console.log('Generated and stored new refresh token:', refreshToken);
+        return refreshToken;
+    } catch (error) {
+        if (error.code === '23505') { // Unique constraint violation
+            console.error('Duplicate token error for userId:', userId);
+            throw new Error('Duplicate refresh token detected. Please ensure database state is clean.');
+        }
+        console.error('Error generating refresh token:', error);
+        throw new Error('Could not generate refresh token');
+    }
 };
+
 
 // Refresh Tokens
 exports.refreshToken = async (req, res) => {
@@ -48,41 +56,58 @@ exports.refreshToken = async (req, res) => {
         const refreshToken = req.cookies?.refreshToken;
 
         if (!refreshToken) {
-            console.log('No Refresh Token in Cookies');
+            console.error('Refresh token not provided');
             return res.status(401).json({ message: 'Refresh token not provided' });
         }
 
-        console.log('Received Refresh Token:', refreshToken);
-
         const result = await pool.query(
-            'SELECT * FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()',
+            'SELECT * FROM refresh_tokens WHERE token = $1 AND revoked = false AND expires_at > NOW()',
             [refreshToken]
         );
-        console.log('Token Query Result:', result.rows);
 
         if (result.rows.length === 0) {
+            console.error('Invalid or expired refresh token:', refreshToken);
+
+            // Clear invalid tokens from cookies
+            res.clearCookie('accessToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'Strict',
+            });
+            res.clearCookie('refreshToken', {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'Strict',
+            });
+
             return res.status(403).json({ message: 'Invalid or expired refresh token' });
         }
 
         const userId = result.rows[0].user_id;
 
+        // Generate new tokens
         const newAccessToken = generateAccessToken(userId);
-        const newRefreshToken = await generateRefreshToken(userId); // Await the token
+        const newRefreshToken = await generateRefreshToken(userId);
 
+        // Revoke old token
         await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
 
+        // Set cookies
         res.cookie('accessToken', newAccessToken, {
             httpOnly: true,
-            secure: false,
-            maxAge: 15 * 60 * 1000,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 15 * 60 * 1000, // 15 minutes
         });
 
         res.cookie('refreshToken', newRefreshToken, {
             httpOnly: true,
-            secure: false,
-            maxAge: 7 * 24 * 60 * 60 * 1000,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         });
 
+        console.log('Tokens refreshed successfully for user:', userId);
         return res.status(200).json({ message: 'Token refreshed successfully' });
     } catch (error) {
         console.error('Error refreshing token:', error);
@@ -91,6 +116,26 @@ exports.refreshToken = async (req, res) => {
 };
 
 
+// Check Session Status
+exports.sessionStatus = async (req, res) => {
+    try {
+        const token = req.cookies?.accessToken;
+
+        if (!token) {
+            return res.status(401).json({ message: 'Access token missing' });
+        }
+
+        jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+            if (err) {
+                return res.status(401).json({ message: 'Invalid or expired token' });
+            }
+            res.status(200).json({ message: 'Session active', userId: decoded.userId });
+        });
+    } catch (error) {
+        console.error('Error checking session status:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
 
 // Google Sign-in Logic
 exports.googleLogin = async (req, res) => {
@@ -264,25 +309,27 @@ exports.resetPassword = async (req, res) => {
 // Logout User
 exports.logoutUser = async (req, res) => {
     try {
-        const refreshToken = req.cookies?.refreshToken;
+        console.log('Logout initiated. Cookies:', req.cookies);
 
+        const refreshToken = req.cookies?.refreshToken;
         if (!refreshToken) {
+            console.warn('No refresh token provided for logout.');
             return res.status(400).json({ message: 'Refresh token not provided' });
         }
 
-        // Remove refresh token from the database
-        await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+        await pool.query('UPDATE refresh_tokens SET revoked = true WHERE token = $1', [refreshToken]);
 
-        // Clear cookies
         res.clearCookie('accessToken');
         res.clearCookie('refreshToken');
 
+        console.log('Logout successful. Cookies cleared.');
         res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
-        console.error('Error logging out:', error);
+        console.error('Error during logout:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 
 // Dashboard - display message to logged-in user
 exports.dashboard = async (req, res) => {
@@ -312,31 +359,66 @@ exports.dashboard = async (req, res) => {
 };
 
 // Profile Page
-const getProfile = async (req, res) => {
+// Profile Page
+exports.getProfile = async (req, res) => {
     try {
         const userId = req.userId; // Assuming `verifyToken` middleware adds `userId`
-        const [rows] = await db.query(
-            "SELECT username, email, createdAt FROM users WHERE id = ?", 
-            [userId]
-        );
+        console.log('Fetching profile for userId:', userId);
 
-        const user = rows[0]; // Extract the first result (or undefined if none)
+        // Fetch data from both user_profile and users tables using a JOIN
+        const query = `
+            SELECT 
+                up.username, 
+                up.first_name, 
+                up.last_name, 
+                up.birthdate, 
+                up.origin_country, 
+                up.language, 
+                u.email, 
+                u.password 
+            FROM user_profile AS up
+            INNER JOIN users AS u ON up.user_id = u.id
+            WHERE up.user_id = $1
+        `;
+        const result = await pool.query(query, [userId]);
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        // Log the query result
+        console.log('Query result:', result.rows);
+
+        // Check if any result was returned
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
         }
 
-        // Send user profile as a JSON response
+        // Extract user data
+        const { 
+            username, 
+            first_name, 
+            last_name, 
+            birthdate, 
+            origin_country, 
+            language, 
+            email, 
+            password 
+        } = result.rows[0];
+
+        // Respond with user profile data
         res.status(200).json({
-            username: user.username,
-            email: user.email,
-            createdAt: user.createdAt,
+            username,
+            first_name,
+            last_name,
+            birthdate,
+            origin_country,
+            language,
+            email,
+            password,
         });
     } catch (error) {
         console.error('Error fetching profile:', error);
-        res.status(500).json({ message: "Internal server error" });
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
+
 
 
 //Register Form 
@@ -379,68 +461,78 @@ exports.updateUserProfile = async (req, res) => {
         language,
         phone,
         newsletter,
-        terms_condition,
     } = req.body;
 
-    try {
-        // Check if a profile already exists for the given user_id
-        const existingProfile = await pool.query(
-            'SELECT * FROM user_profile WHERE user_id = $1',
-            [user_id]
-        );
+    console.log("Received Data:", req.body); // Log incoming payload
 
-        if (existingProfile.rows.length > 0) {
-            // Update the existing profile
-            await pool.query(
-                `UPDATE user_profile
-                 SET username = $1,
-                     first_name = $2,
-                     last_name = $3,
-                     birthdate = $4,
-                     origin_country = $5,
-                     language = $6,
-                     phone = $7,
-                     newsletter = $8,
-                     terms_condition = $9
-                 WHERE user_id = $10`,
-                [
-                    username,
-                    first_name,
-                    last_name,
-                    birthdate,
-                    origin_country,
-                    language,
-                    phone,
-                    newsletter,
-                    terms_condition,
-                    user_id,
-                ]
-            );
-            res.status(200).json({ message: 'Profile updated successfully' });
-        } else {
-            // Insert a new profile
-            await pool.query(
-                `INSERT INTO user_profile (user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-                [
-                    user_id,
-                    username,
-                    first_name,
-                    last_name,
-                    birthdate,
-                    origin_country,
-                    language,
-                    phone,
-                    newsletter,
-                    terms_condition,
-                    getProfile,
-                ]
-            );
-            res.status(201).json({ message: 'Profile created successfully' });
-        }
-    } catch (error) {
-        console.error('Error handling user profile:', error);
-        res.status(500).json({ message: 'Server error' });
+    if (!user_id) {
+        console.log("Missing user_id"); // Debug missing user_id
+        return res.status(400).json({ message: "User ID is required" });
     }
-};  
 
+    try {
+        const fieldsToUpdate = [];
+        const values = [];
+        let index = 1;
+
+        if (username) {
+            fieldsToUpdate.push(`username = $${index++}`);
+            values.push(username);
+        }
+        if (first_name) {
+            fieldsToUpdate.push(`first_name = $${index++}`);
+            values.push(first_name);
+        }
+        if (last_name) {
+            fieldsToUpdate.push(`last_name = $${index++}`);
+            values.push(last_name);
+        }
+        if (birthdate) {
+            fieldsToUpdate.push(`birthdate = $${index++}`);
+            values.push(birthdate);
+        }
+        if (origin_country) {
+            fieldsToUpdate.push(`origin_country = $${index++}`);
+            values.push(origin_country);
+        }
+        if (language) {
+            fieldsToUpdate.push(`language = $${index++}`);
+            values.push(language);
+        }
+        if (phone) {
+            fieldsToUpdate.push(`phone = $${index++}`);
+            values.push(phone);
+        }
+        if (newsletter !== undefined) {
+            fieldsToUpdate.push(`newsletter = $${index++}`);
+            values.push(newsletter);
+        }
+
+        if (fieldsToUpdate.length === 0) {
+            console.log("No fields to update"); // Log no fields case
+            return res.status(400).json({ message: "No fields to update" });
+        }
+
+        values.push(user_id);
+
+        const query = `
+            UPDATE user_profile
+            SET ${fieldsToUpdate.join(", ")}
+            WHERE user_id = $${index}
+        `;
+        console.log("Update Query:", query); // Log query
+        console.log("Update Values:", values); // Log values
+
+        const result = await pool.query(query, values);
+
+        console.log("Update Query Result:", result);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "User not found or no changes made" });
+        }
+
+        res.status(200).json({ message: "Profile updated successfully" });
+    } catch (error) {
+        console.error("Error updating user profile:", error);
+        res.status(500).json({ message: "Failed to update profile" });
+    }
+};

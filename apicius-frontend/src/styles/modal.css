@@ -63,10 +63,10 @@
     background-color: #007bff;
     color: white;
     border: none;
-    padding: 8px 12px;
+    padding: 0.6em 0.8em;
     border-radius: 4px;
     font-size: 14px;
-    margin-top: 40px;
+    margin-top: 1.2em;
     margin-left: 20px;
     margin-bottom: 20px;
     cursor: pointer;
@@ -78,12 +78,12 @@
 
   .modal-content form > div {
     display: grid;
-    grid-template-columns: 160px 1fr; /* Adjust label width */
-    gap: 20px; /* Space between label and input */
+    grid-template-columns: 25% 1fr; /* Adjust label width */
+    gap: 2%; /* Space between label and input */
     align-items: center;
     overflow-y: auto;
     max-height: 400px;
-    margin-bottom: 10px;
+    margin-bottom: 1rem;
 }
 
 .modal-content form label {
@@ -94,10 +94,69 @@
 }
 
 .modal-content form input {
-    width: 50%; /* Control input field width */
+    width: 70%; /* Control input field width */
     height: 10px;
     padding: 10px; /* Add padding inside input fields */
     border: 1px solid #e0e0e0; /* Define border style */
     border-radius: 4px; /* Rounded corners */
     font-size: 14px; /* Control font size */
+    margin-right: 25%;
+}
+
+.modal-content form input::placeholder {
+  color: #aaa; /* Grey color for placeholder text */
+}
+
+.modal-content form input:focus::placeholder {
+  color: transparent; /* Hide placeholder on focus */
+}
+
+.modal-content-row {
+  display: grid;
+  grid-template-columns: 25% 1fr; /* 25% for label, remaining for input */
+  gap: 1rem; /* Space between label and input */
+  align-items: center;
+  margin-bottom: 1rem; /* Space between rows */
+}
+
+.modal-country-dropdown {
+  width: 75%;
+  height: 30px;
+  color: #333;
+  padding: 0 0 0 2%;
+  border: 1px solid #e0e0e0; /* Define border style */
+  border-radius: 4px; /* Rounded corners */
+  font-size: 14px; /* Control font size */
+}
+
+.modal-phonez {
+  width: 20%;
+  height: 2rem;
+  color: #333;
+  padding: 0 0 2% 2%;
+  border: 1px solid #e0e0e0; /* Define border style */
+  border-radius: 4px; /* Rounded corners */
+  font-size: 14px; /* Control font size */
+  margin-right: 25%;
+}
+.modal-phonecode {
+  width: 35%;
+  height: 2rem;
+  color: #333;
+  padding: 0 0 0 2%;
+  border: 1px solid #e0e0e0; /* Define border style */
+  border-radius: 4px; /* Rounded corners */
+  font-size: 0.8rem; /* Control font size */
+}
+
+/* Style for the date picker */
+.modal-date-picker {
+  flex: 2;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+  color: #b9b8b8;
+  background-color: #fff;
+  outline: none;
 }

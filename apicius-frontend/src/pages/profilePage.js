@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import apiClient from '../services/apiClient';
 import Modal from "../components/modal";
 import HamburgerMenu from "../components/hamburgerMenu";
 
@@ -8,12 +9,14 @@ import "../App.css";
 import "../styles/profilePage.css";
 import "../styles/modal.css";
 
-
 const ProfilePage = () => {
   const [userProfile, setUserProfile] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
   const [formData, setFormData] = useState({});
-  
+  const [countries, setCountries] = useState([]);
+  const [languages, setLanguages] = useState([]);
+  const [phoneCodes, setPhoneCodes] = useState([]);
+
   const fetchUserProfile = async () => {
     try {
       const response = await axios.get("http://localhost:5010/api/users/profile", {
@@ -26,15 +29,33 @@ const ProfilePage = () => {
   };
 
   useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const [countriesRes, languagesRes, phoneCodesRes] = await Promise.all([
+          axios.get("http://localhost:5010/api/country/countries"),
+          axios.get("http://localhost:5010/api/country/languages"),
+          axios.get("http://localhost:5010/api/country/phonecodes"),
+        ]);
+  
+        setCountries(countriesRes.data);
+        setLanguages(languagesRes.data.map((lang) => lang.language));
+        setPhoneCodes(phoneCodesRes.data);
+      } catch (error) {
+        console.error("Error fetching dropdown data:", error);
+      }
+    };
+  
+    fetchDropdownData();
+
     fetchUserProfile();
   }, []);
 
   const openModal = (modalType) => {
     setActiveModal(modalType);
     if (modalType === "profile" || modalType === "preferences") {
-      setFormData(userProfile || {}); // Pre-fill form with existing user data
+      setFormData(userProfile || {}); // Pre-fill form with user data
     }
-  };
+  };  
 
   const getModalContent = () => {
     switch (activeModal) {
@@ -79,38 +100,34 @@ const ProfilePage = () => {
 
   const saveChanges = async () => {
     try {
-      let endpoint;
-      switch (activeModal) {
-        case "security":
-          endpoint = "http://localhost:5010/api/users/security";
-          break;
-        case "profile":
-          endpoint = "http://localhost:5010/api/users/profile";
-          break;
-        case "preferences":
-          endpoint = "http://localhost:5010/api/users/preferences";
-          break;
-        default:
-          return;
+      const updatedData = { ...formData };
+      if (formData.phone_code && formData.phone_number) {
+        updatedData.phone = `${formData.phone_code}${formData.phone_number}`;
       }
-      await axios.put(endpoint, formData, { withCredentials: true });
+  
+      await axios.put("http://localhost:5010/api/users/profile", updatedData, {
+        withCredentials: true,
+      });
+  
       alert("Changes saved successfully!");
-      fetchUserProfile(); // Refresh user data
+      fetchUserProfile(); // Refresh data
       closeModal();
     } catch (error) {
       console.error("Error saving changes:", error);
       alert("Failed to save changes.");
     }
   };
-
+  
   const handleLogout = async () => {
     try {
-      await axios.post("http://localhost:5010/api/users/logout", {}, { withCredentials: true });
-      window.location.href = "/login";
+        await apiClient.post('/users/logout');
+        clearInterval(window.refreshInterval); // Clear the refresh interval
+        window.localStorage.clear(); // Clear storage if used
+        window.location.href = '/login';
     } catch (error) {
-      console.error("Error logging out:", error);
+        console.error('Error logging out:', error);
     }
-  };
+};
 
   return (
     <div className="profile-page">
@@ -196,87 +213,127 @@ const ProfilePage = () => {
           </form>
         )}
 
-        {activeModal === "profile" && (
-          <form onSubmit={(e) => e.preventDefault()}>
-            <div>
-              <label>Username</label>
-              <input
-                type="text"
-                name="Username"
-                value={formData.username || ""}
-                onChange={handleInputChange}
-              />
-            </div>
+          {activeModal === "profile" && (
+            <form onSubmit={(e) => e.preventDefault()}>
+              {/* Username */}
+              <div>
+                <label>Username</label>
+                <input
+                  type="text"
+                  name="username"
+                  placeholder={formData.username || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+          
+              {/* First Name */}
+              <div>
+                <label>First Name</label>
+                <input
+                  type="text"
+                  name="first_name"
+                  placeholder={formData.first_name || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+          
+              {/* Last Name */}
+              <div>
+                <label>Last Name</label>
+                <input
+                  type="text"
+                  name="last_name"
+                  placeholder={formData.last_name || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
 
-            <div>
-              <label>Bio</label>
-              <input
-                type="text"
-                name="bio"
-                value={formData.bio || ""}
-                onChange={handleInputChange}
-              />
-            </div>
+               {/* Birthday */}
+               <div>
+                <label>Birth Date</label>
+                <input
+                  type="date"
+                  name="birthdate"
+                  className="modal-date-picker"
+                  placeholder={formData.birthdate || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+          
+               {/* Origin Country Dropdown */}
+              <div className="modal-content">
+                <label className="modal-label">Country</label>
+                <select
+                  name="origin_country"
+                  className="modal-country-dropdown"
+                  value={formData.origin_country || ""}
+                  onChange={handleInputChange}
+                >
+                  <option value="" disabled>Select your country</option>
+                  {countries.map((country) => (
+                    <option key={country.iso} value={country.name}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <label>First Name</label>
-              <input
-                type="text"
-                name="first_name"
-                value={formData.first_name || ""}
-                onChange={handleInputChange}
-              />
-            </div>
+              {/* Language Dropdown */}
+              <div className="modal-content-row">
+                <label className="modal-label">Language</label>
+                <select
+                  name="language"
+                  className="modal-country-dropdown"
+                  value={formData.language || ""}
+                  onChange={handleInputChange}
+                >
+                  <option value="" disabled>Select your language</option>
+                  {languages.map((lang, index) => (
+                    <option key={index} value={lang}>{lang}</option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <label>Last Name</label>
-              <input
-                type="text"
-                name="last_name"
-                value={formData.last_name || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            
-            <div>
-              <label>Origin Country</label>
-              <input
-                type="tel"
-                name="origin_country"
-                value={formData.origin_country || ""}
-                onChange={handleInputChange}
-              />
-            </div>
+              {/* Phone Field with Code Dropdown */}
+              <div>
+                <label>Phone</label>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                  <select
+                    name="phone_code"
+                    className="modal-phonecode"
+                    value={formData.phone_code || ""}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Code</option>
+                    {phoneCodes.map((code, index) => (
+                      <option key={index} value={code}>
+                        {code}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    name="phone_number"
+                    className="modal-phonez"
+                    value={formData.phone_number || ""}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
 
-            <div>
-              <label>Language</label>
-              <input
-                type="text"
-                name="language"
-                value={formData.language || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div>
-              <label>Phone</label>
-              <input
-                type="tel"
-                name="phone_number"
-                value={formData.phone || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div>
-              <label>Newsletter</label>
-              <input
-                type="text"
-                name="newsletter"
-                value={formData.newsletter || ""}
-                onChange={handleInputChange}
-              />
-            </div>
+                <div>
+                    <label>Newsletter</label>
+                    <select
+                        name="newsletter"
+                        className="modal-country-dropdown"
+                        value={formData.newsletter || ""}
+                        onChange={handleInputChange}
+                    >
+                        <option value="" disabled>Subscribe to our awesome Newsletter ?</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
           </form>
         )}
 

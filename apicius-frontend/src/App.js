@@ -12,24 +12,39 @@ import Profile from './pages/profilePage';
 import apiClient from './services/apiClient';
 
 const App = () => {
-    
-    // Api Calls when 401
-    useEffect(() => {
-        const refreshTokens = async () => {
-            try {
-                console.log('Refreshing tokens on app load...');
-                await apiClient.post('/users/refresh-token'); // Trigger refresh token endpoint
-            } catch (error) {
-                console.error('Error refreshing tokens on app load:', error);
-                // Redirect to login if refresh fails
-                if (error.response && error.response.status === 401) {
-                    window.location.href = '/login';
+    // Helper to calculate time remaining for token expiry
+    const getTokenExpiryTime = () => {
+        const token = document.cookie.split('; ').find((row) => row.startsWith('accessToken='));
+        if (!token) return 0;
+
+        try {
+            const payload = JSON.parse(atob(token.split('=')[1].split('.')[1])); // Decode JWT payload
+            return payload.exp * 1000 - Date.now();
+        } catch (error) {
+            console.error('Error decoding token:', error);
+            return 0;
+        }
+    };
+
+    // Schedule proactive token refresh
+    const scheduleTokenRefresh = () => {
+        const interval = setInterval(async () => {
+            const timeRemaining = getTokenExpiryTime();
+            if (timeRemaining > 0 && timeRemaining < 5 * 60 * 1000) { // Refresh when < 5 minutes remain
+                try {
+                    console.log('Refreshing tokens...');
+                    await apiClient.post('/users/refresh-token');
+                    console.log('Tokens refreshed successfully.');
+                } catch (error) {
+                    console.error('Error refreshing tokens:', error);
+                    clearInterval(interval); // Stop retries on failure
+                    window.location.href = '/login'; // Redirect to login
                 }
             }
-        };
+        }, 4 * 60 * 1000); // Check every 4 minutes
 
-        refreshTokens();
-    }, []);
+        return () => clearInterval(interval); // Cleanup on unmount
+    };
 
     return (
         <Router>
