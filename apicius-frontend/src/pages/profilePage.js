@@ -22,12 +22,28 @@ const ProfilePage = () => {
       const response = await axios.get("http://localhost:5010/api/users/profile", {
         withCredentials: true,
       });
+  
       console.log("Fetched user profile data structure:", response.data);
+  
+      // Extract phone code and number separately
+      const phoneData = response.data.phone || ""; // Default empty if not provided
+      const phoneCode = phoneData.match(/^\+?\d+/)?.[0] || ""; // Extract code part
+      const phoneNumber = phoneData.replace(phoneCode, "").trim(); // Extract number part
+  
       setUserProfile(response.data);
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        email: response.data.email || "",
+        phone_number: phoneNumber, // Phone number
+        newsletter: response.data.newsletter_preferences ? "Yes" : "No", // Map boolean to Yes/No
+        origin_country: response.data.country_of_origin || "",
+      }));
     } catch (error) {
       console.error("Error fetching user profile:", error);
     }
   };
+  
+  
   
   useEffect(() => {
     const fetchDropdownData = async () => {
@@ -110,15 +126,26 @@ const ProfilePage = () => {
     }));
   };
   
-
   const saveChanges = async () => {
     try {
       console.log("Form data before saving:", formData); // Debugging
   
+      // Create a copy of formData to work with
       const updatedData = { ...formData };
   
+      // Combine phone code and number, but exclude the country name
       if (formData.phone_code && formData.phone_number) {
-        updatedData.phone = `${formData.phone_code}${formData.phone_number}`;
+        // Extract only the numeric phone code part, excluding the country name
+        const extractedPhoneCode = formData.phone_code.match(/\+\d+/)?.[0] || "";
+        updatedData.phone = `${extractedPhoneCode}${formData.phone_number}`.trim(); // Combine properly
+      }
+  
+      // Validate password fields
+      if (formData.newPassword && formData.confirmNewPassword) {
+        if (formData.newPassword !== formData.confirmNewPassword) {
+          alert("Passwords do not match. Please try again.");
+          return;
+        }
       }
   
       // Check if user_id exists before proceeding
@@ -128,6 +155,9 @@ const ProfilePage = () => {
         return;
       }
   
+      console.log("Payload to save:", updatedData); // Debugging before API call
+  
+      // Send the updated data to the backend
       await axios.put("http://localhost:5010/api/users/profile", updatedData, {
         withCredentials: true,
       });
@@ -220,16 +250,27 @@ const ProfilePage = () => {
               <input
                 type="email"
                 name="email"
-                value={formData.email || ""}
+                placeholder={formData.email || ""}
                 onChange={handleInputChange}
               />
             </div>
             <div>
-              <label>Password</label>
+              <label>New Password</label>
               <input
                 type="password"
-                name="password"
-                value={formData.password || ""}
+                name="newPassword"
+                placeholder="Enter your New Password"
+                value={formData.newPassword || ""}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <label>Confirm Password</label>
+              <input
+                type="password"
+                name="confirmNewPassword"
+                placeholder="Confirm your New Password"
+                value={formData.confirmNewPassword || ""}
                 onChange={handleInputChange}
               />
             </div>
@@ -238,6 +279,17 @@ const ProfilePage = () => {
 
           {activeModal === "profile" && (
             <form onSubmit={(e) => e.preventDefault()}>
+              {/* Bio */}
+              <div>
+                <label>Bio</label>
+                <input
+                  type="text"
+                  name="bio"
+                  placeholder={formData.bio || ""}
+                  onChange={handleInputChange}
+                />
+              </div>
+              
               {/* Username */}
               <div>
                 <label>Username</label>
@@ -270,18 +322,6 @@ const ProfilePage = () => {
                   onChange={handleInputChange}
                 />
               </div>
-
-               {/* Birthday */}
-               <div>
-                <label>Birth Date</label>
-                <input
-                  type="date"
-                  name="birthdate"
-                  className="modal-date-picker"
-                  placeholder={formData.birthdate || ""}
-                  onChange={handleInputChange}
-                />
-              </div>
           
                {/* Origin Country Dropdown */}
               <div className="modal-content">
@@ -291,7 +331,9 @@ const ProfilePage = () => {
                   className="modal-country-dropdown"
                   value={formData.origin_country || ""}
                   onChange={handleInputChange}
-                >
+                  style={{
+                    color: formData.origin_country ? "#999" : "#000000",
+                  }}>
                   <option value="" disabled>Select your country</option>
                   {countries.map((country) => (
                     <option key={country.iso} value={country.name}>
@@ -309,7 +351,9 @@ const ProfilePage = () => {
                   className="modal-country-dropdown"
                   value={formData.language || ""}
                   onChange={handleInputChange}
-                >
+                  style={{
+                    color: formData.origin_country ? "#999" : "#000000",
+                  }}>
                   <option value="" disabled>Select your language</option>
                   {languages.map((lang, index) => (
                     <option key={index} value={lang}>{lang}</option>
@@ -327,7 +371,7 @@ const ProfilePage = () => {
                     value={formData.phone_code || ""}
                     onChange={handleInputChange}
                   >
-                    <option value="">Code</option>
+                    <option value="">PhoneCode</option>
                     {phoneCodes.map((code, index) => (
                       <option key={index} value={code}>
                         {code}
@@ -338,6 +382,7 @@ const ProfilePage = () => {
                     type="tel"
                     name="phone_number"
                     className="modal-phonez"
+                    placeholder="Enter your phone number"
                     value={formData.phone_number || ""}
                     onChange={handleInputChange}
                   />
@@ -351,7 +396,9 @@ const ProfilePage = () => {
                         className="modal-country-dropdown"
                         value={formData.newsletter || ""}
                         onChange={handleInputChange}
-                    >
+                        style={{
+                          color: formData.origin_country ? "#999" : "#000000",
+                        }}>
                         <option value="" disabled>Subscribe to our awesome Newsletter ?</option>
                         <option value="Yes">Yes</option>
                         <option value="No">No</option>
@@ -363,7 +410,25 @@ const ProfilePage = () => {
         {activeModal === "preferences" && (
           <form onSubmit={(e) => e.preventDefault()}>
             <div>
-              <label>Dietary Preferences</label>
+              <label>Allergies</label>
+              <input
+                type="text"
+                name="preferences"
+                value={formData.preferences || ""}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <label>Intolerance</label>
+              <input
+                type="text"
+                name="preferences"
+                value={formData.preferences || ""}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div>
+              <label>Diets</label>
               <input
                 type="text"
                 name="preferences"

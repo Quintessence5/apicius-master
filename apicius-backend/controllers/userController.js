@@ -358,7 +358,8 @@ exports.getProfile = async (req, res) => {
                 up.last_name, 
                 up.birthdate, 
                 up.origin_country, 
-                up.language, 
+                up.language,
+                up.bio,
                 u.email, 
                 u.password 
             FROM user_profile AS up
@@ -382,7 +383,8 @@ exports.getProfile = async (req, res) => {
             last_name, 
             birthdate, 
             origin_country, 
-            language, 
+            language,
+            bio, 
             email, 
             password,
             user_Id 
@@ -396,6 +398,7 @@ exports.getProfile = async (req, res) => {
             birthdate,
             origin_country,
             language,
+            bio,
             email,
             password,
             user_id: userId,
@@ -419,14 +422,14 @@ exports.getCountries = async (req, res) => {
 };
 
 exports.saveUserProfile = async (req, res) => {
-    const { user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition } = req.body;
+    const { user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition, bio } = req.body;
     
     try {
         await pool.query(
             `INSERT INTO user_profile 
-            (first_name, last_name, birthdate, user_id, firebase_uid, photo_url, username, origin_country, language, phone, newsletter, terms_condition)
-            VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6, $7, $8, $9, $10)`,
-            [first_name, last_name, birthdate, user_id, username, origin_country, language, phone || null, newsletter, terms_condition]
+            (first_name, last_name, birthdate, user_id, firebase_uid, photo_url, username, origin_country, language, phone, newsletter, terms_condition, bio )
+            VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6, $7, $8, $9, $10, $11)`,
+            [first_name, last_name, birthdate, user_id, username, origin_country, language, phone || null, newsletter, terms_condition, bio ]
         );
         res.status(201).json({ message: 'Profile saved successfully' });
     } catch (error) {
@@ -446,76 +449,119 @@ exports.updateUserProfile = async (req, res) => {
         language,
         phone,
         newsletter,
+        email,
+        newPassword,
+        bio,
     } = req.body;
 
     console.log("Received Data:", req.body); // Log incoming payload
 
+    // Ensure `user_id` is provided
     if (!user_id) {
         console.log("Missing user_id"); // Debug missing user_id
         return res.status(400).json({ message: "User ID is required" });
     }
 
     try {
-        const fieldsToUpdate = [];
-        const values = [];
-        let index = 1;
+        // 1. Update `user_profile` table
+        const profileFieldsToUpdate = [];
+        const profileValues = [];
+        let profileIndex = 1;
 
+        if (bio) {
+            profileFieldsToUpdate.push(`bio = $${profileIndex++}`);
+            profileValues.push(bio);
+        }
         if (username) {
-            fieldsToUpdate.push(`username = $${index++}`);
-            values.push(username);
+            profileFieldsToUpdate.push(`username = $${profileIndex++}`);
+            profileValues.push(username);
         }
         if (first_name) {
-            fieldsToUpdate.push(`first_name = $${index++}`);
-            values.push(first_name);
+            profileFieldsToUpdate.push(`first_name = $${profileIndex++}`);
+            profileValues.push(first_name);
         }
         if (last_name) {
-            fieldsToUpdate.push(`last_name = $${index++}`);
-            values.push(last_name);
+            profileFieldsToUpdate.push(`last_name = $${profileIndex++}`);
+            profileValues.push(last_name);
         }
         if (birthdate) {
-            fieldsToUpdate.push(`birthdate = $${index++}`);
-            values.push(birthdate);
+            profileFieldsToUpdate.push(`birthdate = $${profileIndex++}`);
+            profileValues.push(birthdate);
         }
         if (origin_country) {
-            fieldsToUpdate.push(`origin_country = $${index++}`);
-            values.push(origin_country);
+            profileFieldsToUpdate.push(`origin_country = $${profileIndex++}`);
+            profileValues.push(origin_country);
         }
         if (language) {
-            fieldsToUpdate.push(`language = $${index++}`);
-            values.push(language);
+            profileFieldsToUpdate.push(`language = $${profileIndex++}`);
+            profileValues.push(language);
         }
         if (phone) {
-            fieldsToUpdate.push(`phone = $${index++}`);
-            values.push(phone);
+            profileFieldsToUpdate.push(`phone = $${profileIndex++}`);
+            profileValues.push(phone);
         }
         if (newsletter !== undefined) {
-            fieldsToUpdate.push(`newsletter = $${index++}`);
-            values.push(newsletter);
+            profileFieldsToUpdate.push(`newsletter = $${profileIndex++}`);
+            profileValues.push(newsletter);
         }
 
-        if (fieldsToUpdate.length === 0) {
-            console.log("No fields to update"); // Log no fields case
-            return res.status(400).json({ message: "No fields to update" });
+        if (profileFieldsToUpdate.length > 0) {
+            profileValues.push(user_id);
+            const profileQuery = `
+                UPDATE user_profile
+                SET ${profileFieldsToUpdate.join(", ")}
+                WHERE user_id = $${profileIndex}
+            `;
+            console.log("Profile Update Query:", profileQuery);
+            console.log("Profile Update Values:", profileValues);
+
+            const profileResult = await pool.query(profileQuery, profileValues);
+            console.log("Profile Update Result:", profileResult);
         }
 
-        values.push(user_id);
+        // 2. Update `users` table (email and password)
+        const userFieldsToUpdate = [];
+        const userValues = [];
+        let userIndex = 1;
 
-        const query = `
-            UPDATE user_profile
-            SET ${fieldsToUpdate.join(", ")}
-            WHERE user_id = $${index}
-        `;
-        console.log("Update Query:", query); // Log query
-        console.log("Update Values:", values); // Log values
-
-        const result = await pool.query(query, values);
-
-        console.log("Update Query Result:", result);
-        if (result.rowCount === 0) {
-            return res.status(404).json({ message: "User not found or no changes made" });
+        if (email) {
+            userFieldsToUpdate.push(`email = $${userIndex++}`);
+            userValues.push(email);
         }
 
-        res.status(200).json({ message: "Profile updated successfully" });
+        if (newPassword) {
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            userFieldsToUpdate.push(`password = $${userIndex++}`);
+            userValues.push(hashedPassword);
+        }
+
+        if (userFieldsToUpdate.length > 0) {
+            userValues.push(user_id);
+            const userQuery = `
+                UPDATE users
+                SET ${userFieldsToUpdate.join(", ")}
+                WHERE id = $${userIndex}
+            `;
+            console.log("User Update Query:", userQuery);
+            console.log("User Update Values:", userValues);
+
+            const userResult = await pool.query(userQuery, userValues);
+            console.log("User Update Result:", userResult);
+
+            // Handle case where no user rows were updated
+            if (userResult.rowCount === 0) {
+                console.log("No changes made to users table");
+                return res.status(404).json({ message: "User not found or no changes made" });
+            }
+        }
+
+        // 3. Respond with success if any updates were made
+        if (profileFieldsToUpdate.length > 0 || userFieldsToUpdate.length > 0) {
+            return res.status(200).json({ message: "Profile updated successfully" });
+        }
+
+        console.log("No fields to update"); // Log no fields case
+        res.status(400).json({ message: "No fields to update" });
     } catch (error) {
         console.error("Error updating user profile:", error);
         res.status(500).json({ message: "Failed to update profile" });

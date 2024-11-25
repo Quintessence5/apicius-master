@@ -23,9 +23,10 @@
   .modal-close {
     background: none;
     border: none;
-    font-size: 24px;
+    font-size: 2rem;
     cursor: pointer;
-    margin-top: -100px;
+    margin-top: -1%;
+    margin-left: 1%;
     align-items: right;
   }
   
@@ -35,8 +36,7 @@
     justify-content: center; /* Center items vertically */
     align-items: center; /* Center items horizontally */
     text-align: center; /* Ensure text is centered */
-    margin: 0; /* Remove extra margins */
-    margin-bottom: -5px; /* Add some space below the header */
+    color: #555;
 }
 
 .modal-icon {
@@ -46,28 +46,29 @@
     align-items: center; /* Center items horizontally */
     text-align: center; /* Ensure text is centered */
     font-size: 2.5rem; /* Adjust icon size */
-    margin-top: 20px;
-    margin-bottom: -10px; /* Add space between the icon and header text */
+    margin-top: -1%;
+    margin-bottom: -1%; /* Add space between the icon and header text */
     color: #555; /* Optional: Set a consistent color for the icon */
 }
   
   .modal-text {
     font-size: 1rem;
-    color: #555;
-    margin-top: 5px;
+    color: #777;
+    margin-top: -1%;
     text-align: center;
-    margin-bottom: 50px;
+    margin-bottom: 7%;
   }
 
 .modal-save {
     background-color: #007bff;
     color: white;
+    font-weight: bold;
     border: none;
     padding: 0.6em 0.8em;
     border-radius: 4px;
-    font-size: 14px;
+    font-size: 1rem;
     margin-top: 1.2em;
-    margin-left: 20px;
+    margin-left: 1.6rem;
     margin-bottom: 20px;
     cursor: pointer;
   }
@@ -88,7 +89,7 @@
 
 .modal-content form label {
     display: block;
-    font-size: 16px;
+    font-size: 0.9rem;
     margin-right: 1px; /* Space between the label and input field */
     margin-left: 30px;
 }
@@ -96,7 +97,7 @@
 .modal-content form input {
     width: 70%; /* Control input field width */
     height: 10px;
-    padding: 10px; /* Add padding inside input fields */
+    padding: 2.5%; /* Add padding inside input fields */
     border: 1px solid #e0e0e0; /* Define border style */
     border-radius: 4px; /* Rounded corners */
     font-size: 14px; /* Control font size */
@@ -142,7 +143,7 @@
 .modal-phonecode {
   width: 35%;
   height: 2rem;
-  color: #333;
+  color: #888;
   padding: 0 0 0 2%;
   border: 1px solid #e0e0e0; /* Define border style */
   border-radius: 4px; /* Rounded corners */
