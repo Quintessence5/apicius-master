@@ -67,19 +67,6 @@ exports.refreshToken = async (req, res) => {
 
         if (result.rows.length === 0) {
             console.error('Invalid or expired refresh token:', refreshToken);
-
-            // Clear invalid tokens from cookies
-            res.clearCookie('accessToken', {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'Strict',
-            });
-            res.clearCookie('refreshToken', {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'Strict',
-            });
-
             return res.status(403).json({ message: 'Invalid or expired refresh token' });
         }
 
@@ -114,7 +101,6 @@ exports.refreshToken = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
-
 
 // Check Session Status
 exports.sessionStatus = async (req, res) => {
@@ -359,7 +345,6 @@ exports.dashboard = async (req, res) => {
 };
 
 // Profile Page
-// Profile Page
 exports.getProfile = async (req, res) => {
     try {
         const userId = req.userId; // Assuming `verifyToken` middleware adds `userId`
@@ -399,7 +384,8 @@ exports.getProfile = async (req, res) => {
             origin_country, 
             language, 
             email, 
-            password 
+            password,
+            user_Id 
         } = result.rows[0];
 
         // Respond with user profile data
@@ -412,14 +398,13 @@ exports.getProfile = async (req, res) => {
             language,
             email,
             password,
+            user_id: userId,
         });
     } catch (error) {
         console.error('Error fetching profile:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
-
-
 
 //Register Form 
 // Get all countries with details

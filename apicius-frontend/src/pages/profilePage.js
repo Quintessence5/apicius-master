@@ -22,12 +22,13 @@ const ProfilePage = () => {
       const response = await axios.get("http://localhost:5010/api/users/profile", {
         withCredentials: true,
       });
+      console.log("Fetched user profile data structure:", response.data);
       setUserProfile(response.data);
     } catch (error) {
       console.error("Error fetching user profile:", error);
     }
   };
-
+  
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
@@ -44,18 +45,29 @@ const ProfilePage = () => {
         console.error("Error fetching dropdown data:", error);
       }
     };
-  
     fetchDropdownData();
-
     fetchUserProfile();
   }, []);
 
   const openModal = (modalType) => {
     setActiveModal(modalType);
+  
     if (modalType === "profile" || modalType === "preferences") {
-      setFormData(userProfile || {}); // Pre-fill form with user data
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        ...userProfile, // Ensure userProfile fields, including user_id, are transferred
+      }));
+      console.log("Form data initialized in modal:", {
+        ...formData,
+        ...userProfile,
+      }); // Debugging
     }
-  };  
+  };
+  
+  const closeModal = () => {
+    setActiveModal(null);
+  };
+
 
   const getModalContent = () => {
     switch (activeModal) {
@@ -89,20 +101,31 @@ const ProfilePage = () => {
   };
   const modalContent = getModalContent();
 
-  const closeModal = () => {
-    setActiveModal(null);
-  };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      [name]: value,
+    }));
   };
+  
 
   const saveChanges = async () => {
     try {
+      console.log("Form data before saving:", formData); // Debugging
+  
       const updatedData = { ...formData };
+  
       if (formData.phone_code && formData.phone_number) {
         updatedData.phone = `${formData.phone_code}${formData.phone_number}`;
+      }
+  
+      // Check if user_id exists before proceeding
+      if (!updatedData.user_id) {
+        console.error("User ID is missing from the payload");
+        alert("An error occurred: User ID is missing");
+        return;
       }
   
       await axios.put("http://localhost:5010/api/users/profile", updatedData, {
@@ -110,13 +133,13 @@ const ProfilePage = () => {
       });
   
       alert("Changes saved successfully!");
-      fetchUserProfile(); // Refresh data
+      fetchUserProfile(); // Refresh data after saving
       closeModal();
     } catch (error) {
       console.error("Error saving changes:", error);
       alert("Failed to save changes.");
     }
-  };
+  };  
   
   const handleLogout = async () => {
     try {
