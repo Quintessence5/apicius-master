@@ -16,6 +16,11 @@ const ProfilePage = () => {
   const [countries, setCountries] = useState([]);
   const [languages, setLanguages] = useState([]);
   const [phoneCodes, setPhoneCodes] = useState([]);
+  const [tags, setTags] = useState({ allergy: [], intolerance: [], diets: [] });
+  const [selectedTags, setSelectedTags] = useState({
+      allergy: [],
+      intolerance: [],
+      diets: [],});
 
   const fetchUserProfile = async () => {
     try {
@@ -43,27 +48,61 @@ const ProfilePage = () => {
     }
   };
   
+  const fetchUserPreferences = async () => {
+    try {
+      const response = await axios.get("http://localhost:5010/api/users/preferences", {
+        withCredentials: true,
+      });
   
-  
+      // Initialize selectedTags from database
+      setSelectedTags({
+        allergy: response.data.allergy || [],
+        intolerance: response.data.intolerance || [],
+        diets: response.data.diets || [],
+      });
+    } catch (error) {
+      console.error("Error fetching user preferences:", error);
+    }
+  };
+
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        const [countriesRes, languagesRes, phoneCodesRes] = await Promise.all([
+        const [countriesRes, languagesRes, phoneCodesRes, tagsRes] = await Promise.all([
           axios.get("http://localhost:5010/api/country/countries"),
           axios.get("http://localhost:5010/api/country/languages"),
           axios.get("http://localhost:5010/api/country/phonecodes"),
+          axios.get("http://localhost:5010/api/users/tags"),
         ]);
   
         setCountries(countriesRes.data);
         setLanguages(languagesRes.data.map((lang) => lang.language));
         setPhoneCodes(phoneCodesRes.data);
+        setTags(tagsRes.data);
       } catch (error) {
         console.error("Error fetching dropdown data:", error);
       }
     };
     fetchDropdownData();
     fetchUserProfile();
+    fetchUserPreferences();
   }, []);
+
+  // Handle tag selection
+  
+  const handleTagChange = (category, tag) => {
+    setSelectedTags((prev) => {
+      const currentTags = Array.isArray(prev[category]) ? prev[category] : [];
+      const isTagSelected = currentTags.includes(tag);
+  
+      // Toggle the tag in the category
+      const updatedCategoryTags = isTagSelected
+        ? currentTags.filter((t) => t !== tag) // Remove if already selected
+        : [...currentTags, tag]; // Add if not selected
+  
+      return { ...prev, [category]: updatedCategoryTags };
+    });
+  };
 
   const openModal = (modalType) => {
     setActiveModal(modalType);
@@ -407,37 +446,57 @@ const ProfilePage = () => {
           </form>
         )}
 
-        {activeModal === "preferences" && (
-          <form onSubmit={(e) => e.preventDefault()}>
-            <div>
-              <label>Allergies</label>
-              <input
-                type="text"
-                name="preferences"
-                value={formData.preferences || ""}
-                onChange={handleInputChange}
-              />
+{activeModal === "preferences" && (
+    <form onSubmit={(e) => e.preventDefault()} className="preferences-form">
+        {/* Allergy Section */}
+        <div>
+            <label>Allergies</label>
+            <div className="tag-container">
+                {tags.allergy.map((tag) => (
+                    <div
+                        key={tag}
+                        className={`tag ${selectedTags.allergy.includes(tag) ? "selected" : ""}`}
+                        onClick={() => handleTagChange("allergy", tag)}
+                    >
+                        {tag}
+                    </div>
+                ))}
             </div>
-            <div>
-              <label>Intolerance</label>
-              <input
-                type="text"
-                name="preferences"
-                value={formData.preferences || ""}
-                onChange={handleInputChange}
-              />
+        </div>
+
+        {/* Intolerance Section */}
+        <div>
+            <label>Intolerances</label>
+            <div className="tag-container">
+                {tags.intolerance.map((tag) => (
+                    <div
+                        key={tag}
+                        className={`tag ${selectedTags.intolerance.includes(tag) ? "selected" : ""}`}
+                        onClick={() => handleTagChange("intolerance", tag)}
+                    >
+                        {tag}
+                    </div>
+                ))}
             </div>
-            <div>
-              <label>Diets</label>
-              <input
-                type="text"
-                name="preferences"
-                value={formData.preferences || ""}
-                onChange={handleInputChange}
-              />
+        </div>
+
+        {/* Diets Section */}
+        <div>
+            <label>Diets</label>
+            <div className="tag-container">
+                {tags.diets.map((tag) => (
+                    <div
+                        key={tag}
+                        className={`tag ${selectedTags.diets.includes(tag) ? "selected" : ""}`}
+                        onClick={() => handleTagChange("diets", tag)}
+                    >
+                        {tag}
+                    </div>
+                ))}
             </div>
-          </form>
-        )}
+        </div>
+    </form>
+)}
       </Modal>
     </div>
   );

@@ -567,3 +567,142 @@ exports.updateUserProfile = async (req, res) => {
         res.status(500).json({ message: "Failed to update profile" });
     }
 };
+
+// Get food control tags grouped by category
+exports.getControlTags = async (req, res) => {
+    try {
+        const query = `
+            SELECT name, category
+            FROM food_control
+        `;
+        const result = await pool.query(query);
+
+        // Group tags by categories
+        const tags = {
+            allergy: [],
+            intolerance: [],
+            diets: [],
+        };
+
+        result.rows.forEach((tag) => {
+            if (tag.category === 'Allergy') {
+                tags.allergy.push(tag.name);
+            } else if (tag.category === 'Intolerance') {
+                tags.intolerance.push(tag.name);
+            } else if (tag.category.startsWith('Diet')) {
+                tags.diets.push(tag.name);
+            }
+        });
+
+        res.status(200).json(tags);
+    } catch (error) {
+        console.error('Error fetching food control tags:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.saveUserPreferences = async (req, res) => {
+    const { userId } = req.body; // Extract user ID from request
+    const { allergy, intolerance, diets } = req.body; // Extract preferences
+
+    if (!userId) {
+        console.error("Save Preferences Error: User ID is missing");
+        return res.status(400).json({ message: "User ID is required" });
+    }
+
+    try {
+        // Log the incoming payload
+        console.log("Save Preferences Request Payload:", { userId, allergy, intolerance, diets });
+
+        // Upsert logic to handle existing or new entries
+        const result = await pool.query(
+            `INSERT INTO user_restrictions (user_id, allergy, intolerance, diets)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (user_id) 
+             DO UPDATE SET 
+             allergy = $2,
+             intolerance = $3,
+             diets = $4`,
+            [userId, allergy || '{}', intolerance || '{}', diets || '{}']
+        );
+
+        // Log successful query execution
+        console.log("Save Preferences Query Result:", result);
+
+        res.status(200).json({ message: "Preferences saved successfully" });
+    } catch (error) {
+        console.error("Error saving preferences:", error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
+exports.getUserPreferences = async (req, res) => {
+    try {
+        const userId = req.userId; // Assuming middleware adds `userId`
+        console.log('Fetching preferences for userId:', userId);
+
+        const query = `
+            SELECT 
+                user_id,
+                allergy,
+                intolerance,
+                diets
+            FROM user_restrictions
+            WHERE user_id = $1
+        `;
+        const result = await pool.query(query, [userId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Preferences not found' });
+        }
+
+        const { user_id, allergy, intolerance, diets } = result.rows[0];
+        res.status(200).json({ user_id, allergy, intolerance, diets });
+    } catch (error) {
+        console.error('Error fetching preferences:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+exports.updateUserPreferences = async (req, res) => {
+    try {
+      const userId = req.userId; // Assuming middleware adds `userId`
+      const { allergy, intolerance, diets } = req.body;
+  
+      const existingQuery = `
+        SELECT allergy, intolerance, diets
+        FROM user_restrictions
+        WHERE user_id = $1
+      `;
+      const existingResult = await pool.query(existingQuery, [userId]);
+  
+      if (existingResult.rows.length === 0) {
+        // If no existing preferences, insert new ones
+        const insertQuery = `
+          INSERT INTO user_restrictions (user_id, allergy, intolerance, diets)
+          VALUES ($1, $2, $3, $4)
+        `;
+        await pool.query(insertQuery, [userId, allergy, intolerance, diets]);
+      } else {
+        // Merge with existing preferences
+        const { allergy: existingAllergy, intolerance: existingIntolerance, diets: existingDiets } = existingResult.rows[0];
+  
+        const updatedAllergy = Array.from(new Set([...(existingAllergy || []), ...(allergy || [])]));
+        const updatedIntolerance = Array.from(new Set([...(existingIntolerance || []), ...(intolerance || [])]));
+        const updatedDiets = Array.from(new Set([...(existingDiets || []), ...(diets || [])]));
+  
+        const updateQuery = `
+          UPDATE user_restrictions
+          SET allergy = $2, intolerance = $3, diets = $4
+          WHERE user_id = $1
+        `;
+        await pool.query(updateQuery, [userId, updatedAllergy, updatedIntolerance, updatedDiets]);
+      }
+  
+      res.status(200).json({ message: "Preferences updated successfully." });
+    } catch (error) {
+      console.error("Error updating preferences:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  };
+  
