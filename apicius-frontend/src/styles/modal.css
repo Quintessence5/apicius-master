@@ -170,16 +170,18 @@
   max-height: 200px; /* Limit height with overflow */
   overflow-y: auto;
   border: 1px solid #e0e0e0; /* Optional: Add border around tags container */
-  padding: 10px;
   border-radius: 8px;
+  padding: 0.4rem;
+  margin-right: 3rem;
+  margin-left: -1rem;
 }
 
 /* Individual tag styling */
 .tag {
   display: inline-block;
-  padding: 8px 12px;
+  padding: 0.3rem 0.6rem;
   border: 1px solid #ccc;
-  border-radius: 20px;
+  border-radius: 8px;
   background-color: #f9f9f9;
   font-size: 14px;
   cursor: pointer;
@@ -195,6 +197,6 @@
 
 /* Add hover effect */
 .tag:hover {
-  background-color: #0056b3;
+  background-color: #4a92de;
   color: white;
 }

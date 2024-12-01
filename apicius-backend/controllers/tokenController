@@ -1,0 +1,110 @@
+const pool = require('../config/db');
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+
+// Generate Access Token
+const generateAccessToken = (userId) => {
+    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+};
+
+// Generate Refresh Token with Expiry
+const generateRefreshToken = async (userId) => {
+    try {
+        // Remove previous tokens for the user
+        await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+
+        // Generate a new refresh token
+        const refreshToken = crypto.randomBytes(64).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        // Attempt to insert the token into the database
+        await pool.query(
+            'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+            [userId, refreshToken, expiresAt]
+        );
+
+        console.log('Generated and stored new refresh token:', refreshToken);
+        return refreshToken;
+    } catch (error) {
+        if (error.code === '23505') { // Unique constraint violation
+            console.error('Duplicate token error for userId:', userId);
+            throw new Error('Duplicate refresh token detected. Please ensure database state is clean.');
+        }
+        console.error('Error generating refresh token:', error);
+        throw new Error('Could not generate refresh token');
+    }
+};
+
+// Refresh Tokens
+exports.refreshToken = async (req, res) => {
+    try {
+        const refreshToken = req.cookies?.refreshToken;
+
+        if (!refreshToken) {
+            console.error('Refresh token not provided');
+            return res.status(401).json({ message: 'Refresh token not provided' });
+        }
+
+        const result = await pool.query(
+            'SELECT * FROM refresh_tokens WHERE token = $1 AND revoked = false AND expires_at > NOW()',
+            [refreshToken]
+        );
+
+        if (result.rows.length === 0) {
+            console.error('Invalid or expired refresh token:', refreshToken);
+            return res.status(403).json({ message: 'Invalid or expired refresh token' });
+        }
+
+        const userId = result.rows[0].user_id;
+
+        // Generate new tokens
+        const newAccessToken = generateAccessToken(userId);
+        const newRefreshToken = await generateRefreshToken(userId);
+
+        // Revoke old token
+        await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+
+        // Set cookies
+        res.cookie('accessToken', newAccessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 15 * 60 * 1000, // 15 minutes
+        });
+
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+
+        console.log('Tokens refreshed successfully for user:', userId);
+        return res.status(200).json({ message: 'Token refreshed successfully' });
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// Check Session Status
+exports.sessionStatus = async (req, res) => {
+    try {
+        const token = req.cookies?.accessToken;
+
+        if (!token) {
+            return res.status(401).json({ message: 'Access token missing' });
+        }
+
+        jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+            if (err) {
+                return res.status(401).json({ message: 'Invalid or expired token' });
+            }
+            res.status(200).json({ message: 'Session active', userId: decoded.userId });
+        });
+    } catch (error) {
+        console.error('Error checking session status:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};

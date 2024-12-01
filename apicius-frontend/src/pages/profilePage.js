@@ -17,10 +17,7 @@ const ProfilePage = () => {
   const [languages, setLanguages] = useState([]);
   const [phoneCodes, setPhoneCodes] = useState([]);
   const [tags, setTags] = useState({ allergy: [], intolerance: [], diets: [] });
-  const [selectedTags, setSelectedTags] = useState({
-      allergy: [],
-      intolerance: [],
-      diets: [],});
+  const [selectedTags, setSelectedTags] = useState({ allergy: [], intolerance: [], diets: [] });
 
   const fetchUserProfile = async () => {
     try {
@@ -48,23 +45,6 @@ const ProfilePage = () => {
     }
   };
   
-  const fetchUserPreferences = async () => {
-    try {
-      const response = await axios.get("http://localhost:5010/api/users/preferences", {
-        withCredentials: true,
-      });
-  
-      // Initialize selectedTags from database
-      setSelectedTags({
-        allergy: response.data.allergy || [],
-        intolerance: response.data.intolerance || [],
-        diets: response.data.diets || [],
-      });
-    } catch (error) {
-      console.error("Error fetching user preferences:", error);
-    }
-  };
-
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
@@ -82,28 +62,55 @@ const ProfilePage = () => {
       } catch (error) {
         console.error("Error fetching dropdown data:", error);
       }
+      try {
+        const [tagsRes] = await Promise.all([
+            axios.get("http://localhost:5010/api/users/tags"),
+        ]);
+
+        setTags(tagsRes.data);
+    } catch (error) {
+        console.error("Error fetching dropdown data:", error);
+    }
     };
     fetchDropdownData();
     fetchUserProfile();
     fetchUserPreferences();
   }, []);
 
-  // Handle tag selection
+  // Tags from DB
+  const fetchUserPreferences = async () => {
+    try {
+      const response = await axios.get("http://localhost:5010/api/users/preferences", {
+        withCredentials: true,
+      });
   
-  const handleTagChange = (category, tag) => {
-    setSelectedTags((prev) => {
-      const currentTags = Array.isArray(prev[category]) ? prev[category] : [];
-      const isTagSelected = currentTags.includes(tag);
-  
-      // Toggle the tag in the category
-      const updatedCategoryTags = isTagSelected
-        ? currentTags.filter((t) => t !== tag) // Remove if already selected
-        : [...currentTags, tag]; // Add if not selected
-  
-      return { ...prev, [category]: updatedCategoryTags };
-    });
+      // Initialize selectedTags from database
+      setSelectedTags({
+        allergy: response.data.allergy || [],
+        intolerance: response.data.intolerance || [],
+        diets: response.data.diets || [],
+      });
+    } catch (error) {
+      console.error("Error fetching user preferences:", error);
+    }
   };
 
+  // Handle tag selection
+  const handleTagChange = (category, tag) => {
+    setSelectedTags((prev) => {
+        const currentTags = Array.isArray(prev[category]) ? prev[category] : [];
+        const isTagSelected = currentTags.includes(tag);
+
+        // Toggle the tag in the category
+        const updatedCategoryTags = isTagSelected
+            ? currentTags.filter((t) => t !== tag) // Remove if already selected
+            : [...currentTags, tag]; // Add if not selected
+
+        return { ...prev, [category]: updatedCategoryTags };
+    });
+};
+
+  // Modal Logic
   const openModal = (modalType) => {
     setActiveModal(modalType);
   
@@ -165,7 +172,15 @@ const ProfilePage = () => {
     }));
   };
   
+  // Save Changes
   const saveChanges = async () => {
+    if (activeModal === "preferences") {
+      await savePreferences();
+    } else {
+      await saveProfileChanges();
+  }};
+  
+  const saveProfileChanges = async () => {
     try {
       console.log("Form data before saving:", formData); // Debugging
   
@@ -208,7 +223,30 @@ const ProfilePage = () => {
       console.error("Error saving changes:", error);
       alert("Failed to save changes.");
     }
-  };  
+  }; 
+  
+  const savePreferences = async () => {
+    try {
+      // Ensure user_id is included in the payload
+      const payload = {
+          user_id: userProfile.user_id, // Ensure user ID is taken from the userProfile
+          allergy: selectedTags.allergy || [],
+          intolerance: selectedTags.intolerance || [],
+          diets: selectedTags.diets || [],
+      };
+
+      console.log("Save Preferences Payload:", payload); // Debug the payload before sending
+
+      const response = await axios.post("http://localhost:5010/api/users/preferences", payload, {
+          withCredentials: true,
+      });
+
+      console.log("Preferences saved successfully:", response.data);
+      closeModal(); // Close the modal on success
+  } catch (error) {
+      console.error("Error saving preferences:", error);
+  }
+};
   
   const handleLogout = async () => {
     try {
@@ -450,7 +488,7 @@ const ProfilePage = () => {
     <form onSubmit={(e) => e.preventDefault()} className="preferences-form">
         {/* Allergy Section */}
         <div>
-            <label>Allergies</label>
+            <label>Allergy</label>
             <div className="tag-container">
                 {tags.allergy.map((tag) => (
                     <div

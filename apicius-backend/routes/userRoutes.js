@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const {getCountries, registerUser, loginUser, dashboard, forgotPassword, resetPassword, googleLogin, refreshToken, logoutUser, getProfile, 
-} = require('../controllers/userController'); // Import functions directly
-const { saveUserProfile, updateUserProfile, sessionStatus, getControlTags, saveUserPreferences, getUserPreferences } = require('../controllers/userController');
+const {registerUser, loginUser, logoutUser, forgotPassword, resetPassword, googleLogin, } = require('../controllers/userController'); // Import functions directly
+const { dashboard, getCountries, } = require('../controllers/userController');
+const { refreshToken, sessionStatus, } = require('../controllers/tokenController');
+const { getProfile, saveUserProfile, updateUserProfile, getControlTags, saveUserPreferences, getUserPreferences } = require('../controllers/profileController');
 const authenticateToken = require('../middleware/authMiddleware');
 
 // Registrations route
@@ -21,12 +22,12 @@ router.get('/country/countries', getCountries);
 
 // Other routes
 router.get('/dashboard', authenticateToken, dashboard);
+
+router.get('/profile', authenticateToken, getProfile);
+router.put('/profile', updateUserProfile);
 router.get('/tags', getControlTags);
 router.get('/preferences', authenticateToken, getUserPreferences);
 router.post('/preferences', authenticateToken, saveUserPreferences);
 router.put('/preferences', authenticateToken, saveUserPreferences);
-router.get('/profile', authenticateToken, getProfile);
-router.put('/profile', updateUserProfile);
-
 
 module.exports = router;
