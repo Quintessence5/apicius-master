@@ -36,14 +36,14 @@
 .header .logo {
   width: 40px;
   height: auto;
-  margin-left: 50px;
-  margin-right: 10px; 
+  margin-left: 45%;
+  margin-right: 5%; 
 }
 
 .header .title-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5%;
 }
 
 .header .app-title {
@@ -70,22 +70,32 @@
   background-color: #b23f01;
 }
 
-/* __________________To Test / Modify__________________ */
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* __________________Notifications__________________ */
+
+.notification-container {
+  display: flex;
+  justify-content: center; /* Centers horizontally */
+  width: 100%;
 }
 
-.App-link {
-  color: #61dafb;
+.notification {
+  position: fixed;
+  bottom: 3%;
+  background-color: #e9b546;
+  color: white;
+  font-weight: bold;
+  padding: 1% 2%;
+  border-radius: 5px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  font-size: 1.1rem;
+  z-index: 1001;
+  animation: fadeInOut 3s ease-in-out;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Optional: Fade-in and fade-out animation */
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(10px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(10px); }
 }

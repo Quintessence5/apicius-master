@@ -1,12 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import apiClient from '../services/apiClient'; // Import the client
 import HamburgerMenu from '../components/hamburgerMenu';
-
-
-import logo from '../assets/images/apicius-icon.png'; // Adjust path as needed
-import '../App.css'; // Assuming you have header styles
 
 // Dashboard Logic
 const Dashboard = () => {
@@ -32,28 +27,9 @@ const Dashboard = () => {
 
         fetchDashboard();
     }, [navigate]);
-
-// Logout function
- const handleLogout = async () => {
-        try {
-            await axios.post('http://localhost:5010/api/users/logout', {}, { withCredentials: true });
-            navigate('/login'); // Redirect to login page
-        } catch (error) {
-            console.error('Error logging out:', error);
-        }
-    };
     
-
     return (
         <div>
-            {/* Header */}
-            <header className="header">
-                <div className="title-container">
-                    <img src={logo} alt="Logo" className="logo" />
-                    <div className="app-title">Apicius</div>
-                </div>
-                <button className="header-btn" onClick={handleLogout}>Logout</button>
-            </header>
 
             <HamburgerMenu/>
 

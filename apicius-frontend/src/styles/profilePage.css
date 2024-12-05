@@ -1,7 +1,7 @@
 /* Profile Page Styles */
 .profile-page {
     font-family: Arial, sans-serif;
-    margin-top: 7rem;
+    margin-top: 3rem;
 }
 
 .profile-title {
@@ -32,17 +32,17 @@
 .profile-cards {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 4rem;
     flex-wrap: wrap;
-    margin-top: 20px;
+    margin-top: 2.3rem;
 }
 
 .profile-card {
     background: #f9f9f9;
     border: 1px solid #ddd;
     border-radius: 10px;
-    width: 300px;
-    padding: 20px;
+    width: 40%;
+    padding: 1.4rem;
     text-align: left;
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;

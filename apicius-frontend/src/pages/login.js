@@ -6,8 +6,6 @@ import { signInWithPopup } from 'firebase/auth';
 
 import logo from '../assets/images/apicius-icon.png';
 import googleLogo from '../assets/images/google-icon.png';
-import appleLogo from '../assets/images/apple-icon.png';
-import facebookLogo from '../assets/images/facebook-icon.png';
 import '../styles/loginSignup.css';
 import '../App.css';
 
@@ -66,16 +64,8 @@ function Login() {
                 <div className="social-login-buttons">
                     <button className="google-btn" onClick={handleGoogleSignIn}>
                         <img src={googleLogo} alt="Google logo" className="icon" />
-                        Google
-                        </button>
-                    <button className="apple-btn">
-                        <img src={appleLogo} alt="Apple logo" className="icon" />
-                        Apple
-                    </button>
-                    <button className="facebook-btn">
-                        <img src={facebookLogo} alt="Facebook logo" className="icon" />
-                        Facebook
-                    </button>    
+                        Login with Google
+                        </button> 
                 </div>
                 
                 <p>Or login with your e-mail.</p>

@@ -1,28 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../services/apiClient';
 
 const ProtectedRoute = ({ children }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(null); // `null` indicates loading state
+    const [isAuthenticated, setIsAuthenticated] = useState(false); // `null` indicates loading state
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const checkAuth = async () => {
+        const checkSession = async () => {
             try {
-                await axios.get('http://localhost:5010/api/users/dashboard', {
-                    withCredentials: true, // Include cookies in the request
-                });
+                await apiClient.get('/users/session-status');
                 setIsAuthenticated(true);
             } catch (error) {
-                setIsAuthenticated(false); // Unauthorized or error occurred
+                console.error("Session invalid:", error);
+                setIsAuthenticated(false);
+            } finally {
+                setIsLoading(false);
             }
         };
 
-        checkAuth();
+        checkSession();
     }, []);
 
-    if (isAuthenticated === null) {
-        return <div>Loading...</div>; // Show a loading state while checking authentication
-    }
+    if (isLoading) return <p>Loading...</p>;
 
     return isAuthenticated ? children : <Navigate to="/login" />;
 };

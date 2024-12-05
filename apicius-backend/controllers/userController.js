@@ -6,6 +6,12 @@ const nodemailer = require('nodemailer');
 const admin = require('firebase-admin');
 const serviceAccount = require('../config/apicius05-firebase-adminsdk-w5v1o-505d701e82.json'); // Update the path
 
+// Generate Access Token
+const generateAccessToken = require('./tokenController');
+
+// Generate Refresh Token with Expiry
+const generateRefreshToken = require('./tokenController');
+
 // Configure Nodemailer with Gmail
 const transporter = nodemailer.createTransport({
     service: 'gmail',
@@ -244,39 +250,5 @@ exports.dashboard = async (req, res) => {
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
         res.status(500).json({ message: 'Server error' });
-    }
-};
-
-// Generate Access Token
-const generateAccessToken = (userId) => {
-    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
-};
-
-// Generate Refresh Token with Expiry
-const generateRefreshToken = async (userId) => {
-    try {
-        // Remove previous tokens for the user
-        await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
-
-        // Generate a new refresh token
-        const refreshToken = crypto.randomBytes(64).toString('hex');
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 7);
-
-        // Attempt to insert the token into the database
-        await pool.query(
-            'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-            [userId, refreshToken, expiresAt]
-        );
-
-        console.log('Generated and stored new refresh token:', refreshToken);
-        return refreshToken;
-    } catch (error) {
-        if (error.code === '23505') { // Unique constraint violation
-            console.error('Duplicate token error for userId:', userId);
-            throw new Error('Duplicate refresh token detected. Please ensure database state is clean.');
-        }
-        console.error('Error generating refresh token:', error);
-        throw new Error('Could not generate refresh token');
     }
 };

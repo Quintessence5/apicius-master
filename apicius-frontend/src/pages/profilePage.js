@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import apiClient from '../services/apiClient';
 import Modal from "../components/modal";
 import HamburgerMenu from "../components/hamburgerMenu";
 
-import logo from "../assets/images/apicius-icon.png";
 import "../App.css";
 import "../styles/profilePage.css";
 import "../styles/modal.css";
@@ -18,6 +16,15 @@ const ProfilePage = () => {
   const [phoneCodes, setPhoneCodes] = useState([]);
   const [tags, setTags] = useState({ allergy: [], intolerance: [], diets: [] });
   const [selectedTags, setSelectedTags] = useState({ allergy: [], intolerance: [], diets: [] });
+  const [notification, setNotification] = useState({ message: "", visible: false });
+
+  // Function to show notification
+  const showNotification = (message) => {
+    setNotification({ message, visible: true });
+    setTimeout(() => {
+      setNotification({ message: "", visible: false });
+    }, 3000);
+  };
 
   const fetchUserProfile = async () => {
     try {
@@ -114,15 +121,11 @@ const ProfilePage = () => {
   const openModal = (modalType) => {
     setActiveModal(modalType);
   
-    if (modalType === "profile" || modalType === "preferences") {
+    if (modalType === "profile" || modalType === "preferences" || modalType === "security") {
       setFormData((prevFormData) => ({
         ...prevFormData,
         ...userProfile, // Ensure userProfile fields, including user_id, are transferred
       }));
-      console.log("Form data initialized in modal:", {
-        ...formData,
-        ...userProfile,
-      }); // Debugging
     }
   };
   
@@ -197,7 +200,7 @@ const ProfilePage = () => {
       // Validate password fields
       if (formData.newPassword && formData.confirmNewPassword) {
         if (formData.newPassword !== formData.confirmNewPassword) {
-          alert("Passwords do not match. Please try again.");
+          showNotification("Passwords do not match. Please try again.");
           return;
         }
       }
@@ -205,7 +208,7 @@ const ProfilePage = () => {
       // Check if user_id exists before proceeding
       if (!updatedData.user_id) {
         console.error("User ID is missing from the payload");
-        alert("An error occurred: User ID is missing");
+        showNotification("An error occurred: User ID is missing");
         return;
       }
   
@@ -216,12 +219,12 @@ const ProfilePage = () => {
         withCredentials: true,
       });
   
-      alert("Changes saved successfully!");
+      showNotification("Changes saved successfully!");
       fetchUserProfile(); // Refresh data after saving
       closeModal();
     } catch (error) {
       console.error("Error saving changes:", error);
-      alert("Failed to save changes.");
+      showNotification("Failed to save changes.");
     }
   }; 
   
@@ -242,35 +245,15 @@ const ProfilePage = () => {
       });
 
       console.log("Preferences saved successfully:", response.data);
+      showNotification("Preferences saved successfully");
       closeModal(); // Close the modal on success
   } catch (error) {
       console.error("Error saving preferences:", error);
   }
 };
-  
-  const handleLogout = async () => {
-    try {
-        await apiClient.post('/users/logout');
-        clearInterval(window.refreshInterval); // Clear the refresh interval
-        window.localStorage.clear(); // Clear storage if used
-        window.location.href = '/login';
-    } catch (error) {
-        console.error('Error logging out:', error);
-    }
-};
 
   return (
     <div className="profile-page">
-      {/* Header */}
-      <header className="header">
-        <div className="title-container">
-          <img src={logo} alt="Logo" className="logo" />
-          <div className="app-title">Apicius</div>
-        </div>
-        <button className="header-btn" onClick={handleLogout}>
-          Logout
-        </button>
-      </header>
 
       <HamburgerMenu />
 
@@ -307,7 +290,7 @@ const ProfilePage = () => {
             description="Coming soon"
             icon="🏆"
             text="Track your achievements and milestones here. Coming soon!"
-            onClick={() => alert("Coming soon!")}
+            onClick={() => showNotification("Coming soon!")}
           />
         </div>
 
@@ -352,7 +335,7 @@ const ProfilePage = () => {
               />
             </div>
           </form>
-        )}
+               )}
 
           {activeModal === "profile" && (
             <form onSubmit={(e) => e.preventDefault()}>
@@ -481,63 +464,71 @@ const ProfilePage = () => {
                         <option value="No">No</option>
                     </select>
                 </div>
-          </form>
-        )}
+              </form>
+               )}
 
-{activeModal === "preferences" && (
-    <form onSubmit={(e) => e.preventDefault()} className="preferences-form">
-        {/* Allergy Section */}
-        <div>
-            <label>Allergy</label>
-            <div className="tag-container">
-                {tags.allergy.map((tag) => (
-                    <div
-                        key={tag}
-                        className={`tag ${selectedTags.allergy.includes(tag) ? "selected" : ""}`}
-                        onClick={() => handleTagChange("allergy", tag)}
-                    >
-                        {tag}
-                    </div>
-                ))}
-            </div>
-        </div>
+          {activeModal === "preferences" && (
+                    <form onSubmit={(e) => e.preventDefault()} className="preferences-form">
+                        {/* Allergy Section */}
+                        <div>
+                            <label>Allergy</label>
+                            <div className="tag-container">
+                                {tags.allergy.map((tag) => (
+                                    <div
+                                        key={tag}
+                                        className={`tag ${selectedTags.allergy.includes(tag) ? "selected" : ""}`}
+                                        onClick={() => handleTagChange("allergy", tag)}
+                                    >
+                                        {tag}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
 
-        {/* Intolerance Section */}
-        <div>
-            <label>Intolerances</label>
-            <div className="tag-container">
-                {tags.intolerance.map((tag) => (
-                    <div
-                        key={tag}
-                        className={`tag ${selectedTags.intolerance.includes(tag) ? "selected" : ""}`}
-                        onClick={() => handleTagChange("intolerance", tag)}
-                    >
-                        {tag}
-                    </div>
-                ))}
-            </div>
-        </div>
+                        {/* Intolerance Section */}
+                        <div>
+                            <label>Intolerances</label>
+                            <div className="tag-container">
+                               {tags.intolerance.map((tag) => (
+                                    <div
+                                        key={tag}
+                                        className={`tag ${selectedTags.intolerance.includes(tag) ? "selected" : ""}`}
+                                        onClick={() => handleTagChange("intolerance", tag)}
+                                    >
+                                        {tag}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
 
-        {/* Diets Section */}
-        <div>
-            <label>Diets</label>
-            <div className="tag-container">
-                {tags.diets.map((tag) => (
-                    <div
-                        key={tag}
-                        className={`tag ${selectedTags.diets.includes(tag) ? "selected" : ""}`}
-                        onClick={() => handleTagChange("diets", tag)}
-                    >
-                        {tag}
+                        {/* Diets Section */}
+                        <div>
+                            <label>Diets</label>
+                            <div className="tag-container">
+                                {tags.diets.map((tag) => (
+                                    <div
+                                        key={tag}
+                                        className={`tag ${selectedTags.diets.includes(tag) ? "selected" : ""}`}
+                                        onClick={() => handleTagChange("diets", tag)}
+                                    >
+                                        {tag}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </form>
+               )}
+                      </Modal>
+                    {notification.visible && (
+                        <div className="notification-container">
+                          <div className="notification">
+                             {notification.message}
+                        </div>
+                        </div>
+              )}
+
                     </div>
-                ))}
-            </div>
-        </div>
-    </form>
-)}
-      </Modal>
-    </div>
-  );
+                                  );
 };
 
 const ProfileCard = ({ title, description, icon, onClick }) => (

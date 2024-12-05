@@ -9,43 +9,46 @@ const generateAccessToken = (userId) => {
 
 // Generate Refresh Token with Expiry
 const generateRefreshToken = async (userId) => {
+    const client = await pool.connect();
     try {
+        await client.query('BEGIN'); // Start a transaction
+
         // Remove previous tokens for the user
-        await pool.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+        await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
 
         // Generate a new refresh token
         const refreshToken = crypto.randomBytes(64).toString('hex');
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
 
-        // Attempt to insert the token into the database
-        await pool.query(
+        // Insert the new refresh token
+        await client.query(
             'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
             [userId, refreshToken, expiresAt]
         );
 
+        await client.query('COMMIT'); // Commit the transaction
         console.log('Generated and stored new refresh token:', refreshToken);
         return refreshToken;
     } catch (error) {
-        if (error.code === '23505') { // Unique constraint violation
-            console.error('Duplicate token error for userId:', userId);
-            throw new Error('Duplicate refresh token detected. Please ensure database state is clean.');
-        }
-        console.error('Error generating refresh token:', error);
+        await client.query('ROLLBACK'); // Rollback the transaction on error
+        console.error('Error in generateRefreshToken:', error.message); // Add detailed logging
         throw new Error('Could not generate refresh token');
+    } finally {
+        client.release(); // Release the client
     }
 };
 
 // Refresh Tokens
 exports.refreshToken = async (req, res) => {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+        console.error('Refresh token not provided');
+        return res.status(401).json({ message: 'Refresh token not provided' });
+    }
+
     try {
-        const refreshToken = req.cookies?.refreshToken;
-
-        if (!refreshToken) {
-            console.error('Refresh token not provided');
-            return res.status(401).json({ message: 'Refresh token not provided' });
-        }
-
         const result = await pool.query(
             'SELECT * FROM refresh_tokens WHERE token = $1 AND revoked = false AND expires_at > NOW()',
             [refreshToken]
@@ -65,7 +68,7 @@ exports.refreshToken = async (req, res) => {
         // Revoke old token
         await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
 
-        // Set cookies
+        // Set new cookies
         res.cookie('accessToken', newAccessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -87,6 +90,7 @@ exports.refreshToken = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 
 // Check Session Status
 exports.sessionStatus = async (req, res) => {
