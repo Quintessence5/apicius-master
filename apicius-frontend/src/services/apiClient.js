@@ -1,9 +1,12 @@
 import axios from 'axios';
 
+let accessToken = null; // Store accessToken in memory
+
 const apiClient = axios.create({
     baseURL: 'http://localhost:5010/api',
-    withCredentials: true, // Ensures cookies are sent
+    withCredentials: true, // Include cookies for refresh token
 });
+
 // Flag to prevent infinite refresh loops
 let isRefreshing = false;
 let refreshSubscribers = [];
@@ -17,6 +20,18 @@ const onRefreshed = (token) => {
     refreshSubscribers = [];
 };
 
+// Request interceptor to include accessToken in headers
+apiClient.interceptors.request.use(
+    (config) => {
+        if (accessToken) {
+            config.headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// Response interceptor for handling token refresh
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -37,13 +52,13 @@ apiClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const response = await apiClient.post('/users/refresh-token');
-                const newAccessToken = response.data.accessToken;
+                const response = await axios.post('http://localhost:5010/api/users/refresh-token', {}, { withCredentials: true });
+                accessToken = response.data.accessToken;
 
                 // Notify subscribers and retry failed requests
-                onRefreshed(newAccessToken);
+                onRefreshed(accessToken);
 
-                originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+                originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
                 return apiClient(originalRequest);
             } catch (refreshError) {
                 console.error('Token refresh failed:', refreshError);
@@ -56,5 +71,9 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+export const setAccessToken = (token) => {
+    accessToken = token;
+};
 
 export default apiClient;

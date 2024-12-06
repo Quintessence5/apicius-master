@@ -44,7 +44,6 @@ exports.refreshToken = async (req, res) => {
     const refreshToken = req.cookies?.refreshToken;
 
     if (!refreshToken) {
-        console.error('Refresh token not provided');
         return res.status(401).json({ message: 'Refresh token not provided' });
     }
 
@@ -55,7 +54,6 @@ exports.refreshToken = async (req, res) => {
         );
 
         if (result.rows.length === 0) {
-            console.error('Invalid or expired refresh token:', refreshToken);
             return res.status(403).json({ message: 'Invalid or expired refresh token' });
         }
 
@@ -68,14 +66,7 @@ exports.refreshToken = async (req, res) => {
         // Revoke old token
         await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
 
-        // Set new cookies
-        res.cookie('accessToken', newAccessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
-            maxAge: 15 * 60 * 1000, // 15 minutes
-        });
-
+        // Set only the refresh token in cookies
         res.cookie('refreshToken', newRefreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -84,13 +75,12 @@ exports.refreshToken = async (req, res) => {
         });
 
         console.log('Tokens refreshed successfully for user:', userId);
-        return res.status(200).json({ message: 'Token refreshed successfully' });
+        return res.status(200).json({ accessToken: newAccessToken });
     } catch (error) {
         console.error('Error refreshing token:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
-
 
 // Check Session Status
 exports.sessionStatus = async (req, res) => {

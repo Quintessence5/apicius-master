@@ -1,23 +1,22 @@
 import React, { useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import apiClient from "../services/apiClient";
+import apiClient, { setAccessToken } from "../services/apiClient";
 import logo from "../assets/images/apicius-icon.png";
 import "../App.css";
 
-const MasterPage = () => {
+const MasterPage = ({ children }) => {
     const navigate = useNavigate();
 
     useEffect(() => {
         const scheduleTokenRefresh = () => {
             const interval = setInterval(async () => {
                 try {
-                    console.log("Proactively refreshing tokens...");
-                    await apiClient.post("/users/refresh-token");
+                    const response = await apiClient.post('/users/refresh-token');
+                    setAccessToken(response.data.accessToken); // Store new access token
                 } catch (error) {
-                    console.error("Token refresh failed:", error);
+                    console.error('Token refresh failed:', error);
                     if (error.response?.status === 401) {
-                        console.warn("Session expired. Redirecting to login.");
-                        navigate("/login");
+                        navigate('/login');
                     }
                 }
             }, 10 * 60 * 1000); // Refresh every 10 minutes
@@ -25,18 +24,22 @@ const MasterPage = () => {
             return () => clearInterval(interval);
         };
 
-        const refreshOnFocus = () => {
-            window.addEventListener("focus", async () => {
-                try {
-                    await apiClient.post("/users/refresh-token");
-                } catch (error) {
-                    console.error("Failed to refresh tokens on focus:", error);
+        const fetchInitialAccessToken = async () => {
+            try {
+                const response = await apiClient.post('/users/refresh-token');
+                setAccessToken(response.data.accessToken); // Set initial access token
+            } catch (error) {
+                console.error('Failed to fetch initial access token:', error);
+                if (error.response?.status === 401) {
+                    navigate('/login');
                 }
-            });
+            }
         };
 
-        scheduleTokenRefresh();
-        refreshOnFocus();
+        fetchInitialAccessToken();
+        const clearRefresh = scheduleTokenRefresh();
+
+        return clearRefresh; // Cleanup on unmount
     }, [navigate]);
 
     const handleLogout = async () => {

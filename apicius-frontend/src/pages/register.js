@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { auth, googleProvider } from '../config/firebaseConfig';
-import { signInWithPopup } from 'firebase/auth';
 
 import logo from '../assets/images/apicius-icon.png';
 import googleLogo from '../assets/images/google-icon.png';
@@ -14,20 +12,6 @@ const Register = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState(null);
-
-    // Google Sign-in
-    const handleGoogleSignIn = async () => {
-        try {
-            const result = await signInWithPopup(auth, googleProvider);
-            const user = result.user;
-            const userData = { token: await user.getIdToken(), email: user.email };
-            await axios.post('http://localhost:5010/api/users/google-login', userData);
-            navigate('/registerForm');
-        } catch (error) {
-            console.error('Google Sign-In Error:', error);
-            setError('Google Sign-In failed. Please try again.');
-        }
-    };
 
     // Regular Email/Password Registration
     const handleRegister = async (e) => {
@@ -60,7 +44,7 @@ const Register = () => {
                 <h2>Join our tasty community!</h2>
                 {/* Social Login Buttons */}
                 <div className="social-login-buttons">
-                    <button className="google-btn" onClick={handleGoogleSignIn}>
+                    <button className="google-btn" onClick={() => navigate('/login')}>
                         <img src={googleLogo} alt="Google logo" className="icon" />Sign in with Google
                     </button> 
                 </div>

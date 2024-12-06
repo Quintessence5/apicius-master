@@ -3,15 +3,44 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-const admin = require('firebase-admin');
 const serviceAccount = require('../config/apicius05-firebase-adminsdk-w5v1o-505d701e82.json'); // Update the path
 
 // Generate Access Token
-const generateAccessToken = require('./tokenController');
+const generateAccessToken = (userId) => {
+    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+};
 
 // Generate Refresh Token with Expiry
-const generateRefreshToken = require('./tokenController');
+const generateRefreshToken = async (userId) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN'); // Start a transaction
 
+        // Remove previous tokens for the user
+        await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+
+        // Generate a new refresh token
+        const refreshToken = crypto.randomBytes(64).toString('hex');
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+
+        // Insert the new refresh token
+        await client.query(
+            'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+            [userId, refreshToken, expiresAt]
+        );
+
+        await client.query('COMMIT'); // Commit the transaction
+        console.log('Generated and stored new refresh token:', refreshToken);
+        return refreshToken;
+    } catch (error) {
+        await client.query('ROLLBACK'); // Rollback the transaction on error
+        console.error('Error in generateRefreshToken:', error.message); // Add detailed logging
+        throw new Error('Could not generate refresh token');
+    } finally {
+        client.release(); // Release the client
+    }
+};
 // Configure Nodemailer with Gmail
 const transporter = nodemailer.createTransport({
     service: 'gmail',
