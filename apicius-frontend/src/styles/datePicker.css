@@ -1,7 +1,7 @@
 /* -----------------React Date Picker--------------- */
 .datepicker-container {
     position: relative; /* For positioning the floating label */
-    margin-bottom: -10px; /* Space between form fields */
+    margin-bottom: -0.8rem; /* Space between form fields */
     display: block; /* Make it a block-level element */
     box-sizing: border-box; /* Include padding and border in width calculation */
 }
@@ -10,9 +10,9 @@
   .datepicker-container input {
     display: flex;
     width: 100%;
-    max-width: 400px; /* Full width of the container */
+    max-width: 600px; /* Full width of the container */
     padding: 10px 10px 10px 15px; /* Inner padding for text */
-    font-size: 16px; /* Text size */
+    font-size: 1rem; /* Text size */
     border: 1px solid #cecece; /* Border for the input */
     border-radius: 4px; /* Rounded corners */
     outline: none; /* Removes the default focus outline */
@@ -29,8 +29,8 @@
 
   .custom-date-picker {
     width: 100%; /* Full width of the container */
-    padding: 10px; /* Inner padding for text */
-    font-size: 16px; /* Text size */
+    padding: 0.625rem; /* Inner padding for text */
+    font-size: 1rem; /* Text size */
     border: 1px solid #cecece; /* Border for the input */
     border-radius: 4px; /* Rounded corners */
     box-sizing: border-box; /* Ensure padding doesn't exceed width */
@@ -57,8 +57,8 @@
     position: absolute;
     top: 12px; /* Same as input padding */
     left: 6px; /* Align with input text */
-    margin-left: 12px;
-    font-size: 16px; /* Same as input font size */
+    margin-left: 0.75rem;
+    font-size: 1rem; /* Same as input font size */
     color: #777; /* Light gray label */
     pointer-events: none; /* Prevent interaction */
     transition: all 0.2s ease-in-out; /* Smooth floating transition */
@@ -68,11 +68,31 @@
   .datepicker-container input:focus + label,
   .datepicker-container label.float {
     top: -8px; /* Float the label above the input */
-    left: 10px;
+    left: 0.625rem;
     background-color: #ffffff;
-    font-size: 14px; /* Smaller font size for the label */
+    font-size: 0.9rem; /* Smaller font size for the label */
     color: #007bff; /* Highlighted label color */
     padding: 0 8px; /* Add padding to avoid overlap */
+  }
+
+  @media (max-width: 480px) {
+    /* Style the label */
+  .datepicker-container label {
+    position: absolute;
+    top: 12px; /* Same as input padding */
+    left: 6px; /* Align with input text */
+    margin-left: 0.75rem;
+    font-size: 0.9rem; /* Same as input font size */
+    }
+  
+  /* Floating effect for label */
+  .datepicker-container input:focus + label,
+  .datepicker-container label.float {
+    top: -8px; /* Float the label above the input */
+    left: 0.625rem;
+    font-size: 0.8rem; /* Smaller font size for the label */
+    padding: 0 8px; /* Add padding to avoid overlap */
+  }
   }
 
  /* Calendar container */
@@ -84,7 +104,19 @@
     background-color: #fff; /* White background */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Light shadow for depth */
 }
+.react-datepicker__month-select {
+    font-size: 0.9rem;
+    border-radius: 4px;
+    border-color: #999;
+  }
 
+  .react-datepicker__year-select {
+    font-size: 0.9rem;
+    margin-left: -1rem;
+    border-radius: 4px;
+    border-color: #999;
+  }
+  
 /* Header (month/year navigation) */
 .react-datepicker__header {
     background-color: #f0f0f0; /* Light gray header */
@@ -92,12 +124,12 @@
     padding: 0px 0; /* Space around the header content */
     text-align: center; /* Center-align the month and year */
     font-weight: bold; /* Make text slightly bolder */
-    padding: 15px 0;
+    padding: 0.9rem 0;
 }
 
 /* -----Dropdown Styles----- */
 .react-datepicker__header__dropdown {
-    margin-top: 15px; /* Adds space between the header and dropdowns */
+    margin-top: 1rem; /* Adds space between the header and dropdowns */
 }
 
 /* Month and year display */
@@ -106,73 +138,74 @@
     color: #777; /* Dark gray for better contrast */
     margin-top: 40px;
 }
+.react-datepicker > button {
+    background-color: rgba(255, 166, 0, 0);
+    border-radius: 50%; /* Make hover area circular */
+}
+
+.react-datepicker button:hover {
+    background-color: rgb(212, 212, 212);
+    border-radius: 50%; /* Make hover area circular */
+}
 
 /* Navigation arrows */
 .react-datepicker__navigation {
-    position: absolute; /* Positioned relative to header */
-    top: 10px; /* Vertically align with header */
-    width: 20px; /* Standard size */
-    height: 20px; /* Ensures arrows are square */
-    cursor: pointer; /* Indicate clickability */
-    background: none; /* Removes any background color */
-    border: none; /* No border */
-    z-index: 1; /* Keeps it clickable */
-}
-
-.react-datepicker__navigation:hover {
-    background-color: #0c6318; /* Light blue on hover */
-}
-
-.react-datepicker__navigation--selected {
-    background-color: #12c005; /* Light blue on hover */
+    position: absolute;
+    top: 1.6rem; /* Center-align vertically */
+    transform: translateY(-50%); /* Adjust centering */
+    width: 2rem; /* Width of the arrows */
+    height: 2rem; /* Height of the arrows */
+    cursor: pointer;
+    background: none; /* Removes any default background */
+    border: none; /* Removes default borders */
+    z-index: 1; /* Keeps it above the calendar */
 }
 
 /* ----Previous navigation arrow (left)---- */
 .react-datepicker__navigation--previous {
-    left: 10px; /* Positioned on the left */
-    border-right: 6px solid #333; /* Creates the arrow shape */
-    border-top: 6px solid transparent; /* Top part of arrow */
-    border-bottom: 6px solid transparent; /* Bottom part of arrow */
+    left: 1rem; /* Adjust position to the left */
+    border-right: 2px solid #33333300; /* Arrow pointing right */
+    border-top: 2px solid transparent; /* Top part of arrow */
+    border-bottom: 2px solid transparent; /* Bottom part of arrow */
     margin-top: 5px;
 }
 
 /* ----Next navigation arrow (right)---- */
 .react-datepicker__navigation--next {
-    right: 5px; /* Positioned on the right */
-    border-left: 6px solid #333; /* Creates the arrow shape */
-    border-top: 6px solid transparent; /* Top part of arrow */
-    border-bottom: 6px solid transparent; /* Bottom part of arrow */
+    right: 1rem; /* Positioned on the right */
+    border-left: 2px solid #33333300; /* Creates the arrow shape */
+    border-top: 2px solid transparent; /* Top part of arrow */
+    border-bottom: 2px solid transparent; /* Bottom part of arrow */
     margin-top: 5px;
-}
-
-/* Day cells */
-.react-datepicker__day {
-    width: 30px; /* Width of day cells */
-    height: 30px; /* Makes cells square */
-    line-height: 30px; /* Centers the text vertically */
-    margin: 1px; /* Spacing between cells */
-    text-align: center; /* Centers the text */
-    border-radius: 6px; /* Slightly rounded for modern look */
-    cursor: pointer; /* Indicates that cells are clickable */
-    color: #555; /* Default text color */
-    
 }
 
 /* ----Style day of week---- */
 .react-datepicker__day-names {
-   margin-top: 5px;
-   margin-bottom: -10px;
+    margin-top: 0.51rem;
+    margin-bottom: -1rem;
+ }
+ 
+/* Day cells */
+.react-datepicker__day {
+    width: 2rem; /* Width of day cells */
+    height: 2rem; /* Makes cells square */
+    line-height: 2rem; /* Centers the text vertically */
+    margin: 0.0625rem; /* Spacing between cells */
+    text-align: center; /* Centers the text */
+    border-radius: 5px; /* Slightly rounded for modern look */
+    cursor: pointer; /* Indicates that cells are clickable */
+    color: #555; /* Default text color */ 
 }
 
 /* Selected day */
 .react-datepicker__day--selected {
-    background-color: #007bff; /* Blue background for selection */
+    background-color: #c36308; /* Blue background for selection */
     color: #fff; /* White text for contrast */
 }
 
 /* Hover effect on days */
 .react-datepicker__day:hover {
-    background-color: #e6f7ff; /* Light blue on hover */
+    background-color: #e6f7ff; /* Light grey on hover */
 }
 
 /* Today's date */
@@ -192,5 +225,5 @@
     font-size: 1.1rem;
     color: #555;
     font-weight: bold;
-    margin-top: 6px !important;
+    margin-top: 0.4rem !important;
 }

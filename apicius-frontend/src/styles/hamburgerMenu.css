@@ -1,97 +1,56 @@
-/* Hamburger button */
-
-/* Hb Menu Icon */
-.menu-toggle {
-    display: flex;
-    position: fixed;
-    top: 12px;
-    left: 10px;
-    z-index: 1001; /* Ensure it's above other elements */
-    background: none;
-    border: none;
-    color: chocolate;
-    font-size: 24px;
-    cursor: pointer;
-    align-items: center;
-}
-.menu-toggle::after {
-    content: "";
-    display: block;
-    width: 1px; /* Width of the divider */
-    height: 34px; /* Match icon size */
-    background-color: #ccc; /* Divider color */
-    margin-left: 15px; /* Space between icon and divider */
+/* Hamburger Container */
+.hamburger-container {
+    position: relative; /* Needed for positioning the menu relative to the button */
+    margin-left: 12rem;
 }
 
-/* Side menu container */
+/* Side Menu */
 .side-menu {
-    position: fixed;
-    top: 0;
-    left: 0;
-    height: 100%; /* Full height of the viewport */
-    background-color: #777; /* Dark background for contrast */
-    color: white;
-    width: 0; /* Start with no width */
-    max-width: 100px; /* Limit maximum width */
-    overflow-x: hidden; /* Prevent horizontal scroll */
-    transition: width 0.3s ease, padding 0.3s ease; /* Smooth opening effect */
-    z-index: 999; /* Behind the header but above content */
-    padding: 0; /* No padding initially */
+    position: absolute;
+    top: calc(100% + 12px); /* Position below the button with a small gap */
+    right: calc(0% + 14px); /* Align to the right edge of the toggle button */
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 15px;
+    border: 1px solid #333;
+    border-color: #999;
+    padding: 1rem 1rem;
+    width: 12.5rem; /* Set a fixed width for the menu */
+    z-index: 1000;
 }
 
-/* When menu is open */
-.side-menu.open {
-    width: 80%; /* Adjust width as needed */
-    max-width: 150px; /* Use the maximum width */
-    padding: 20px; /* Add padding when open */
-}
-
-/* Menu links */
+/* Menu Links */
 .menu-links ul {
     list-style: none;
     padding: 0;
-    margin-left: 20px;
-    margin-top: 70px;
-    font-weight: bold;
+    margin: 0;
 }
 
 .menu-links li {
-    margin-top: 20px;
-    margin-bottom: 20px;
+    margin: 0;
 }
 
-.menu-links a {
-    color: white;
+.menu-links a, .menu-logout {
     text-decoration: none;
-    font-size: 18px;
+    color: #333;
+    font-size: 1rem;
+    display: block;
+    padding: 10px 20px;
+    transition: background-color 0.2s ease-in-out;
 }
 
-.menu-links a:hover {
-    font-size: 120%;
-    color: #6faff3; /* Highlight on hover */
+.menu-links a:hover, .menu-logout:hover {
+    border-radius: 10px;
+    background-color: #fff7e4;
 }
 
-/* Adjust main content when menu is open */
-.main-content {
-    transition: margin-left 0.8s ease; /* Smooth content shift */
-}
-
-.side-menu.open ~ .main-content {
-    margin-left: 180px; /* Matches the menu's width */
-    max-width: calc(100% - 100px); /* Ensure it adapts */
-}
-
-.side-menu.open ~ .profile-title {
-    margin-left: 120px; /* Matches the menu's width */
-    max-width: calc(100% - 100px); /* Ensure it adapts */
-}
-
-.side-menu.open ~ .profile-text {
-    margin-left: 240px; /* Matches the menu's width */
-    max-width: calc(100% - 100px); /* Ensure it adapts */
-}
-
-.side-menu.open ~ .profile-cards {
-    margin-left: 160px; /* Matches the menu's width */
-    max-width: calc(100% - 100px); /* Ensure it adapts */
+/* Logout Button Styling */
+.menu-logout {
+    background: #ececec;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    margin-top: 1%;
 }

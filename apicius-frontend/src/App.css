@@ -19,6 +19,7 @@
   position: fixed;
   top: 0;
   width: 100%;
+  height: 4rem;
   padding: 10px 20px;
   align-items: center;
   justify-content: space-between;
@@ -26,18 +27,19 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
   z-index: 1000;
+  margin-bottom: 2rem;
 }
 
 .header-spacer {
-  height: 80px; /* Match the header's height */
+  height: 5rem; /* Match the header's height */
   width: 100%; /* Full width to align with content */
 }
 
 .header .logo {
-  width: 40px;
+  width: 2.5rem;
   height: auto;
   margin-left: 45%;
-  margin-right: 5%; 
+  margin-right: 15%; 
 }
 
 .header .title-container {
@@ -47,27 +49,99 @@
 }
 
 .header .app-title {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: bold;
   color: #d58f0d;
   margin: 0;
 }
 
 .header-btn {
-  
   background-color: #f4a318;
   color: white;
-  padding: 10px 16px;
+  padding: 0.625rem 1rem;
   border: none;
-  border-radius: 5px;
+  border-radius: 0.4rem;
   cursor: pointer;
   font-weight: bold;
   font-size: 1rem;
-  margin-right: 15px;
+  margin-right: 1rem;
 }
 
 .header-btn:hover {
   background-color: #b23f01;
+}
+@media (max-width: 480px) {
+  .header {
+    width: 100%;
+    height: 3.4rem;
+    padding: 0.625px 1.25px;
+    align-items: center;
+    justify-content: space-between;
+    }
+  
+    .header-spacer {
+      height: 3.4rem; /* Match the header's height */
+      width: 100%; /* Full width to align with content */
+    }
+    
+    .header .logo {
+      width: 2.2rem;
+      height: auto;
+      margin-left: 15%;
+      margin-right: 5%; 
+    }
+    
+    .header .title-container {
+      gap: 5%;
+    }
+    
+    .header .app-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    
+    .header-btn {
+      padding: 0.5rem 0.8rem;
+      font-size: 0.9rem;
+      margin-right: 1rem;
+    }
+}
+
+@media (min-width: 481px) and (max-width: 769px) {
+  .header {
+    width: 100%;
+    height: 3.8rem;
+    padding: 0.625px 1.25px;
+    align-items: center;
+    justify-content: space-between;
+    }
+  
+    .header-spacer {
+      height: 3.4rem; /* Match the header's height */
+      width: 100%; /* Full width to align with content */
+    }
+    
+    .header .logo {
+      width: 2.4rem;
+      height: auto;
+      margin-left: 25%;
+      margin-right: 10%; 
+    }
+    
+    .header .title-container {
+      gap: 5%;
+    }
+    
+    .header .app-title {
+      font-size: 1.4rem;
+      font-weight: bold;
+    }
+    
+    .header-btn {
+      padding: 0.5rem 1.1rem;
+      font-size: 1rem;
+      margin-right: 1.4rem;
+    }
 }
 
 /* __________________Notifications__________________ */

@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import apiClient, { setAccessToken } from "../services/apiClient";
+import HamburgerMenu from "../components/hamburgerMenu";
 import logo from "../assets/images/apicius-icon.png";
 import "../App.css";
 
@@ -61,9 +62,8 @@ const MasterPage = ({ children }) => {
                     <img src={logo} alt="Logo" className="logo" />
                     <div className="app-title">Apicius</div>
                 </div>
-                <button className="header-btn" onClick={handleLogout}>
-                    Logout
-                </button>
+                {/* Hamburger Menu */}
+                <HamburgerMenu handleLogout={handleLogout} />
             </header>
 
             {/* Main Content Area */}

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient'; // Import the client
-import HamburgerMenu from '../components/hamburgerMenu';
 
 // Dashboard Logic
 const Dashboard = () => {
@@ -30,8 +29,6 @@ const Dashboard = () => {
     
     return (
         <div>
-
-            <HamburgerMenu/>
 
             {/* Dashboard Content */}
             <div className="main-content">

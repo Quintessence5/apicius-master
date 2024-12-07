@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { HiArrowCircleDown } from 'react-icons/hi';
+import { FiArrowDown } from 'react-icons/fi';
 
 import logo from '../assets/images/apicius-icon.png';
 import '../styles/loginSignup.css';
@@ -176,9 +176,13 @@ const RegisterForm = () => {
                         wrapperClassName="responsive-date-picker-wrapper"
                         dateFormat="dd/MM/yyyy" // Custom date format
                         maxDate={new Date()} // Disallow future dates
+                        minDate={new Date(new Date().setFullYear(new Date().getFullYear() - 120))} // Optional: Set a very old date for minimum
                         showMonthDropdown
                         showYearDropdown
                         dropdownMode="select"
+                        filterDate={(date) =>
+                            new Date().getFullYear() - date.getFullYear() >= 10
+                        } // Only allow selecting dates that make the user at least 10 years old
                     />
                         <label htmlFor="birthdate" className={birthdate ? "float" : ""}>
                         Date of Birth
@@ -201,7 +205,7 @@ const RegisterForm = () => {
                             </option>
                             ))}
                             </select>
-                            <HiArrowCircleDown className="dropdown-icon" />
+                            <FiArrowDown className="dropdown-icon" />
                             <label
                             htmlFor="originCountry"
                         className={originCountry ? "float" : ""}
@@ -225,7 +229,7 @@ const RegisterForm = () => {
                             <option key={index} value={lang}>{lang}</option>
                             ))}
                         </select>
-                        <HiArrowCircleDown className="dropdown-icon" />
+                        <FiArrowDown className="dropdown-icon" />
                         <label
                         htmlFor="language"
                         className={language ? "float" : ""}

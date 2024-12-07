@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Modal from "../components/modal";
-import HamburgerMenu from "../components/hamburgerMenu";
 
 import "../App.css";
 import "../styles/profilePage.css";
@@ -254,8 +253,6 @@ const ProfilePage = () => {
 
   return (
     <div className="profile-page">
-
-      <HamburgerMenu />
 
         {/* Profile Cards */}
         <div className="profile-title"><h1>Connexion et sécurité</h1></div>
