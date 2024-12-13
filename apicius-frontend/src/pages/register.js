@@ -32,12 +32,12 @@ const Register = () => {
 
     return (
         <div className="register-page">
-            <header className="header">
+            <header className="headerL">
                 <div className="title-container">
                     <img src={logo} alt="Logo" className="logo" />
                     <div className="app-title">Apicius</div>
                 </div>
-                <button className="header-btn" onClick={() => navigate('/login')}>Login</button>
+                <button className="header-btnL" onClick={() => navigate('/login')}>Login</button>
             </header>
 
             <div className="register-card">

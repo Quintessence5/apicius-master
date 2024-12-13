@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import apiClient, { setAccessToken } from "../services/apiClient";
 import HamburgerMenu from "../components/hamburgerMenu";
@@ -7,6 +7,7 @@ import "../App.css";
 
 const MasterPage = ({ children }) => {
     const navigate = useNavigate();
+    const [username, setUsername] = useState("User"); // Default to "User"
 
     useEffect(() => {
         const scheduleTokenRefresh = () => {
@@ -14,7 +15,7 @@ const MasterPage = ({ children }) => {
                 try {
                     const response = await apiClient.post('/users/refresh-token');
                     setAccessToken(response.data.accessToken); // Store new access token
-                } catch (error) {
+                    } catch (error) {
                     console.error('Token refresh failed:', error);
                     if (error.response?.status === 401) {
                         navigate('/login');
@@ -25,22 +26,27 @@ const MasterPage = ({ children }) => {
             return () => clearInterval(interval);
         };
 
-        const fetchInitialAccessToken = async () => {
+        const fetchInitialData = async () => {
             try {
-                const response = await apiClient.post('/users/refresh-token');
-                setAccessToken(response.data.accessToken); // Set initial access token
+                // Fetch and set the access token
+                const tokenResponse = await apiClient.post("/users/refresh-token");
+                setAccessToken(tokenResponse.data.accessToken);
+
+                // Fetch the username
+                const userResponse = await apiClient.get("/users/profile");
+                setUsername(userResponse.data.username || "User"); // Default to "User" if no username is returned
             } catch (error) {
-                console.error('Failed to fetch initial access token:', error);
+                console.error("Failed to fetch initial data:", error);
                 if (error.response?.status === 401) {
-                    navigate('/login');
+                    navigate("/login");
                 }
             }
         };
 
-        fetchInitialAccessToken();
+        fetchInitialData();
         const clearRefresh = scheduleTokenRefresh();
 
-        return clearRefresh; // Cleanup on unmount
+        return clearRefresh;
     }, [navigate]);
 
     const handleLogout = async () => {
@@ -63,7 +69,7 @@ const MasterPage = ({ children }) => {
                     <div className="app-title">Apicius</div>
                 </div>
                 {/* Hamburger Menu */}
-                <HamburgerMenu handleLogout={handleLogout} />
+                <HamburgerMenu username={username} handleLogout={handleLogout} />
             </header>
 
             {/* Main Content Area */}

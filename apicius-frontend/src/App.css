@@ -30,15 +30,10 @@
   margin-bottom: 2rem;
 }
 
-.header-spacer {
-  height: 5rem; /* Match the header's height */
-  width: 100%; /* Full width to align with content */
-}
-
 .header .logo {
   width: 2.5rem;
   height: auto;
-  margin-left: 45%;
+  margin-left: 25%;
   margin-right: 15%; 
 }
 
@@ -58,19 +53,20 @@
 .header-btn {
   background-color: #f4a318;
   color: white;
-  padding: 0.625rem 1rem;
+  padding: 0.7rem 1.1rem;
   border: none;
   border-radius: 0.4rem;
   cursor: pointer;
   font-weight: bold;
   font-size: 1rem;
-  margin-right: 1rem;
+  margin-right: 25%;
 }
 
 .header-btn:hover {
   background-color: #b23f01;
 }
-@media (max-width: 480px) {
+
+@media (max-width: 360px) {
   .header {
     width: 100%;
     height: 3.4rem;
@@ -78,17 +74,13 @@
     align-items: center;
     justify-content: space-between;
     }
-  
-    .header-spacer {
-      height: 3.4rem; /* Match the header's height */
-      width: 100%; /* Full width to align with content */
-    }
+
     
     .header .logo {
       width: 2.2rem;
       height: auto;
       margin-left: 15%;
-      margin-right: 5%; 
+      margin-right: 5%;
     }
     
     .header .title-container {
@@ -102,8 +94,41 @@
     
     .header-btn {
       padding: 0.5rem 0.8rem;
-      font-size: 0.9rem;
-      margin-right: 1rem;
+      font-size: 0.8rem;
+      margin-left: -35%;
+    }
+}
+
+@media (min-width:361px) and (max-width: 480px) {
+  .header {
+    width: 100%;
+    height: 3.4rem;
+    padding: 0.625px 1.25px;
+    align-items: center;
+    justify-content: space-between;
+    }
+
+    
+    .header .logo {
+      width: 2.2rem;
+      height: auto;
+      margin-left: 15%;
+      margin-right: 5%;
+    }
+    
+    .header .title-container {
+      gap: 5%;
+    }
+    
+    .header .app-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    
+    .header-btn {
+      padding: 0.5rem 0.8rem;
+      font-size: 0.8rem;
+      margin-left: -25%;
     }
 }
 

@@ -33,12 +33,12 @@ function Login() {
 
     return (
         <div className="login-page">
-            <header className="header">
+            <header className="headerL">
                 <div className="title-container">
                     <img src={logo} alt="Logo" className="logo" />
                     <div className="app-title">Apicius</div>
                 </div>
-                <button className="header-btn" onClick={() => navigate('/register')}>Register</button>
+                <button className="header-btnL" onClick={() => navigate('/register')}>Register</button>
             </header>
             
             <div className="login-card">

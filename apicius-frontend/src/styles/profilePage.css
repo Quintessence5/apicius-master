@@ -9,6 +9,7 @@
     font-weight: bolder;
     text-align: center;
     margin-bottom: -0.5rem;
+    font-size: 1.2rem;
     color: #555;
 }
 
@@ -19,7 +20,9 @@
     text-align: center;
     justify-self: center;
     margin-bottom: 3rem;
-    width: 80%;
+    margin-left: 10%;
+    margin-right: 10%;
+    font-size: 1rem;
     color: #777;
 }
 
@@ -41,8 +44,10 @@
     border: 1px solid #ddd;
     border-radius: 10px;
     width: 35%;
+    height: 5rem;
     padding: 1.4rem;
-    text-align: left;
+    display: flex; /* Use flexbox for horizontal alignment */
+    justify-content: space-between; /* Align content on both ends */
     cursor: pointer;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -53,23 +58,131 @@
 }
 
 .card-content {
+    flex: 0 0 80%;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
 }
 
+.card-icon-wrapper {
+    flex: 0 0 20%; /* Take up 20% of the width */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .card-icon {
     font-size: 24px;
-    margin-bottom: 10px;
+    margin-top: -0.4rem;
+    margin-left: -4%;
 }
 
 .card-title {
     font-weight: bold;
     font-size: 18px;
-    margin-bottom: 5px;
+    margin-bottom: 0.7rem;
 }
 
 .card-description {
     font-size: 14px;
     color: #666;
+}
+
+@media (max-width: 480px) {
+    .profile-page {
+        margin-top: 2.5rem;
+    }
+    
+    .profile-title {
+        margin-bottom: -0.5rem;
+        font-size: 0.7rem;
+        }
+    
+    .profile-text {
+        margin-bottom: 1rem;
+        margin-left: 6%;
+        margin-right: 6%;
+        font-size: 0.8rem;
+    }
+    
+    .main-content {
+        text-align: left;
+        margin-top: 0.5rem;
+    }
+    
+    .profile-cards {
+        gap: 1.6rem;
+        margin-top: 1.4rem;
+    }
+    
+    .profile-card {
+        width: 80%;
+        height: 5rem;
+        padding: 1.6rem;
+        }
+
+    .card-icon {
+        font-size: 1.25rem;
+        margin-top: -0.4rem;
+        margin-left: -4%;
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card-description {
+        font-size: 0.8rem;
+    }
+}
+
+
+@media (min-width: 481px) and (max-width: 769px) {
+    .profile-page {
+        margin-top: 4rem;
+    }
+    
+    .profile-title {
+        margin-bottom: -0.5rem;
+        font-size: 1.1rem;
+        }
+    
+    .profile-text {
+        margin-bottom: 1rem;
+        margin-left: 10%;
+        margin-right: 10%;
+        font-size: 0.9rem;
+    }
+    
+    .main-content {
+        text-align: left;
+        margin-top: 1rem;
+    }
+    
+    .profile-cards {
+        gap: 2rem;
+        margin-top: 2rem;
+    }
+    
+    .profile-card {
+        width: 70%;
+        height: 5rem;
+        padding: 1.4rem;
+        }
+
+    .card-icon {
+        font-size: 1.6rem;
+        margin-top: -0.4rem;
+        margin-left: -4%;
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    .card-description {
+        font-size: 0.9rem;
+    }
 }

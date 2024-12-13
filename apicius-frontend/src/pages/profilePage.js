@@ -159,6 +159,20 @@ const ProfilePage = () => {
           icon: "🏆",
           text: "Track your achievements and milestones here. Coming soon!",
         };
+      case "customization":
+          return {
+          type: "Customization",
+          icon: "🖍️",
+          text: "Edit your profile picture and the visibility of your profile.",
+        };
+        
+        case "contributions":
+          return {
+          type: "Contributions",
+          icon: "🧱",
+          text: "Track your reviews and manage your submitted recipes.",
+        }
+
       default:
         return {};
     }
@@ -255,10 +269,10 @@ const ProfilePage = () => {
     <div className="profile-page">
 
         {/* Profile Cards */}
-        <div className="profile-title"><h1>Connexion et sécurité</h1></div>
+        <div className="profile-title"><h1>Profile and Preferences</h1></div>
         <div className="profile-text"><p>
-          Gérez les réglages relatifs à la connexion à votre compte, à la sécurité du compte,
-          et à la récupération de vos données.
+        Manage your account settings, account security, and preferences.
+        Customize what you, and other users can see on your profile.
         </p></div>
         <div className="profile-cards">
           <ProfileCard
@@ -283,10 +297,24 @@ const ProfilePage = () => {
             onClick={() => openModal("preferences")}
           />
           <ProfileCard
-            title="Achievements"
-            description="Coming soon"
+            title="Achievement"
+            description="Badges & Rewards"
             icon="🏆"
             text="Track your achievements and milestones here. Coming soon!"
+            onClick={() => showNotification("Coming soon!")}
+          />
+          <ProfileCard
+            title="Customization"
+            description="Visibility for community"
+            icon="🖍️"
+            text="Edit your profile picture and the visibility of your profile."
+            onClick={() => showNotification("Coming soon!")}
+          />
+          <ProfileCard
+            title="Contributions"
+            description="Reviews and recipe"
+            icon="🧱"
+            text="Track your reviews and manage your submitted recipes."
             onClick={() => showNotification("Coming soon!")}
           />
         </div>
@@ -530,11 +558,11 @@ const ProfilePage = () => {
 
 const ProfileCard = ({ title, description, icon, onClick }) => (
   <div className="profile-card" onClick={onClick}>
-    <div className="card-content">
+      <div className="card-content">
+          <div className="card-title">{title}</div>
+          <div className="card-description">{description}</div>
+      </div>
       <div className="card-icon">{icon}</div>
-      <div className="card-title">{title}</div>
-      <div className="card-description">{description}</div>
-    </div>
   </div>
 );
 

@@ -16,6 +16,7 @@ const getRecipeById = async (req, res) => {
     try {
         const recipe = await pool.query('SELECT * FROM recipes WHERE id = $1', [id]);
         if (recipe.rows.length === 0) return res.status(404).json({ message: 'Recipe not found' });
+        
         res.json(recipe.rows[0]);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -24,17 +25,23 @@ const getRecipeById = async (req, res) => {
 
 // 3. Add a new recipe
 const addRecipe = async (req, res) => {
-    const { title, description, notes, prep_time, cook_time, difficulty, ingredients } = req.body;
+    const { title, description, notes, prep_time, cook_time, difficulty, ingredients, course_type, meal_type, cuisine_type, public, source 
+    } = req.body;
 
+    console.log("Recipe data received:", {
+        title, description, notes, prep_time, cook_time, difficulty, course_type, meal_type, cuisine_type, public, source
+    });
+    
     try {
         // Calculate total_time before insertion
         const total_time = prep_time + cook_time;
 
         // Insert into recipes table
         const recipeResult = await pool.query(
-            `INSERT INTO recipes (title, description, notes, prep_time, cook_time, total_time, difficulty)
-            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-            [title, description, notes, prep_time, cook_time, total_time, difficulty]
+            `INSERT INTO recipes (title, description, notes, prep_time, cook_time, total_time, difficulty, 
+            course_type, meal_type, cuisine_type, public, source)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+            [title, description, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source,]
         );
 
         const recipeId = recipeResult.rows[0].id;
@@ -72,16 +79,17 @@ const addRecipe = async (req, res) => {
 // 4. Update a recipe by ID
 const updateRecipe = async (req, res) => {
     const { id } = req.params;
-    const { title, description, notes, prep_time, cook_time, difficulty } = req.body;
+    const { title, description, notes, prep_time, cook_time, difficulty, course_type, meal_type, cuisine_type, public, source, } = req.body;
 
     try {
         const total_time = prep_time + cook_time; // Calculate total time
 
         const updatedRecipe = await pool.query(
             `UPDATE recipes 
-            SET title = $1, description = $2, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7 
+            SET title = $1, description = $2, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7, course_type = $8, meal_type = $9, 
+                cuisine_type = $10, public = $11, source = $12 
             WHERE id = $8 RETURNING *`,
-            [title, description, notes, prep_time, cook_time, total_time, difficulty, id]
+            [title, description, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, id,]
         );
 
         if (updatedRecipe.rows.length === 0) return res.status(404).json({ message: 'Recipe not found' });
@@ -131,6 +139,29 @@ const addIngredientToRecipe = async (req, res) => {
     }
 };
 
+const getIngredientSuggestions = async (req, res) => {
+    const { search } = req.query;
+
+    if (!search || search.length < 2) {
+        return res.status(400).json({ message: 'Search query must be at least 2 characters.' });
+    }
+
+    try {
+        const results = await pool.query(
+            'SELECT id, name FROM ingredients WHERE name ILIKE $1 LIMIT 10',
+            [`%${search}%`]
+        );
+        res.json(results.rows);
+    } catch (error) {
+        console.error('Error fetching ingredient suggestions:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+module.exports = {
+    getIngredientSuggestions,
+};
+
 module.exports = {
     getAllRecipes,
     getRecipeById,
@@ -138,5 +169,6 @@ module.exports = {
     updateRecipe,
     deleteRecipe,
     getAllIngredients,
+    getIngredientSuggestions,
     addIngredientToRecipe,
 };

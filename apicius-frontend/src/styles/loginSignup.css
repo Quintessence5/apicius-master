@@ -1,3 +1,89 @@
+/* ________________Header_____________ */
+.headerL {
+    display: flex;
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 4rem;
+    padding: 10px 20px;
+    align-items: center;
+    justify-content: space-between;
+    background-color: rgba(255, 255, 255, 1); /* Color & transparency */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    z-index: 1000;
+    margin-bottom: 2rem;
+  }
+  
+  .headerL .logo {
+    width: 2.5rem;
+    height: auto;
+    margin-left: 25%;
+    margin-right: 15%; 
+  }
+  
+  .headerL .title-container {
+    display: flex;
+    align-items: center;
+    gap: 5%;
+  }
+  
+  .headerL .app-title {
+    font-size: 1.6rem;
+    font-weight: bold;
+    color: #d58f0d;
+    margin: 0;
+  }
+  
+  .header-btnL {
+    background-color: #f4a318;
+    color: white;
+    padding: 0.7rem 1.1rem;
+    border: none;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1rem;
+    margin-right: 2%;
+  }
+  
+  .header-btnL:hover {
+    background-color: #b23f01;
+  }
+
+  @media (max-width: 480px) {
+    .headerL {
+      width: 100%;
+      height: 3.4rem;
+      padding: 0.625px 1.25px;
+      align-items: center;
+      justify-content: space-between;
+      }
+  
+      
+      .headerL .logo {
+        width: 2.2rem;
+        height: auto;
+        margin-left: 15%;
+        margin-right: 5%;
+      }
+      
+      .headerL .title-container {
+        gap: 5%;
+      }
+      
+      .headerL .app-title {
+        font-size: 1.2rem;
+        font-weight: bold;
+      }
+      
+      .header-btnL {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.8rem;
+        margin-left: -35%;
+      }
+  }
+
 /* ---____________________Styling Social buttons___________________--- */
 .social-login-buttons {
     display: flex;

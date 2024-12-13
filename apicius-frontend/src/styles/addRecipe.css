@@ -1,0 +1,328 @@
+/* General Container */
+.add-recipe-container {
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    padding-top: 3rem;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    border-radius: 20px;
+    font-family: Arial, sans-serif;
+    background-color: #f9f9f9;
+}
+
+/* Header Section */
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-row input[type="text"] {
+    width: 100%;
+    font-size: 1.1rem;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-top: -1.3rem;
+}
+
+/* Difficulty and Source */
+.difficulty-con {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+  gap: 0.625rem; /* Space between dropdowns */
+  margin-top: 0.5rem;
+}
+
+.difficulty {
+    width: 100%;
+    display: flex;
+    gap: 1rem;
+}
+
+.difficulty select {
+    width: 35%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    color: #777;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box;
+    appearance: none; /* Removes default browser styling for dropdowns */
+    height: 2.55rem; /* Force consistent height (matches input's height with padding) */
+
+}
+
+.source-container {
+  width: 65%; 
+  margin-bottom: 0.8rem;
+}
+
+.source-container input[type="text"] {
+  width: 100%; /* Ensures the input field stretches to fill the container */
+  padding: 10px; /* Adds inner padding for better appearance */
+  font-size: 1rem; /* Adjust the font size */
+  border: 1px solid #ccc; /* Sets a light border */
+  border-radius: 5px; /* Adds rounded corners */
+  box-sizing: border-box; /* Ensures padding and border are included in the total width */
+  outline: none; /* Removes the default outline on focus */
+  transition: border-color 0.3s, box-shadow 0.3s; /* Adds smooth transitions for focus effects */
+}
+
+/* Time Row */
+.time-row {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.time-row input {
+    width: 30%;
+    padding: 0.7rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+/* Meal Row */
+.meal-type {
+    display: flex;
+    flex-wrap: wrap;
+    max-width: 100%;
+    gap: 1rem; /* Space between dropdowns */
+    align-items: center; /* Vertically align dropdowns */
+    justify-content: space-between; /* Spread items evenly if needed */
+    margin-top: -0.3rem;
+  }
+  
+  .meal-type select {
+    flex: 1; /* Make dropdowns take up equal width */
+    padding: 10px; /* Add padding for a consistent look */
+    border: 1px solid #ccc; /* Border styling */
+    border-radius: 5px; /* Rounded corners */
+    color: #777;
+    font-size: 1rem; /* Font size for readability */
+  }
+  
+  /* Description, Notes, Instructions */
+
+.description-container textarea,
+.notes-container textarea {
+    width: 97.5%;
+    font-family: Arial, sans-serif;
+    resize: both;
+    border: 1px solid #ccc;
+    padding: 0.5rem;
+    border-radius: 5px;
+    margin-top: 0.5rem;
+    font-size: 1rem;
+}
+
+/* Ingredients Section */
+.ingredients-container {
+    display: flex;
+    flex-direction: column;
+    margin-top: 1.5rem;
+    gap: 0.5rem;
+    padding: 2rem;
+    }
+
+.ingredients-container h3 {
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-top: -2.5rem;
+    margin-bottom: 0.5rem;
+    margin-left: 1rem;
+}
+
+/* Ingredient Rows */
+.ingredient-row {
+    display: flex; /* Arrange elements in a row */
+    align-items: center; /* Vertically align elements */
+    gap: 10px; /* Add spacing between groups */
+    margin-bottom: 0.5rem; /* Space between rows */
+    width: 290%; /* Ensure the row takes full width */
+  }
+  
+  /* Quantity and Unit Group */
+  .ingredient-row .quantity-unit-group {
+    display: flex; /* Group quantity and unit fields side by side */
+    gap: 8px; /* Add minimal gap between quantity and unit */
+    margin-top: 1rem;
+    flex: 0 0 20%; /* Control width of this group (adjust as needed) */
+  }
+  
+  /* Quantity Field */
+  .ingredient-row input[name="quantity"] {
+    width: 50%; /* Control width of quantity field relative to group */
+    padding: 8px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  /* Unit Field */
+  .ingredient-row select[name="unit"] {
+    width: 50%; /* Control width of unit field relative to group */
+    padding: 8px;
+    font-size: 1rem;
+    color: #777;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+  
+  /* Ingredient Field (React-Select) */
+.custom-select__control {
+  width: 70%; /* Adjust width */
+  min-width: 18rem; /* Minimum width for consistency */
+  max-width: 170%; /* Prevent overflow */
+  font-size: 16px; /* Adjust font size */
+  padding: -4px; /* Add padding */
+  margin-top: 1rem;
+  border: 1px solid #ccc; /* Add a light border */
+  border-radius: 8px; /* Rounded corners */
+  box-shadow: none; /* Remove shadow for flat design */
+}
+
+.custom-select__control:hover {
+  border-color: #3498db; /* Border color on hover */
+}
+
+.custom-select__placeholder {
+  font-size: 1rem; /* Placeholder font size */
+  color: #777; /* Placeholder color */
+}
+
+.custom-select__single-value {
+  font-size: 1rem; /* Font size of selected value */
+  color: #333; /* Selected value color */
+}
+
+.custom-select__dropdown-indicator {
+  padding: 0 5px; /* Adjust dropdown indicator size */
+}
+
+.custom-select__menu {
+  font-size: 1rem; /* Font size for dropdown items */
+  z-index: 10; /* Ensure it appears on top */
+}
+
+.custom-select__option {
+  padding: 10px; /* Padding for dropdown items */
+  cursor: pointer; /* Change cursor on hover */
+}
+
+.custom-select__option--is-selected {
+  background-color: #3498db; /* Background for selected item */
+  color: #fff; /* Text color for selected item */
+}
+
+.custom-select__option--is-focused {
+  background-color: #dceefb; /* Hover background */
+  color: #333; /* Hover text color */
+}
+  
+/* Locked Ingredients Row */
+.locked-ingredient-row {
+  display: flex;
+  align-items: center; /* Align items vertically */
+  gap: 10px; /* Spacing between elements */
+  width: 20%;
+  padding: 8px;
+  margin-bottom: -20px;
+  margin-left: 0.5rem;
+}
+
+/* Locked Ingredient Text */
+.locked-ingredient-text {
+  flex: 1; /* Allow text to grow */
+  font-size: 1rem;
+  color: #333; /* Dark text for readability */
+  word-wrap: break-word; /* Prevent long text overflow */
+}
+
+  /* Buttons */
+  .ingredient-row .edit-button,
+  .ingredient-row .delete-button {
+    flex: 0 0 2rem; /* Control button width */
+    padding: 5px 0.6125px;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    text-align: center;
+  }
+  
+  .ingredient-row .edit-button {
+    width: 1rem;
+    color: #3498db;
+  }
+  
+  .ingredient-row .delete-button {
+    color: #e74c3c;
+  }
+  
+  .save-edit-button {
+    background-color: #4caf50; /* Green */
+    color: white;
+    height: 2rem;
+    border: none;
+    margin-top: 1rem;
+    border-radius: 3px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  
+  .save-edit-button:hover {
+    background-color: #45a049;
+  }
+  
+  .ingredient-row .edit-button:hover,
+  .ingredient-row .delete-button:hover {
+    background-color: #eaeaea;
+  }  
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 10px; /* Space between buttons */
+    align-items: center;
+    justify-content: flex-start; /* Align buttons to the left */
+    margin-top: 0.5rem;
+    margin-bottom: -2.5rem; /* Add some space below the buttons */
+    margin-left: 4.5%;
+}
+  
+.save-button,
+.delete-recipe-button {
+    font-size: 0.8rem;
+    font-weight: bold;
+    padding: 0.7rem 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.save-button {
+    background-color: #0275d8;
+    color: white;
+}
+
+.delete-recipe-button {
+    background-color: #d9534f;
+    color: white;
+}
+
+.add-ingredient-button {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-color: #33333300;
+  border-radius: 10px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background-color: #f7ad3e;
+  color: white;
+}
