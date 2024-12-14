@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import AsyncSelect from 'react-select/async';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import Select from 'react-select';
 import "../styles/addRecipe.css";
 
 const AddRecipe = () => {
@@ -10,26 +10,17 @@ const AddRecipe = () => {
         course_type: '', meal_type: '', cuisine_type: '', public: false, source: ''
     });
     const [ingredients, setIngredients] = useState([{ ingredientId: '', quantity: '', unit: '', form: '', locked: false }]);
-    const [availableIngredients, setAvailableIngredients] = useState([]);
     const [availableUnits, setAvailableUnits] = useState([]);
     const courseTypes = ['Appetizer', 'Main Course', 'Dessert', 'Snack', 'Beverage'];
     const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
     const cuisineTypes = ['Italian', 'Chinese', 'Indian', 'Mexican', 'French', 'Others'];
     const difficulty = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard' ];
     const [error, setError] = useState("");
+    const [editingIndex, setEditingIndex] = useState(null);
     const navigate = useNavigate();
 
     // Fetch available ingredients and units on component mount
     useEffect(() => {
-        const fetchIngredients = async () => {
-            try {
-                const ingredientResponse = await axios.get('/api/ingredients'); // Ensure API returns form data
-                setAvailableIngredients(ingredientResponse.data || []);
-            } catch (error) {
-                console.error("Error fetching ingredients:", error);
-            }
-        };
-    
         const fetchUnits = async () => {
             try {
                 const unitResponse = await axios.get('/api/units');
@@ -43,8 +34,6 @@ const AddRecipe = () => {
                 console.error("Error fetching units:", error);
             }
         };
-    
-        fetchIngredients();
         fetchUnits();
     }, []);
 
@@ -67,6 +56,18 @@ const AddRecipe = () => {
       setIngredients(newIngredients);
     };
     
+    const fetchIngredients = async (inputValue) => {
+      try {
+        const response = await axios.get(`/api/ingredients?search=${inputValue}`);
+        return response.data.map((ingredient) => ({
+          value: ingredient.id,
+          label: ingredient.name,
+        }));
+      } catch (error) {
+        console.error("Error fetching filtered ingredients:", error);
+        return [];
+      }
+    };    
 
       const addIngredient = () => {
         if (isValidIngredient(ingredients[ingredients.length - 1])) {
@@ -86,11 +87,11 @@ const AddRecipe = () => {
         !ingredient.locked;
     
         const handleEdit = (index) => {
+          setEditingIndex(index); // Set the current editing index
           const updatedIngredients = [...ingredients];
-          updatedIngredients[index].locked = false;
+          updatedIngredients[index].locked = false; // Unlock the ingredient for editing
           setIngredients(updatedIngredients);
-        };
-        
+        };        
     
         const removeIngredient = (index) => {
           setIngredients((prev) => prev.filter((_, i) => i !== index));
@@ -119,9 +120,11 @@ const AddRecipe = () => {
 
     const handleSaveEdit = (index) => {
       const updatedIngredients = [...ingredients];
-      updatedIngredients[index].locked = true; // Lock the ingredient again
+      updatedIngredients[index].locked = true; // Lock the ingredient
       setIngredients(updatedIngredients);
-    };    
+      setEditingIndex(null); // Reset editing index after saving
+    };
+      
     
     // Save and delete functions
   const handleSave = async () => {
@@ -257,32 +260,50 @@ const AddRecipe = () => {
       className="delete-button"
       onClick={() => removeIngredient(index)}
     >
-      -
+      ❌
     </button>
   </div>
       ) : (
         <>
           {/* Ingredient Selection */}
-  <Select
+          <AsyncSelect
   className="ingredientRS-select"
   classNamePrefix="custom-select"
-    options={availableIngredients.map((ing) => ({
-      value: ing.id,
-      label: ing.name,
-      form: ing.form,
-    }))}
-    onChange={(selectedOption) => handleIngredientChange(index, selectedOption)}
-        value={
-          ingredient.ingredientId
-            ? {
-                value: ingredient.ingredientId,
-                label: ingredient.ingredientName,
-              }
-            : null
-        }
-        placeholder="Select Ingredient"
-        isClearable
-      />
+  placeholder="Start typing to search..."
+  cacheOptions
+  defaultOptions={false} // Prevent dropdown from showing initially
+  loadOptions={(inputValue, callback) => {
+    if (inputValue.trim().length >= 2) {
+      axios
+        .get(`/api/ingredients?search=${inputValue.trim()}`)
+        .then((response) => {
+          if (response.data.length > 0) {
+            const options = response.data.map((ingredient) => ({
+              value: ingredient.id,
+              label: ingredient.name,
+            }));
+            callback(options); // Populate dropdown with results
+          } else {
+            callback([]); // Return no options if no matches
+          }
+        })
+        .catch((error) => {
+          console.error("Error fetching ingredients:", error.message);
+          callback([]); // Handle errors gracefully
+        });
+    } else {
+      callback([]); // No options if input length < 2
+    }
+  }}
+  noOptionsMessage={() => "No options"} // Display when no results are found
+  onChange={(selectedOption) => handleIngredientChange(index, selectedOption)}
+  value={
+    ingredient.ingredientId
+      ? { value: ingredient.ingredientId, label: ingredient.ingredientName }
+      : null
+  }
+/>
+
   {/* Quantity and Unit Group */}
   <div className="quantity-unit-group">
     <input
@@ -311,9 +332,15 @@ const AddRecipe = () => {
     </select>
     </div>
      {/* Save/Confirm Button */}
-     <button className="save-edit-button" onClick={() => handleSaveEdit(index)} disabled={!isValidIngredient(ingredients[index])}>
-        ✔
-      </button>
+     {editingIndex === index && (
+          <button
+            className="save-edit-button"
+            onClick={() => handleSaveEdit(index)}
+            disabled={!isValidIngredient(ingredients[index])}
+          >
+            ✔
+          </button>
+        )}
         </>
       )}
     </div>

@@ -142,18 +142,26 @@ const addIngredientToRecipe = async (req, res) => {
 const getIngredientSuggestions = async (req, res) => {
     const { search } = req.query;
 
-    if (!search || search.length < 2) {
+    // Validate search input
+    if (!search || search.trim().length < 2) {
         return res.status(400).json({ message: 'Search query must be at least 2 characters.' });
     }
 
     try {
+        // Perform case-insensitive partial matching
         const results = await pool.query(
-            'SELECT id, name FROM ingredients WHERE name ILIKE $1 LIMIT 10',
-            [`%${search}%`]
+            `SELECT id, name 
+             FROM ingredients 
+             WHERE LOWER(name) LIKE $1 
+             ORDER BY name ASC 
+             LIMIT 10`,
+            [`%${search.trim().toLowerCase()}%`] // Use lowercase input with wildcards
         );
+
+        // Return filtered results
         res.json(results.rows);
     } catch (error) {
-        console.error('Error fetching ingredient suggestions:', error);
+        console.error('Error fetching ingredient suggestions:', error.message);
         res.status(500).json({ message: 'Server error' });
     }
 };
