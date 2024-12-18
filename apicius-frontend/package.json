@@ -11,6 +11,8 @@
     "firebase": "^11.0.2",
     "google-auth-library": "^9.14.2",
     "jwt-decode": "^4.0.0",
+    "lodash": "^4.17.21",
+    "rc-select": "^14.16.4",
     "react": "^18.3.1",
     "react-datepicker": "^7.5.0",
     "react-dom": "^18.3.1",

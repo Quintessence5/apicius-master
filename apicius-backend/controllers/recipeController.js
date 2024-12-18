@@ -3,10 +3,93 @@ const pool = require('../config/db'); // Ensure this is correctly pointing to yo
 // 1. Get all recipes
 const getAllRecipes = async (req, res) => {
     try {
-        const recipes = await pool.query('SELECT * FROM recipes');
-        res.json(recipes.rows);
+        const query = `
+            SELECT 
+                r.id AS recipe_id, 
+                r.title, 
+                r.description, 
+                r.notes, 
+                r.prep_time, 
+                r.cook_time, 
+                r.total_time, 
+                r.difficulty, 
+                r.course_type, 
+                r.meal_type, 
+                r.cuisine_type, 
+                r.source,
+                ri.quantity, 
+                ri.unit, 
+                i.name AS ingredient_name
+            FROM 
+                recipes r
+            LEFT JOIN 
+                recipe_ingredients ri ON r.id = ri.recipe_id
+            LEFT JOIN 
+                ingredients i ON ri.ingredient_id = i.id
+            WHERE 
+                r.public = true -- Ensure filtering for public recipes
+            ORDER BY 
+                r.id;
+        `;
+
+        const results = await pool.query(query);
+
+        // Log the results to confirm filtering works
+        console.log("Filtered recipes:", results.rows);
+
+        // Group and process the recipes
+        const recipes = results.rows.reduce((acc, row) => {
+            const {
+                recipe_id,
+                title,
+                description,
+                notes,
+                prep_time,
+                cook_time,
+                total_time,
+                difficulty,
+                course_type,
+                meal_type,
+                cuisine_type,
+                source,
+                quantity,
+                unit,
+                ingredient_name,
+            } = row;
+
+            if (!acc[recipe_id]) {
+                acc[recipe_id] = {
+                    id: recipe_id,
+                    title,
+                    description,
+                    notes,
+                    prep_time,
+                    cook_time,
+                    total_time,
+                    difficulty,
+                    course_type: course_type || null,
+                    meal_type: meal_type || null,
+                    cuisine_type: cuisine_type || null,
+                    source: source || null,
+                    ingredients: [],
+                };
+            }
+
+            if (ingredient_name) {
+                acc[recipe_id].ingredients.push({
+                    quantity,
+                    unit,
+                    ingredient_name,
+                });
+            }
+
+            return acc;
+        }, {});
+
+        res.json(Object.values(recipes));
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error("Error fetching recipes:", error);
+        res.status(500).json({ message: "Server error" });
     }
 };
 
@@ -140,34 +223,35 @@ const addIngredientToRecipe = async (req, res) => {
 };
 
 const getIngredientSuggestions = async (req, res) => {
-    const { search } = req.query;
-
-    // Validate search input
-    if (!search || search.trim().length < 2) {
-        return res.status(400).json({ message: 'Search query must be at least 2 characters.' });
-    }
-
     try {
-        // Perform case-insensitive partial matching
-        const results = await pool.query(
-            `SELECT id, name 
-             FROM ingredients 
-             WHERE LOWER(name) LIKE $1 
-             ORDER BY name ASC 
-             LIMIT 10`,
-            [`%${search.trim().toLowerCase()}%`] // Use lowercase input with wildcards
-        );
+        const { search } = req.query; // Get the search query from the request
 
-        // Return filtered results
+        // If no search term is provided, return no options
+        if (!search) {
+            return res.status(400).json({ message: "No search term provided" });
+        }
+
+        // Use the search term in the SQL query with ILIKE for case-insensitive matching
+        const query = `
+            SELECT id, name
+            FROM ingredients
+            WHERE name ILIKE $1
+            LIMIT 10;
+        `;
+
+        const results = await pool.query(query, [`%${search}%`]);
+
+        // If no results found, return a message
+        if (results.rows.length === 0) {
+            return res.json({ message: "No options" });
+        }
+
+        // Return the matching ingredients
         res.json(results.rows);
     } catch (error) {
-        console.error('Error fetching ingredient suggestions:', error.message);
-        res.status(500).json({ message: 'Server error' });
+        console.error("Error fetching ingredient suggestions:", error);
+        res.status(500).json({ message: "Server error" });
     }
-};
-
-module.exports = {
-    getIngredientSuggestions,
 };
 
 module.exports = {

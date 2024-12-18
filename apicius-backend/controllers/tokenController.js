@@ -11,37 +11,38 @@ const generateAccessToken = (userId) => {
 const generateRefreshToken = async (userId) => {
     const client = await pool.connect();
     try {
-        await client.query('BEGIN'); // Start a transaction
+        await client.query('BEGIN'); // Start transaction
 
-        // Remove previous tokens for the user
+        console.log(`Deleting old tokens for userId: ${userId}`);
         await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
 
-        // Generate a new refresh token
         const refreshToken = crypto.randomBytes(64).toString('hex');
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
 
-        // Insert the new refresh token
+        console.log(`Inserting new refresh token for userId: ${userId}`);
         await client.query(
             'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
             [userId, refreshToken, expiresAt]
         );
 
-        await client.query('COMMIT'); // Commit the transaction
-        console.log('Generated and stored new refresh token:', refreshToken);
+        await client.query('COMMIT'); // Commit transaction
         return refreshToken;
     } catch (error) {
-        await client.query('ROLLBACK'); // Rollback the transaction on error
-        console.error('Error in generateRefreshToken:', error.message); // Add detailed logging
+        await client.query('ROLLBACK');
+        console.error('Error in generateRefreshToken:', error.message);
         throw new Error('Could not generate refresh token');
     } finally {
-        client.release(); // Release the client
+        client.release();
     }
 };
+
 
 // Refresh Tokens
 exports.refreshToken = async (req, res) => {
     const refreshToken = req.cookies?.refreshToken;
+
+    console.log("Incoming refresh request. Refresh Token:", refreshToken);
 
     if (!refreshToken) {
         return res.status(401).json({ message: 'Refresh token not provided' });
@@ -54,19 +55,21 @@ exports.refreshToken = async (req, res) => {
         );
 
         if (result.rows.length === 0) {
+            console.log("Refresh token invalid or expired:", refreshToken);
             return res.status(403).json({ message: 'Invalid or expired refresh token' });
         }
 
         const userId = result.rows[0].user_id;
 
         // Generate new tokens
+        console.log("Refreshing tokens for user:", userId);
         const newAccessToken = generateAccessToken(userId);
         const newRefreshToken = await generateRefreshToken(userId);
 
         // Revoke old token
         await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
 
-        // Set only the refresh token in cookies
+        // Set new refresh token in cookies
         res.cookie('refreshToken', newRefreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/db'); // Import database connection
+const pool = require('../config/db');
 const { getIngredientSuggestions } = require('../controllers/recipeController');
 
 // Get all recipes with ingredients and quantities

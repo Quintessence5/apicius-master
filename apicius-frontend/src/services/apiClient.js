@@ -41,6 +41,7 @@ apiClient.interceptors.response.use(
             originalRequest._retry = true;
 
             if (isRefreshing) {
+                // Wait until the refresh process finishes
                 return new Promise((resolve) => {
                     subscribeToTokenRefresh((token) => {
                         originalRequest.headers['Authorization'] = `Bearer ${token}`;
@@ -53,13 +54,13 @@ apiClient.interceptors.response.use(
 
             try {
                 const response = await axios.post('http://localhost:5010/api/users/refresh-token', {}, { withCredentials: true });
-                accessToken = response.data.accessToken;
+                const newAccessToken = response.data.accessToken;
+                setAccessToken(newAccessToken);
 
-                // Notify subscribers and retry failed requests
-                onRefreshed(accessToken);
+                onRefreshed(newAccessToken);
 
-                originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
-                return apiClient(originalRequest);
+                originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+                return apiClient(originalRequest); // Retry the original request
             } catch (refreshError) {
                 console.error('Token refresh failed:', refreshError);
                 return Promise.reject(refreshError);

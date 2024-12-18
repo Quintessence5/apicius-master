@@ -57,17 +57,24 @@ const AddRecipe = () => {
     };
     
     const fetchIngredients = async (inputValue) => {
-      try {
-        const response = await axios.get(`/api/ingredients?search=${inputValue}`);
-        return response.data.map((ingredient) => ({
-          value: ingredient.id,
-          label: ingredient.name,
-        }));
-      } catch (error) {
-        console.error("Error fetching filtered ingredients:", error);
-        return [];
+      if (!inputValue || inputValue.trim().length < 2) {
+          return []; // Prevent premature API calls and dropdown opening
       }
-    };    
+  
+      try {
+          const response = await axios.get(`/api/ingredients?search=${inputValue.trim()}`);
+          const data = response.data;
+  
+          // Map the API response to the format needed by React-Select
+          return data.map((ingredient) => ({
+              value: ingredient.id,
+              label: ingredient.name,
+          }));
+      } catch (error) {
+          console.error('Error fetching ingredient suggestions:', error.message);
+          return [];
+      }
+  };  
 
       const addIngredient = () => {
         if (isValidIngredient(ingredients[ingredients.length - 1])) {
@@ -269,33 +276,11 @@ const AddRecipe = () => {
           <AsyncSelect
   className="ingredientRS-select"
   classNamePrefix="custom-select"
-  placeholder="Start typing to search..."
+  placeholder="Start typing to search..." // Initial placeholder
   cacheOptions
-  defaultOptions={false} // Prevent dropdown from showing initially
-  loadOptions={(inputValue, callback) => {
-    if (inputValue.trim().length >= 2) {
-      axios
-        .get(`/api/ingredients?search=${inputValue.trim()}`)
-        .then((response) => {
-          if (response.data.length > 0) {
-            const options = response.data.map((ingredient) => ({
-              value: ingredient.id,
-              label: ingredient.name,
-            }));
-            callback(options); // Populate dropdown with results
-          } else {
-            callback([]); // Return no options if no matches
-          }
-        })
-        .catch((error) => {
-          console.error("Error fetching ingredients:", error.message);
-          callback([]); // Handle errors gracefully
-        });
-    } else {
-      callback([]); // No options if input length < 2
-    }
-  }}
-  noOptionsMessage={() => "No options"} // Display when no results are found
+  defaultOptions={false} // Prevent dropdown from opening prematurely
+  loadOptions={fetchIngredients} // Use the fetchIngredients function
+  noOptionsMessage={() => "No options"} // Display this when no matches are found
   onChange={(selectedOption) => handleIngredientChange(index, selectedOption)}
   value={
     ingredient.ingredientId

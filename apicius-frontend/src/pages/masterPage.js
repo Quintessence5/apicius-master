@@ -10,55 +10,54 @@ const MasterPage = ({ children }) => {
     const [username, setUsername] = useState("User"); // Default to "User"
 
     useEffect(() => {
+        let refreshInterval = null;
+    
         const scheduleTokenRefresh = () => {
-            const interval = setInterval(async () => {
+            refreshInterval = setInterval(async () => {
                 try {
+                    console.log("Refreshing access token...");
                     const response = await apiClient.post('/users/refresh-token');
-                    setAccessToken(response.data.accessToken); // Store new access token
-                    } catch (error) {
+                    setAccessToken(response.data.accessToken); // Update token
+                } catch (error) {
                     console.error('Token refresh failed:', error);
                     if (error.response?.status === 401) {
-                        navigate('/login');
+                        navigate('/login'); // Redirect on failure
                     }
                 }
             }, 10 * 60 * 1000); // Refresh every 10 minutes
-
-            return () => clearInterval(interval);
         };
-
+    
         const fetchInitialData = async () => {
             try {
-                // Fetch and set the access token
-                const tokenResponse = await apiClient.post("/users/refresh-token");
-                setAccessToken(tokenResponse.data.accessToken);
-
-                // Fetch the username
+                console.log("Fetching profile...");
                 const userResponse = await apiClient.get("/users/profile");
-                setUsername(userResponse.data.username || "User"); // Default to "User" if no username is returned
+                setUsername(userResponse.data.username || "User");
             } catch (error) {
                 console.error("Failed to fetch initial data:", error);
                 if (error.response?.status === 401) {
                     navigate("/login");
                 }
             }
-        };
+        };        
+    
+        fetchInitialData(); // Fetch initial token and data
+        scheduleTokenRefresh(); // Start refresh interval
 
-        fetchInitialData();
-        const clearRefresh = scheduleTokenRefresh();
-
-        return clearRefresh;
-    }, [navigate]);
-
-    const handleLogout = async () => {
-        try {
-            await apiClient.post('/users/logout');
-            clearInterval(window.refreshInterval); // Clear the refresh interval
-            window.localStorage.clear(); // Clear storage if used
-            window.location.href = '/login';
-        } catch (error) {
-            console.error('Error logging out:', error);
-        }
+    return () => {
+        if (refreshInterval) clearInterval(refreshInterval); // Clean up interval
     };
+}, [navigate]);
+
+const handleLogout = async () => {
+    try {
+        await apiClient.post('/users/logout');
+        clearInterval(window.refreshInterval); // Clear any active intervals
+        window.localStorage.clear(); // Clear storage
+        window.location.href = '/login';
+    } catch (error) {
+        console.error('Error logging out:', error);
+    }
+};
 
     return (
         <div className="master-page">

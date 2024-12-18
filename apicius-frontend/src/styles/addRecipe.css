@@ -111,6 +111,8 @@
 .description-container textarea,
 .notes-container textarea {
     width: 97.5%;
+    max-width: 97.5%;
+    min-width: 97.5%;
     font-family: Arial, sans-serif;
     resize: both;
     border: 1px solid #ccc;
