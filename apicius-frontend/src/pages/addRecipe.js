@@ -6,8 +6,8 @@ import "../styles/addRecipe.css";
 
 const AddRecipe = () => {
     const [recipe, setRecipe] = useState({
-        title: '', description: '', notes: '', prep_time: '', cook_time: '', total_time: '', difficulty: '', 
-        course_type: '', meal_type: '', cuisine_type: '', public: false, source: ''
+        title: '', steps: [], notes: '', prep_time: '', cook_time: '', total_time: '', difficulty: '', 
+        course_type: '', meal_type: '', cuisine_type: '', public: false, source: '', portions: ''
     });
     const [ingredients, setIngredients] = useState([{ ingredientId: '', quantity: '', unit: '', form: '', locked: false }]);
     const [availableUnits, setAvailableUnits] = useState([]);
@@ -17,64 +17,89 @@ const AddRecipe = () => {
     const difficulty = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard' ];
     const [error, setError] = useState("");
     const [editingIndex, setEditingIndex] = useState(null);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState('');
+    const [currentStep, setCurrentStep] = useState("");
     const navigate = useNavigate();
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const imageInput = document.getElementById("recipe-image");
+      const label = document.querySelector(".upload-label");
+    
+      imageInput.addEventListener("change", () => {
+        if (imageInput.files && imageInput.files.length > 0) {
+          label.style.display = "none"; // Hide the label
+        } else {
+          label.style.display = "block"; // Show the label if no file is selected
+        }
+      });
+    });    
 
     // Fetch available ingredients and units on component mount
     useEffect(() => {
-        const fetchUnits = async () => {
-            try {
-                const unitResponse = await axios.get('/api/units');
-                const normalizedUnits = unitResponse.data.map((unit) => ({
-                    ...unit,
-                    type: unit.type.toLowerCase(), // Ensure consistent lowercase values
-                }));
-                setAvailableUnits(normalizedUnits || []);
-            } catch (error) {
-                setError("Failed to fetch units. Please try again.");
-                console.error("Error fetching units:", error);
-            }
-        };
+      const fetchUnits = async () => {
+        try {
+            const unitResponse = await axios.get('/api/units');
+            console.log("Unit response:", unitResponse.data); // Log raw unit data
+            const normalizedUnits = unitResponse.data.map((unit) => ({
+                ...unit,
+                type: unit.type.toLowerCase(), // Normalize to lowercase
+            }));
+            console.log("Normalized units:", normalizedUnits); // Log normalized units
+            setAvailableUnits(normalizedUnits || []);
+        } catch (error) {
+            setError("Failed to fetch units. Please try again.");
+            console.error("Error fetching units:", error);
+        }
+    };    
+    
         fetchUnits();
     }, []);
 
     const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-        const newValue = type === 'checkbox' ? checked : (name === 'prep_time' || name === 'cook_time') ? parseInt(value) || 0 : value;
-        setRecipe(prev => ({
-            ...prev,
-            [name]: newValue,
-            total_time: (name === 'prep_time' ? newValue : prev.prep_time) + (name === 'cook_time' ? newValue : prev.cook_time),
-        }));
-    };
+      const { name, value, type, checked } = e.target;
+      const newValue =
+          type === "checkbox"
+              ? checked
+              : ["prep_time", "cook_time", "portions"].includes(name)
+              ? value === "" ? null : parseInt(value) // Convert to integer or set to null
+              : value;
+  
+      setRecipe((prev) => ({
+          ...prev,
+          [name]: newValue,
+          total_time: name === "prep_time" || name === "cook_time"
+              ? (name === "prep_time" ? newValue || 0 : prev.prep_time || 0) +
+                (name === "cook_time" ? newValue || 0 : prev.cook_time || 0)
+              : prev.total_time,
+      }));
+  };  
 
     const handleIngredientChange = (index, selectedOption) => {
       const newIngredients = [...ingredients];
       newIngredients[index].ingredientId = selectedOption.value;
-      newIngredients[index].ingredientName = selectedOption.label; // Save the name
-      newIngredients[index].form = selectedOption.form;
+      newIngredients[index].ingredientName = selectedOption.label;
+      newIngredients[index].form = selectedOption.form; // Ensure this is correctly set
       newIngredients[index].unit = ""; // Reset unit when ingredient changes
       setIngredients(newIngredients);
-    };
-    
-    const fetchIngredients = async (inputValue) => {
-      if (!inputValue || inputValue.trim().length < 2) {
-          return []; // Prevent premature API calls and dropdown opening
-      }
-  
-      try {
-          const response = await axios.get(`/api/ingredients?search=${inputValue.trim()}`);
-          const data = response.data;
-  
-          // Map the API response to the format needed by React-Select
-          return data.map((ingredient) => ({
-              value: ingredient.id,
-              label: ingredient.name,
-          }));
-      } catch (error) {
-          console.error('Error fetching ingredient suggestions:', error.message);
-          return [];
-      }
+      console.log("Updated ingredient:", newIngredients[index]); // Log the updated ingredient
   };  
+    
+  const fetchIngredients = async (inputValue) => {
+    if (!inputValue || inputValue.trim().length < 2) return [];
+    try {
+        const response = await axios.get(`/api/ingredients/suggestions?search=${inputValue.trim()}`);
+        console.log("Fetched ingredients:", response.data); // Debug API response
+        return response.data.map((ingredient) => ({
+            value: ingredient.id,
+            label: ingredient.name,
+            form: ingredient.form || "unknown", // Include form; default to "unknown" if missing
+        }));
+    } catch (error) {
+        console.error("Error fetching ingredient suggestions:", error);
+        return [];
+    }
+};
 
       const addIngredient = () => {
         if (isValidIngredient(ingredients[ingredients.length - 1])) {
@@ -113,17 +138,50 @@ const AddRecipe = () => {
     };
 
     const getFilteredUnits = (form) => {
-        if (!form) return []; // No units if form is undefined
-        if (form === 'solid') {
-            // Return units that are weight or quantity
-            return availableUnits.filter((unit) => unit.type === 'weight' || unit.type === 'quantity');
-        }
-        if (form === 'liquid') {
-            // Return units that are volume
-            return availableUnits.filter((unit) => unit.type === 'volume');
-        }
-        return []; // Default empty array for invalid form values
-    };    
+      console.log("Filtering units for form:", form); // Log the form being used
+      if (!form) return [];
+      if (form === "solid") {
+          return availableUnits.filter((unit) => unit.type === "weight" || unit.type === "quantity");
+      }
+      if (form === "liquid") {
+          return availableUnits.filter((unit) => unit.type === "volume");
+      }
+      return [];
+  };  
+
+  const handleAddStep = (e) => {
+    if (e.key === 'Enter' && currentStep.trim()) {
+        e.preventDefault(); // Prevent default behavior of Enter
+        setRecipe((prev) => ({
+            ...prev,
+            steps: [...prev.steps, currentStep.trim()] // Add new step, trimming whitespace
+        }));
+        setCurrentStep(""); // Clear the input
+    }
+};
+
+const handleEditStepStart = (index) => {
+  setEditingIndex(index); // Track the editing index
+};
+
+const handleSaveEditStep = (index) => {
+  setEditingIndex(null); // Exit edit mode
+};
+
+const handleEditStep = (index, newValue) => {
+  setRecipe((prev) => {
+      const updatedSteps = [...prev.steps];
+      updatedSteps[index] = newValue.trim(); 
+      return { ...prev, steps: updatedSteps };
+  });
+};
+
+const handleDeleteStep = (index) => {
+  setRecipe((prev) => ({
+      ...prev,
+      steps: prev.steps.filter((_, i) => i !== index) // Remove step
+  }));
+};
 
     const handleSaveEdit = (index) => {
       const updatedIngredients = [...ingredients];
@@ -134,16 +192,32 @@ const AddRecipe = () => {
       
     
     // Save and delete functions
-  const handleSave = async () => {
-    try {
-      const lockedIngredients = ingredients.filter((ing) => ing.locked);
-      await axios.post("/api/recipes", { ...recipe, ingredients: lockedIngredients });
-      alert("Recipe saved successfully!");
-      navigate("/all-recipes");
-    } catch (err) {
-      console.error("Error saving recipe:", err);
-      setError("Failed to save the recipe. Please try again.");
-    }
+    const handleSave = async () => {
+      try {
+          const sanitizedRecipe = {
+              ...recipe,
+              prep_time: recipe.prep_time || null,
+              cook_time: recipe.cook_time || null,
+              total_time: recipe.total_time || null,
+              portions: recipe.portions || null,
+          };
+  
+          const lockedIngredients = ingredients.filter((ing) => ing.locked);
+          const steps = recipe.steps.filter((step) => step.trim() !== ""); // Remove empty steps
+
+          await axios.post("/api/recipes", {
+              ...sanitizedRecipe,
+              ingredients: lockedIngredients,
+              steps,
+              imagePath: recipe.imagePath,
+          });
+  
+          alert("Recipe saved successfully!");
+          navigate("/all-recipes");
+      } catch (err) {
+          console.error("Error saving recipe:", err);
+          setError("Failed to save the recipe. Please try again.");
+      }
   };
 
   const handleDelete = () => {
@@ -168,6 +242,38 @@ const AddRecipe = () => {
     }
   };
 
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+    setSelectedImage(file);
+
+    // Generate a preview URL
+    const preview = URL.createObjectURL(file);
+    setPreviewUrl(preview);
+};
+
+const handleImageUpload = async () => {
+  if (!selectedImage) {
+      alert('Please select an image');
+      return;
+  }
+
+  const formData = new FormData();
+  formData.append('image', selectedImage);
+
+  try {
+      const response = await axios.post('http://localhost:5010/api/recipes/upload-image', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      alert(response.data.message);
+
+      // Save the image path in recipe state
+      setRecipe((prev) => ({ ...prev, imagePath: response.data.imagePath }));
+  } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
+  }
+};
+
     return (
             <div className="add-recipe-container">
                 {error && <div className="error-message">{error}</div>}
@@ -182,21 +288,36 @@ const AddRecipe = () => {
             </div>
             
             <div className="add-recipe-container">
-            <div className="header-row"><input type="text" name="title" value={recipe.title} onChange={handleChange} placeholder="Title" required /></div>
-            
-            <div className="difficulty-con">
+        <div className="header-row">
+            <input type="text" name="title" value={recipe.title} onChange={handleChange} placeholder="Title" required />
+        </div>
+
+            <div className="difficulty-row"> 
             <div className="difficulty"><select name="difficulty" value={recipe.difficulty} onChange={handleChange} required>
                 <option value="">Select Difficulty</option>
                 {difficulty.map((type) => (
                 <option key={type} value={type}>{type}</option>
                 ))}
             </select>
+            </div>
 
             <div className="source-container">
             <input type="text" name="source" value={recipe.source} onChange={handleChange} placeholder="Source (Optional)" />
             </div>
+
+            <div className="portions-row">
+            <input
+            type="number"
+            id="portions"
+            name="portions"
+            value={recipe.portions}
+            onChange={handleChange}
+            placeholder="Number of portions"
+            min="1"
+            />
             </div>
             </div>
+            
 
             <div className="meal-type">
             <select name="course_type" value={recipe.course_type} onChange={handleChange} required>
@@ -221,14 +342,84 @@ const AddRecipe = () => {
             </select>
             </div>
             
-            <div className="time-row"><input type="number" name="prep_time" value={recipe.prep_time} onChange={handleChange} placeholder="Prep Time" min="0" required />
-            <input type="number" name="cook_time" value={recipe.cook_time} onChange={handleChange} placeholder="Cook Time" min="0" required />
-            <input type="number" name="total_time" value={recipe.total_time} placeholder="Total Time (auto-calculated)" readOnly /></div>
+            <div className="time-row">
+  <input
+    type="number"
+    name="prep_time"
+    value={recipe.prep_time}
+    onChange={handleChange}
+    placeholder="Prep Time (minutes)"
+    min="0"
+    className="time-field"
+    required
+  />
+  <input
+    type="number"
+    name="cook_time"
+    value={recipe.cook_time}
+    onChange={handleChange}
+    placeholder="Cook Time (minutes)"
+    min="0"
+    className="time-field"
+    required
+  />
+  <input
+    type="number"
+    name="total_time"
+    value={recipe.total_time}
+    placeholder="Total Time (auto-calculated)"
+    className="time-field"
+    readOnly
+  />
+</div>
 
-            <div className="description-container">
-            <textarea name="description" value={recipe.description} onChange={handleChange} placeholder="Description" required></textarea>
-             {/* Notes Section */}
-             </div>
+            <div className="steps-container">
+    <h4>Steps</h4>
+    <ul>
+        {recipe.steps.map((step, index) => (
+            <li key={index} className="step-row">
+                {editingIndex === index ? (
+                    <>
+                        <textarea
+                            value={recipe.steps[index]}
+                            onChange={(e) => handleEditStep(index, e.target.value)}
+                            className="step-edit-textarea"
+                        ></textarea>
+                        <button
+                            className="save-edit-button"
+                            onClick={() => handleSaveEditStep(index)}
+                        >
+                            ✔
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <span>{index + 1}. {step}</span>
+                        <button
+                            className="edit-button"
+                            onClick={() => handleEditStepStart(index)}
+                        >
+                            ✏️
+                        </button>
+                        <button
+                            className="delete-button"
+                            onClick={() => handleDeleteStep(index)}
+                        >
+                            ❌
+                        </button>
+                    </>
+                )}
+            </li>
+        ))}
+    </ul>
+    <textarea
+        placeholder="Type a step and press Enter"
+        value={currentStep}
+        onChange={(e) => setCurrentStep(e.target.value)} // Track input
+        onKeyDown={handleAddStep}
+        className="steps-textarea"
+    ></textarea>
+</div>
 
             <div className="notes-container">
             <textarea
@@ -238,11 +429,17 @@ const AddRecipe = () => {
             placeholder="Notes (optional)"
             />
             </div>
-
-            <label>
-                <input type="checkbox" name="public" checked={recipe.public} onChange={handleChange} />
-                Public
-            </label>
+            
+            <div className="checkbox-row">
+              <label className="checkbox-label">
+                  <input
+                  type="checkbox"
+                  name="public"
+                  checked={recipe.public}
+                  onChange={handleChange}
+                  /> Public
+              </label>
+            </div>
             </div>
 
         {/* Ingredients Section */}
@@ -273,10 +470,11 @@ const AddRecipe = () => {
       ) : (
         <>
           {/* Ingredient Selection */}
+          <div className="ingredientRS-select">
           <AsyncSelect
   className="ingredientRS-select"
   classNamePrefix="custom-select"
-  placeholder="Start typing to search..." // Initial placeholder
+  placeholder="Type to search..." // Initial placeholder
   cacheOptions
   defaultOptions={false} // Prevent dropdown from opening prematurely
   loadOptions={fetchIngredients} // Use the fetchIngredients function
@@ -287,7 +485,7 @@ const AddRecipe = () => {
       ? { value: ingredient.ingredientId, label: ingredient.ingredientName }
       : null
   }
-/>
+/></div>
 
   {/* Quantity and Unit Group */}
   <div className="quantity-unit-group">
@@ -308,7 +506,7 @@ const AddRecipe = () => {
       onChange={(e) => handleUnitChange(index, e)}
       required
     >
-      <option value="">Select Unit</option>
+      <option value="">Units</option>
       {getFilteredUnits(ingredient.form).map((unit) => (
         <option key={unit.id} value={unit.abbreviation}>
           {unit.name} ({unit.abbreviation})
@@ -339,7 +537,17 @@ const AddRecipe = () => {
     Add Ingredient
   </button>
 </div>
-</div>
+<div className="upload-container">
+            {!previewUrl && <label htmlFor="imageUpload">Upload Recipe Picture <br /> ⬇ </label>}
+            <input type="file" id="imageUpload" onChange={handleImageChange} />
+            {previewUrl && <img src={previewUrl} alt="Preview" />}
+            {previewUrl && (
+                <button type="button" onClick={handleImageUpload}>
+                    Upload Image
+                </button>
+            )}
+        </div></div>
+
     );
 };
 

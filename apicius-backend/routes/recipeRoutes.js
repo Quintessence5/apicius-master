@@ -1,7 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
-const { getIngredientSuggestions } = require('../controllers/recipeController');
+const upload = require('../config/upload');
+const { getIngredientSuggestions, addRecipe } = require('../controllers/recipeController');
+
+router.use((req, res, next) => {
+    console.log(`Recipe route accessed: ${req.method} ${req.url}`);
+    next();
+});
 
 // Get all recipes with ingredients and quantities
 router.get('/', async (req, res) => {
@@ -104,36 +110,7 @@ router.get('/ingredients', getIngredientSuggestions);
 
 
 // Add new recipe and navigate to all recipes
-router.post('/', async (req, res) => {
-    try {
-        const { title, description, notes, prep_time, cook_time, total_time, difficulty, ingredients, course_type, meal_type, cuisine_type, public, source } = req.body;
-
-        // Insert the recipe into the recipes table
-        const newRecipe = await pool.query(`
-            INSERT INTO recipes (title, description, notes, prep_time, cook_time, total_time, difficulty,course_type, meal_type, cuisine_type, public, source)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id;
-        `, [title, description, notes, prep_time, cook_time, total_time, difficulty,course_type, meal_type, cuisine_type, public, source]);
-
-        const recipeId = newRecipe.rows[0].id;
-
-        // Insert each ingredient for the recipe
-        if (ingredients && ingredients.length > 0) {
-            const ingredientPromises = ingredients.map(({ ingredientId, quantity, unit }) =>
-                pool.query(`
-                    INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
-                    VALUES ($1, $2, $3, $4);
-                `, [recipeId, ingredientId, quantity, unit])
-            );
-            await Promise.all(ingredientPromises);
-        }
-
-        // Redirect to the all recipes page
-        res.status(201).json({ msg: 'Recipe added successfully!', redirectTo: '/all-recipes' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
+router.post('/', upload.single('image'), addRecipe);
 
 // Update an existing recipe
 router.put('/:id', async (req, res) => {
@@ -173,6 +150,17 @@ router.put('/:id', async (req, res) => {
     }
 });
 
+// POST route for image upload
+router.post('/upload-image', upload.single('image'), (req, res) => {
+    try {
+        const filePath = req.file.path; // Path to the uploaded file
+        res.status(200).json({ message: 'Image uploaded successfully', path: filePath });
+    } catch (error) {
+        console.error('Error uploading image:', error);
+        res.status(500).json({ message: 'Failed to upload image' });
+    }
+});
+
 // Delete an existing recipe
 router.delete('/:id', async (req, res) => {
     const { id } = req.params;
@@ -190,5 +178,4 @@ router.delete('/:id', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
-
 module.exports = router;

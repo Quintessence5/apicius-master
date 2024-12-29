@@ -1,4 +1,6 @@
 const pool = require('../config/db'); // Ensure this is correctly pointing to your database configuration
+const fs = require('fs');
+const path = require('path');
 
 // 1. Get all recipes
 const getAllRecipes = async (req, res) => {
@@ -108,71 +110,107 @@ const getRecipeById = async (req, res) => {
 
 // 3. Add a new recipe
 const addRecipe = async (req, res) => {
-    const { title, description, notes, prep_time, cook_time, difficulty, ingredients, course_type, meal_type, cuisine_type, public, source 
-    } = req.body;
-
-    console.log("Recipe data received:", {
-        title, description, notes, prep_time, cook_time, difficulty, course_type, meal_type, cuisine_type, public, source
-    });
-    
+    console.log("DEBUG: addRecipe function is running...");
     try {
-        // Calculate total_time before insertion
-        const total_time = prep_time + cook_time;
+        // Extract the uploaded file path, if available
+        console.log("Uploaded file details:", req.file);
+        const imagePath = req.file ? req.file.path : null;
 
-        // Insert into recipes table
-        const recipeResult = await pool.query(
-            `INSERT INTO recipes (title, description, notes, prep_time, cook_time, total_time, difficulty, 
-            course_type, meal_type, cuisine_type, public, source)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-            [title, description, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source,]
-        );
+        // Log raw request body
+        console.log("Incoming request body:", JSON.stringify(req.body, null, 2));
 
-        const recipeId = recipeResult.rows[0].id;
+        // Destructure and validate fields
+        const { title, steps, notes, prep_time, cook_time, difficulty, ingredients, course_type, meal_type, cuisine_type, public, source, portions } = req.body;
 
-        // Insert ingredients into recipe_ingredients table
-        for (const ingredient of ingredients) {
-            const ingredientResult = await pool.query(
-                `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
-                [ingredient.name]
-            );
-            let ingredientId = ingredientResult.rows[0]?.id; // Use optional chaining
+        // Log parsed fields
+        console.log("Parsed fields from request:", { title, steps, notes });
 
-            // Check if ingredient was inserted or exists
-            if (!ingredientId) {
-                const existingIngredient = await pool.query('SELECT id FROM ingredients WHERE name = $1', [ingredient.name]);
-                if (existingIngredient.rows.length > 0) {
-                    ingredientId = existingIngredient.rows[0].id;
-                }
-            }
-
-            await pool.query(
-                `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
-                VALUES ($1, $2, $3, $4)`,
-                [recipeId, ingredientId, ingredient.quantity, ingredient.unit]
-            );
+        // Validate steps
+        if (!Array.isArray(steps) || steps.some(step => typeof step !== "string")) {
+            console.error("Steps validation failed. Steps must be an array of strings.");
+            return res.status(400).json({ message: "Steps must be an array of strings." });
         }
 
-        res.status(201).json({ message: 'Recipe added successfully' });
+        // Convert steps to JSON format for the database
+        const formattedSteps = JSON.stringify(steps);
+        console.log("Formatted steps for database insertion:", formattedSteps);
+
+        // Calculate total time
+        const total_time = prep_time + cook_time;
+        console.log("Total time calculated:", total_time);
+
+        // Insert recipe into database
+        const recipeResult = await pool.query(
+            `INSERT INTO recipes (title, steps, notes, prep_time, cook_time, total_time, difficulty, 
+            course_type, meal_type, cuisine_type, public, source, portions, image_path)
+            VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+            [title, formattedSteps, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, portions, imagePath]
+        );
+        console.log("Recipe inserted successfully. Result:", recipeResult);
+
+        const recipeId = recipeResult.rows[0].id;
+        console.log("Recipe inserted with ID:", recipeId);
+
+        // Rename the uploaded image file
+        if (req.file) {
+            const tempPath = path.join(__dirname, '..', 'uploads', req.file.filename);
+            const newFileName = `${recipeId}-${title.replace(/\s+/g, '_')}${path.extname(req.file.originalname)}`;
+            const newPath = path.join(__dirname, '..', 'uploads', newFileName);
+
+            fs.rename(tempPath, newPath, (err) => {
+                if (err) {
+                    console.error("Error renaming file:", err);
+                    return res.status(500).json({ message: "Error renaming file" });
+                }
+                console.log("File renamed successfully to:", newFileName);
+            });
+        }
+
+        // Insert ingredients if provided
+        if (ingredients && ingredients.length > 0) {
+            for (const ingredient of ingredients) {
+                const ingredientResult = await pool.query(
+                    `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
+                    [ingredient.name]
+                );
+                let ingredientId = ingredientResult.rows[0]?.id;
+
+                if (!ingredientId) {
+                    const existingIngredient = await pool.query('SELECT id FROM ingredients WHERE name = $1', [ingredient.name]);
+                    if (existingIngredient.rows.length > 0) {
+                        ingredientId = existingIngredient.rows[0].id;
+                    }
+                }
+
+                await pool.query(
+                    `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
+                    VALUES ($1, $2, $3, $4)`,
+                    [recipeId, ingredientId, ingredient.quantity, ingredient.unit]
+                );
+            }
+        }
+
+        res.status(201).json({ message: "Recipe added successfully!" });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error adding recipe' });
+        console.error("Error in addRecipe:", error);
+        res.status(500).json({ message: "Error adding recipe" });
     }
 };
 
 // 4. Update a recipe by ID
 const updateRecipe = async (req, res) => {
     const { id } = req.params;
-    const { title, description, notes, prep_time, cook_time, difficulty, course_type, meal_type, cuisine_type, public, source, } = req.body;
+    const { title, steps, notes, prep_time, cook_time, difficulty, course_type, meal_type, cuisine_type, public, source, portions, } = req.body;
 
     try {
         const total_time = prep_time + cook_time; // Calculate total time
 
         const updatedRecipe = await pool.query(
             `UPDATE recipes 
-            SET title = $1, description = $2, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7, course_type = $8, meal_type = $9, 
-                cuisine_type = $10, public = $11, source = $12 
-            WHERE id = $8 RETURNING *`,
-            [title, description, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, id,]
+            SET title = $1, steps = $2, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7, course_type = $8, meal_type = $9, 
+                cuisine_type = $10, public = $11, source = $12, portions = $13 
+            WHERE id = $14 RETURNING *`,
+            [title, steps, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, portions, id,]
         );
 
         if (updatedRecipe.rows.length === 0) return res.status(404).json({ message: 'Recipe not found' });
@@ -224,35 +262,29 @@ const addIngredientToRecipe = async (req, res) => {
 
 const getIngredientSuggestions = async (req, res) => {
     try {
-        const { search } = req.query; // Get the search query from the request
+        const { search } = req.query;
 
-        // If no search term is provided, return no options
-        if (!search) {
-            return res.status(400).json({ message: "No search term provided" });
+        if (!search || search.trim().length < 1) {
+            return res.status(400).json({ message: "Search query must be at least 2 characters." });
         }
 
-        // Use the search term in the SQL query with ILIKE for case-insensitive matching
         const query = `
-            SELECT id, name
-            FROM ingredients
-            WHERE name ILIKE $1
+            SELECT id, name, form 
+            FROM ingredients 
+            WHERE name ILIKE $1 
+            ORDER BY name ASC 
             LIMIT 10;
         `;
+        const values = [`%${search.trim()}%`];
+        const results = await pool.query(query, values);
 
-        const results = await pool.query(query, [`%${search}%`]);
-
-        // If no results found, return a message
-        if (results.rows.length === 0) {
-            return res.json({ message: "No options" });
-        }
-
-        // Return the matching ingredients
         res.json(results.rows);
     } catch (error) {
         console.error("Error fetching ingredient suggestions:", error);
         res.status(500).json({ message: "Server error" });
     }
 };
+
 
 module.exports = {
     getAllRecipes,

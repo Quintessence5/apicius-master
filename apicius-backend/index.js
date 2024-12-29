@@ -25,7 +25,14 @@ app.use(cors({
 }));
 
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded payload
 app.use(express.json()); // Parses JSON request bodies
+
+app.use((req, res, next) => {
+    console.log(`Incoming request: ${req.method} ${req.url}`);
+    console.log(`Request body:`, req.body);
+    next();
+});
 
 // Route setup
 app.use('/api/users', userRoutes);
@@ -33,6 +40,9 @@ app.use('/api/recipes', recipeRoutes);
 app.use('/api/ingredients', ingredientRoutes);
 app.use('/api/units', unitsRoutes);
 app.use('/api/country', countryRoutes);
+
+// Serve uploaded images
+app.use('/uploads', express.static('uploads'));
 
 // Test route
 app.get('/', (req, res) => {
