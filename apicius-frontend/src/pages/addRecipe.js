@@ -194,22 +194,34 @@ const handleDeleteStep = (index) => {
     // Save and delete functions
     const handleSave = async () => {
       try {
-          const sanitizedRecipe = {
-              ...recipe,
-              prep_time: recipe.prep_time || null,
-              cook_time: recipe.cook_time || null,
-              total_time: recipe.total_time || null,
-              portions: recipe.portions || null,
-          };
+          const formData = new FormData();
   
-          const lockedIngredients = ingredients.filter((ing) => ing.locked);
-          const steps = recipe.steps.filter((step) => step.trim() !== ""); // Remove empty steps
-
-          await axios.post("/api/recipes", {
-              ...sanitizedRecipe,
-              ingredients: lockedIngredients,
-              steps,
-              imagePath: recipe.imagePath,
+          // Append recipe fields to FormData
+          Object.entries(recipe).forEach(([key, value]) => {
+              if (key === "steps") {
+                  value.forEach((step, index) => formData.append(`steps[${index}]`, step));
+              } else {
+                  formData.append(key, value);
+              }
+          });
+  
+          // Append ingredients
+          ingredients
+              .filter((ingredient) => ingredient.ingredientId || ingredient.name) // Skip empty ingredients
+              .forEach((ingredient, index) => {
+                  formData.append(`ingredients[${index}][ingredientId]`, ingredient.ingredientId || '');
+                  formData.append(`ingredients[${index}][name]`, ingredient.name || '');
+                  formData.append(`ingredients[${index}][quantity]`, ingredient.quantity || '');
+                  formData.append(`ingredients[${index}][unit]`, ingredient.unit || '');
+              });
+  
+          // Append selected image
+          if (selectedImage) {
+              formData.append("image", selectedImage);
+          }
+  
+          await axios.post("/api/recipes", formData, {
+              headers: { "Content-Type": "multipart/form-data" },
           });
   
           alert("Recipe saved successfully!");
@@ -219,7 +231,7 @@ const handleDeleteStep = (index) => {
           setError("Failed to save the recipe. Please try again.");
       }
   };
-
+  
   const handleDelete = () => {
     const confirmDelete = window.confirm("Are you sure you want to delete this recipe?");
     if (confirmDelete) {

@@ -113,80 +113,76 @@ const addRecipe = async (req, res) => {
     console.log("DEBUG: addRecipe function is running...");
     try {
         // Extract the uploaded file path, if available
-        console.log("Uploaded file details:", req.file);
-        const imagePath = req.file ? req.file.path : null;
+        const uploadedFile = req.file;
+        const imagePath = uploadedFile ? uploadedFile.path : null;
 
-        // Log raw request body
-        console.log("Incoming request body:", JSON.stringify(req.body, null, 2));
+        console.log("Incoming request body:", req.body);
 
-        // Destructure and validate fields
         const { title, steps, notes, prep_time, cook_time, difficulty, ingredients, course_type, meal_type, cuisine_type, public, source, portions } = req.body;
 
-        // Log parsed fields
-        console.log("Parsed fields from request:", { title, steps, notes });
-
-        // Validate steps
-        if (!Array.isArray(steps) || steps.some(step => typeof step !== "string")) {
-            console.error("Steps validation failed. Steps must be an array of strings.");
-            return res.status(400).json({ message: "Steps must be an array of strings." });
+        if (!title || !Array.isArray(steps) || steps.some(step => typeof step !== "string")) {
+            return res.status(400).json({ message: "Invalid recipe data. Title and steps are required." });
         }
 
-        // Convert steps to JSON format for the database
-        const formattedSteps = JSON.stringify(steps);
-        console.log("Formatted steps for database insertion:", formattedSteps);
+        const total_time = parseInt(prep_time) + parseInt(cook_time);
 
-        // Calculate total time
-        const total_time = prep_time + cook_time;
-        console.log("Total time calculated:", total_time);
-
-        // Insert recipe into database
         const recipeResult = await pool.query(
             `INSERT INTO recipes (title, steps, notes, prep_time, cook_time, total_time, difficulty, 
             course_type, meal_type, cuisine_type, public, source, portions, image_path)
             VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-            [title, formattedSteps, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, portions, imagePath]
+            [title, JSON.stringify(steps), notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, portions, imagePath]
         );
-        console.log("Recipe inserted successfully. Result:", recipeResult);
 
         const recipeId = recipeResult.rows[0].id;
-        console.log("Recipe inserted with ID:", recipeId);
 
-        // Rename the uploaded image file
-        if (req.file) {
-            const tempPath = path.join(__dirname, '..', 'uploads', req.file.filename);
-            const newFileName = `${recipeId}-${title.replace(/\s+/g, '_')}${path.extname(req.file.originalname)}`;
+        if (uploadedFile) {
+            const newFileName = `${recipeId}-${title.replace(/\s+/g, '_')}${path.extname(uploadedFile.originalname)}`;
             const newPath = path.join(__dirname, '..', 'uploads', newFileName);
 
-            fs.rename(tempPath, newPath, (err) => {
+            fs.rename(uploadedFile.path, newPath, (err) => {
                 if (err) {
                     console.error("Error renaming file:", err);
                     return res.status(500).json({ message: "Error renaming file" });
                 }
                 console.log("File renamed successfully to:", newFileName);
+
+                pool.query(`UPDATE recipes SET image_path = $1 WHERE id = $2`, [newPath, recipeId])
+                    .catch(error => console.error("Error updating image_path:", error));
             });
         }
 
-        // Insert ingredients if provided
         if (ingredients && ingredients.length > 0) {
             for (const ingredient of ingredients) {
-                const ingredientResult = await pool.query(
-                    `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
-                    [ingredient.name]
-                );
-                let ingredientId = ingredientResult.rows[0]?.id;
+                if (!ingredient.ingredientId && !ingredient.name) continue; // Skip empty entries
 
-                if (!ingredientId) {
-                    const existingIngredient = await pool.query('SELECT id FROM ingredients WHERE name = $1', [ingredient.name]);
-                    if (existingIngredient.rows.length > 0) {
-                        ingredientId = existingIngredient.rows[0].id;
+                let ingredientId;
+
+                if (ingredient.ingredientId) {
+                    ingredientId = ingredient.ingredientId;
+                } else {
+                    const ingredientResult = await pool.query(
+                        `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
+                        [ingredient.name]
+                    );
+
+                    ingredientId = ingredientResult.rows[0]?.id;
+
+                    if (!ingredientId) {
+                        const existingIngredient = await pool.query(
+                            `SELECT id FROM ingredients WHERE name = $1`,
+                            [ingredient.name]
+                        );
+                        ingredientId = existingIngredient.rows[0]?.id;
                     }
                 }
 
-                await pool.query(
-                    `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
-                    VALUES ($1, $2, $3, $4)`,
-                    [recipeId, ingredientId, ingredient.quantity, ingredient.unit]
-                );
+                if (ingredientId) {
+                    await pool.query(
+                        `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
+                        VALUES ($1, $2, $3, $4)`,
+                        [recipeId, ingredientId, ingredient.quantity || null, ingredient.unit || null]
+                    );
+                }
             }
         }
 
@@ -200,23 +196,95 @@ const addRecipe = async (req, res) => {
 // 4. Update a recipe by ID
 const updateRecipe = async (req, res) => {
     const { id } = req.params;
-    const { title, steps, notes, prep_time, cook_time, difficulty, course_type, meal_type, cuisine_type, public, source, portions, } = req.body;
+    const uploadedFile = req.file; // Get the uploaded file, if any
+    const imagePath = uploadedFile ? uploadedFile.path : null;
+
+    const {
+        title, steps, notes, prep_time, cook_time, difficulty,
+        course_type, meal_type, cuisine_type, public, source, portions, ingredients
+    } = req.body;
 
     try {
-        const total_time = prep_time + cook_time; // Calculate total time
+        const total_time = parseInt(prep_time) + parseInt(cook_time);
 
-        const updatedRecipe = await pool.query(
-            `UPDATE recipes 
-            SET title = $1, steps = $2, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7, course_type = $8, meal_type = $9, 
-                cuisine_type = $10, public = $11, source = $12, portions = $13 
-            WHERE id = $14 RETURNING *`,
-            [title, steps, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, portions, id,]
-        );
+        // Update recipe details
+        const updatedRecipeQuery = `
+            UPDATE recipes 
+            SET title = $1, steps = $2::jsonb, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7, 
+                course_type = $8, meal_type = $9, cuisine_type = $10, public = $11, source = $12, portions = $13 ${imagePath ? ', image_path = $14' : ''}
+            WHERE id = $15 RETURNING *;
+        `;
 
-        if (updatedRecipe.rows.length === 0) return res.status(404).json({ message: 'Recipe not found' });
-        res.json(updatedRecipe.rows[0]);
+        const queryValues = [
+            title, JSON.stringify(steps), notes, prep_time, cook_time, total_time, difficulty,
+            course_type, meal_type, cuisine_type, public, source, portions
+        ];
+
+        if (imagePath) queryValues.push(imagePath);
+        queryValues.push(id);
+
+        const updatedRecipe = await pool.query(updatedRecipeQuery, queryValues);
+
+        if (updatedRecipe.rows.length === 0) {
+            return res.status(404).json({ message: 'Recipe not found' });
+        }
+
+        // Handle file renaming for uploaded image
+        if (uploadedFile) {
+            const newFileName = `${id}-${title.replace(/\s+/g, '_')}${path.extname(uploadedFile.originalname)}`;
+            const newPath = path.join(__dirname, '..', 'uploads', newFileName);
+
+            fs.rename(uploadedFile.path, newPath, (err) => {
+                if (err) {
+                    console.error("Error renaming file:", err);
+                    return res.status(500).json({ message: "Error renaming file" });
+                }
+
+                pool.query(`UPDATE recipes SET image_path = $1 WHERE id = $2`, [newPath, id])
+                    .catch(error => console.error("Error updating image_path:", error));
+            });
+        }
+
+        // Update ingredients
+        await pool.query(`DELETE FROM recipe_ingredients WHERE recipe_id = $1`, [id]); // Clear existing ingredients
+
+        if (ingredients && ingredients.length > 0) {
+            for (const ingredient of ingredients) {
+                if (!ingredient.ingredientId && !ingredient.name) continue;
+
+                let ingredientId = ingredient.ingredientId;
+
+                // Add new ingredient if it doesn't exist
+                if (!ingredientId) {
+                    const ingredientResult = await pool.query(
+                        `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
+                        [ingredient.name]
+                    );
+                    ingredientId = ingredientResult.rows[0]?.id;
+
+                    if (!ingredientId) {
+                        const existingIngredient = await pool.query(
+                            `SELECT id FROM ingredients WHERE name = $1`,
+                            [ingredient.name]
+                        );
+                        ingredientId = existingIngredient.rows[0]?.id;
+                    }
+                }
+
+                if (ingredientId) {
+                    await pool.query(
+                        `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
+                        VALUES ($1, $2, $3, $4)`,
+                        [id, ingredientId, ingredient.quantity || null, ingredient.unit || null]
+                    );
+                }
+            }
+        }
+
+        res.json({ message: "Recipe updated successfully!", updatedRecipe: updatedRecipe.rows[0] });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error("Error in updateRecipe:", error);
+        res.status(500).json({ message: "Error updating recipe" });
     }
 };
 

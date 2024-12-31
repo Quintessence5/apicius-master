@@ -1,13 +1,23 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const pool = require('../config/db');
-const upload = require('../config/upload');
-const { getIngredientSuggestions, addRecipe } = require('../controllers/recipeController');
+const upload = multer({ dest: 'uploads/' });
+const { getIngredientSuggestions, addRecipe, updateRecipe } = require('../controllers/recipeController');
 
 router.use((req, res, next) => {
     console.log(`Recipe route accessed: ${req.method} ${req.url}`);
     next();
 });
+
+// Get Ingredient Suggestion (React Select)
+router.get('/ingredients', getIngredientSuggestions);
+
+// Add new recipe and navigate to all recipes
+router.post('/', upload.single('image'), addRecipe);
+
+// Update an existing recipe
+router.put('/:id', upload.single('image'), updateRecipe);
 
 // Get all recipes with ingredients and quantities
 router.get('/', async (req, res) => {
@@ -102,50 +112,6 @@ router.get('/:id', async (req, res) => {
         res.json(recipe);
     } catch (err) {
         console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-router.get('/ingredients', getIngredientSuggestions);
-
-
-// Add new recipe and navigate to all recipes
-router.post('/', upload.single('image'), addRecipe);
-
-// Update an existing recipe
-router.put('/:id', async (req, res) => {
-    const { id } = req.params;
-    const { title, description, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, ingredients } = req.body;
-    
-    try {
-        const updateRecipe = await pool.query(`
-            UPDATE recipes SET title = $1, description = $2, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7, course_type = $8, meal_type = $9, cuisine_type = $10, public = $11, source = $12
-            WHERE id = $13 RETURNING *;
-        `, [title, description, notes, prep_time, cook_time, total_time, difficulty, course_type, meal_type, cuisine_type, public, source, id]);
-
-        if (updateRecipe.rows.length === 0) {
-            return res.status(404).json({ msg: 'Recipe not found' });
-        }
-
-        // Delete existing ingredients for this recipe
-        await pool.query(`
-            DELETE FROM recipe_ingredients WHERE recipe_id = $1;
-        `, [id]);
-
-        // Add updated ingredients
-        if (ingredients && ingredients.length > 0) {
-            const ingredientPromises = ingredients.map(({ ingredientId, quantity, unit }) =>
-                pool.query(`
-                    INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
-                    VALUES ($1, $2, $3, $4);
-                `, [id, ingredientId, quantity, unit])
-            );
-            await Promise.all(ingredientPromises);
-        }
-
-        res.json({ msg: 'Recipe and ingredients updated successfully!', updatedRecipe: updateRecipe.rows[0] });
-    } catch (err) {
-        console.error("Error in PUT /:id:", err);
         res.status(500).send('Server error');
     }
 });
