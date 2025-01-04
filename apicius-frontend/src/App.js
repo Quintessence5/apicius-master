@@ -9,6 +9,7 @@ import ProtectedRoute from './components/protectedRoute';
 import ForgotPassword from './pages/forgotPassword';
 import AddRecipe from './pages/addRecipe';
 import AllRecipes from './pages/allRecipes';
+import RecipeDetailed from './pages/recipeDetailed';
 import Profile from './pages/profilePage';
 import apiClient from './services/apiClient';
 
@@ -51,7 +52,8 @@ const App = () => {
                     <Route path="/profile" element={ <ProtectedRoute> <Profile /> </ProtectedRoute> } />
                     <Route path="/add-recipe" element={ <ProtectedRoute>  <AddRecipe /> </ProtectedRoute> } />
                     <Route path="/all-recipes" element={ <ProtectedRoute> <AllRecipes /> </ProtectedRoute> } />
-                </Route>
+                    <Route path="/recipe/:id" element={ <ProtectedRoute> <RecipeDetailed /> </ProtectedRoute> } /> {/* Add this line */}
+                    </Route>
             </Routes>
         </Router>
     );

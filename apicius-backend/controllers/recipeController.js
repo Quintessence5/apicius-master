@@ -5,105 +5,169 @@ const path = require('path');
 // 1. Get all recipes
 const getAllRecipes = async (req, res) => {
     try {
-        const query = `
-            SELECT 
-                r.id AS recipe_id, 
-                r.title, 
-                r.description, 
-                r.notes, 
-                r.prep_time, 
-                r.cook_time, 
-                r.total_time, 
-                r.difficulty, 
-                r.course_type, 
-                r.meal_type, 
-                r.cuisine_type, 
-                r.source,
-                ri.quantity, 
-                ri.unit, 
-                i.name AS ingredient_name
-            FROM 
-                recipes r
-            LEFT JOIN 
-                recipe_ingredients ri ON r.id = ri.recipe_id
-            LEFT JOIN 
-                ingredients i ON ri.ingredient_id = i.id
-            WHERE 
-                r.public = true -- Ensure filtering for public recipes
-            ORDER BY 
-                r.id;
-        `;
+        const recipesResult = await pool.query(`
+            SELECT r.id AS recipe_id, r.title, r.notes, r.prep_time, r.cook_time, r.total_time, r.difficulty, 
+                   r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, 
+                   ri.quantity, ri.unit, i.name AS ingredient_name, i.calories_per_100g, i.protein, 
+                   i.lipids, i.carbohydrates, i.allergies
+            FROM recipes r
+            LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+            LEFT JOIN ingredients i ON ri.ingredient_id = i.id
+            ORDER BY r.id;
+        `);
 
-        const results = await pool.query(query);
-
-        // Log the results to confirm filtering works
-        console.log("Filtered recipes:", results.rows);
-
-        // Group and process the recipes
-        const recipes = results.rows.reduce((acc, row) => {
+        const recipes = recipesResult.rows.reduce((acc, row) => {
             const {
-                recipe_id,
-                title,
-                description,
-                notes,
-                prep_time,
-                cook_time,
-                total_time,
-                difficulty,
-                course_type,
-                meal_type,
-                cuisine_type,
-                source,
-                quantity,
-                unit,
-                ingredient_name,
+                recipe_id, title, notes, prep_time, cook_time, total_time, difficulty,
+                course_type, meal_type, cuisine_type, source, steps, image_path,
+                quantity, unit, ingredient_name, calories_per_100g, protein, lipids, carbohydrates, allergies
             } = row;
 
-            if (!acc[recipe_id]) {
-                acc[recipe_id] = {
-                    id: recipe_id,
+            // Check if recipe already exists
+            let recipe = acc.find(r => r.recipe_id === recipe_id);
+            if (!recipe) {
+                recipe = {
+                    recipe_id,
                     title,
-                    description,
                     notes,
                     prep_time,
                     cook_time,
                     total_time,
                     difficulty,
-                    course_type: course_type || null,
-                    meal_type: meal_type || null,
-                    cuisine_type: cuisine_type || null,
-                    source: source || null,
-                    ingredients: [],
+                    course_type,
+                    meal_type,
+                    cuisine_type,
+                    source,
+                    steps: Array.isArray(steps) ? steps : (typeof steps === 'string' ? steps.split(',') : []),
+                    image_path,
+                    total_nutrition: {
+                        calories: 0,
+                        protein: 0,
+                        lipids: 0,
+                        carbohydrates: 0,
+                        allergies: new Set(),
+                    },
+                    ingredients: []
                 };
+                acc.push(recipe);
             }
 
+            // Add ingredient to the recipe
             if (ingredient_name) {
-                acc[recipe_id].ingredients.push({
-                    quantity,
-                    unit,
-                    ingredient_name,
-                });
+                recipe.ingredients.push({ ingredient_name, quantity, unit });
+
+                // Calculate nutrition for the ingredient
+                const multiplier = parseFloat(quantity || 0) / 100; // Convert quantity to a fraction of 100g
+                recipe.total_nutrition.calories += (calories_per_100g || 0) * multiplier;
+                recipe.total_nutrition.protein += (protein || 0) * multiplier;
+                recipe.total_nutrition.lipids += (lipids || 0) * multiplier;
+                recipe.total_nutrition.carbohydrates += (carbohydrates || 0) * multiplier;
+
+                // Add allergies
+                if (allergies) {
+                    allergies.split(',').forEach(allergy => recipe.total_nutrition.allergies.add(allergy.trim()));
+                }
             }
 
             return acc;
-        }, {});
+        }, []);
 
-        res.json(Object.values(recipes));
-    } catch (error) {
-        console.error("Error fetching recipes:", error);
-        res.status(500).json({ message: "Server error" });
+        // Convert allergy sets to arrays
+        recipes.forEach(recipe => {
+            recipe.total_nutrition.allergies = Array.from(recipe.total_nutrition.allergies);
+        });
+
+        res.json(recipes);
+    } catch (err) {
+        console.error('Error fetching recipes:', err.message);
+        res.status(500).send('Server error');
     }
 };
 
-// 2. Get a single recipe by ID
+
 const getRecipeById = async (req, res) => {
     const { id } = req.params;
     try {
-        const recipe = await pool.query('SELECT * FROM recipes WHERE id = $1', [id]);
-        if (recipe.rows.length === 0) return res.status(404).json({ message: 'Recipe not found' });
-        
-        res.json(recipe.rows[0]);
+        const recipeResult = await pool.query(`
+            SELECT r.id, r.title, r.notes, r.prep_time, r.cook_time, r.total_time, r.difficulty, 
+                   r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, r.portions,
+                   ri.quantity, ri.unit, i.name AS ingredient_name, i.calories_per_100g, 
+                   i.protein, i.lipids, i.carbohydrates, i.saturated_fat, i.trans_fat, 
+                   i.cholesterol, i.sodium, i.fibers, i.sugars, i.added_sugars, i.allergies
+            FROM recipes r
+            LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+            LEFT JOIN ingredients i ON ri.ingredient_id = i.id
+            WHERE r.id = $1;
+        `, [id]);
+
+        if (recipeResult.rows.length === 0) {
+            console.log(`No recipe found with ID: ${id}`);
+            return res.status(404).json({ message: 'Recipe not found' });
+        }
+
+        // Initialize Recipe Object
+        const recipe = {
+            id: recipeResult.rows[0].id,
+            title: recipeResult.rows[0].title,
+            notes: recipeResult.rows[0].notes,
+            prep_time: recipeResult.rows[0].prep_time,
+            cook_time: recipeResult.rows[0].cook_time,
+            total_time: recipeResult.rows[0].total_time,
+            portions: recipeResult.rows[0].portions,
+            difficulty: recipeResult.rows[0].difficulty,
+            course_type: recipeResult.rows[0].course_type,
+            meal_type: recipeResult.rows[0].meal_type,
+            cuisine_type: recipeResult.rows[0].cuisine_type,
+            source: recipeResult.rows[0].source,
+            steps: recipeResult.rows[0].steps,
+            image_path: recipeResult.rows[0].image_path,
+            portions: recipeResult.rows[0].portions,
+            total_nutrition: {
+                calories: 0, protein: 0, lipids: 0, carbohydrates: 0,
+                saturated_fat: 0, trans_fat: 0, cholesterol: 0, sodium: 0,
+                fibers: 0, sugars: 0, added_sugars: 0, allergies: new Set(),
+            },
+            ingredients: []
+        };
+
+        // Process Ingredients & Nutrition Data
+        recipeResult.rows.forEach(row => {
+            if (row.ingredient_name) {
+                // Add ingredient
+                recipe.ingredients.push({
+                    ingredient_name: row.ingredient_name,
+                    quantity: row.quantity,
+                    unit: row.unit
+                });
+
+                // Calculate Nutrition Facts per Recipe
+                const multiplier = parseFloat(row.quantity || 0) / 100; // Convert quantity to a fraction of 100g
+                recipe.total_nutrition.calories += (row.calories_per_100g || 0) * multiplier;
+                recipe.total_nutrition.protein += (row.protein || 0) * multiplier;
+                recipe.total_nutrition.lipids += (row.lipids || 0) * multiplier;
+                recipe.total_nutrition.carbohydrates += (row.carbohydrates || 0) * multiplier;
+                recipe.total_nutrition.saturated_fat += (row.saturated_fat || 0) * multiplier;
+                recipe.total_nutrition.trans_fat += (row.trans_fat || 0) * multiplier;
+                recipe.total_nutrition.cholesterol += (row.cholesterol || 0) * multiplier;
+                recipe.total_nutrition.sodium += (row.sodium || 0) * multiplier;
+                recipe.total_nutrition.fibers += (row.fibers || 0) * multiplier;
+                recipe.total_nutrition.sugars += (row.sugars || 0) * multiplier;
+                recipe.total_nutrition.added_sugars += (row.added_sugars || 0) * multiplier;
+
+                // Process Allergies
+                if (row.allergies && row.allergies !== "none") {
+                    row.allergies.split(',').forEach(allergy => recipe.total_nutrition.allergies.add(allergy.trim()));
+                }
+            }
+        });
+
+        // Convert allergy set to array
+        recipe.total_nutrition.allergies = Array.from(recipe.total_nutrition.allergies);
+
+        console.log("Recipe Data Sent to Frontend:", recipe); // Debugging log
+        res.json(recipe);
     } catch (error) {
+        console.error("Error fetching recipe:", error);
         res.status(500).json({ message: error.message });
     }
 };
