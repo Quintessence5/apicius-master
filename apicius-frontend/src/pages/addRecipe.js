@@ -305,12 +305,13 @@ const handleImageUpload = async () => {
         </div>
 
             <div className="difficulty-row"> 
-            <div className="difficulty"><select name="difficulty" value={recipe.difficulty} onChange={handleChange} required>
-                <option value="">Select Difficulty</option>
+            <div className="difficulty">
+              <select name="difficulty" value={recipe.difficulty} onChange={handleChange} required>
+                <option value="">Difficulty</option>
                 {difficulty.map((type) => (
                 <option key={type} value={type}>{type}</option>
                 ))}
-            </select>
+              </select>
             </div>
 
             <div className="source-container">
@@ -324,7 +325,7 @@ const handleImageUpload = async () => {
             name="portions"
             value={recipe.portions}
             onChange={handleChange}
-            placeholder="Number of portions"
+            placeholder="Portion Number"
             min="1"
             />
             </div>
@@ -333,21 +334,21 @@ const handleImageUpload = async () => {
 
             <div className="meal-type">
             <select name="course_type" value={recipe.course_type} onChange={handleChange} required>
-                <option value="">Select Course Type</option>
+                <option value="">Course Type</option>
                 {courseTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
                 ))}
             </select>
 
             <select name="meal_type" value={recipe.meal_type} onChange={handleChange} required>
-                <option value="">Select Meal Type</option>
+                <option value="">Meal Type</option>
                 {mealTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
                 ))}
             </select>
 
             <select name="cuisine_type" value={recipe.cuisine_type} onChange={handleChange} required>
-                <option value="">Select Cuisine Type</option>
+                <option value="">Cuisine Type</option>
                 {cuisineTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
                 ))}
@@ -355,36 +356,45 @@ const handleImageUpload = async () => {
             </div>
             
             <div className="time-row">
-  <input
-    type="number"
-    name="prep_time"
-    value={recipe.prep_time}
-    onChange={handleChange}
-    placeholder="Prep Time (minutes)"
-    min="0"
-    className="time-field"
-    required
-  />
-  <input
-    type="number"
-    name="cook_time"
-    value={recipe.cook_time}
-    onChange={handleChange}
-    placeholder="Cook Time (minutes)"
-    min="0"
-    className="time-field"
-    required
-  />
-  <input
-    type="number"
-    name="total_time"
-    value={recipe.total_time}
-    placeholder="Total Time (auto-calculated)"
-    className="time-field"
-    readOnly
-  />
-</div>
-
+              <input
+                type="number"
+                name="prep_time"
+                value={recipe.prep_time}
+                onChange={handleChange}
+                placeholder="Prep Time (minutes)"
+                min="0"
+                className="time-field"
+                required
+              />
+              <input
+                type="number"
+                name="cook_time"
+                value={recipe.cook_time}
+                onChange={handleChange}
+                placeholder="Cook Time (minutes)"
+                min="0"
+                className="time-field"
+                required
+              />
+              <input
+                type="number"
+                name="total_time"
+                value={recipe.total_time}
+                placeholder="Total Time (auto-calculated)"
+                className="time-field"
+                readOnly
+              />
+            </div>
+            
+            <div className="notes-container">
+            <textarea
+            name="notes"
+            value={recipe.notes}
+            onChange={handleChange}
+            placeholder="Notes (optional)"
+            />
+            </div>
+            
             <div className="steps-container">
     <h4>Steps</h4>
     <ul>
@@ -433,15 +443,6 @@ const handleImageUpload = async () => {
     ></textarea>
 </div>
 
-            <div className="notes-container">
-            <textarea
-            name="notes"
-            value={recipe.notes}
-            onChange={handleChange}
-            placeholder="Notes (optional)"
-            />
-            </div>
-            
             <div className="checkbox-row">
               <label className="checkbox-label">
                   <input
@@ -486,7 +487,7 @@ const handleImageUpload = async () => {
           <AsyncSelect
   className="ingredientRS-select"
   classNamePrefix="custom-select"
-  placeholder="Type to search..." // Initial placeholder
+  placeholder="Type to search" // Initial placeholder
   cacheOptions
   defaultOptions={false} // Prevent dropdown from opening prematurely
   loadOptions={fetchIngredients} // Use the fetchIngredients function

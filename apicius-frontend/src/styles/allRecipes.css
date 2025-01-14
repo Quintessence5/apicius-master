@@ -18,7 +18,7 @@
 .recipe-card {
     border: 1px solid #ddd;
     border-radius: 12px;
-    padding: 20px;
+    padding: 2rem;
     margin: 1rem 2rem;
     margin-bottom: 2rem;
     padding-left: 8%;
@@ -73,12 +73,13 @@
 }
 
 .recipe-nutrition {
-    margin-top: 0.5rem;
+    margin-top: 0.9rem;
     margin-bottom: 1rem;
     text-align: left;
 }
 
 .recipe-nutrition h3 {
+    margin-top: 2.6rem;
     margin-bottom: 0.5rem;
 }
 
@@ -100,8 +101,8 @@
 .recipe-title {
     font-size: 2rem;
     text-align: center;
-    margin-top: 0.5rem;
-    margin-bottom: 1.4rem;
+    margin-top: 0.9rem;
+    margin-bottom: 1.9rem;
     color: #007bff;
 }
 
