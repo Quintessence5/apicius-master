@@ -1,38 +1,43 @@
 .recipe-details-page {
-    max-width: 900px;
-    margin: auto;
+    max-width: 100%;
     font-family: Arial, sans-serif;
 }
 
-.recipe-header {
+.recipe-headerzz {
     position: relative;
-    text-align: center;
+    margin-left: -2.5rem;
+    width: 108%;
+    overflow: hidden;
 }
 
-.recipe-image {
+.recipe-imagezz {
     width: 100%;
-    height: 250px;
+    height: 35rem;
     object-fit: cover;
+    object-position: center;
 }
 
 .recipe-title-container {
     position: absolute;
-    bottom: 10%;
+    bottom: 0%;
     width: 100%;
-    text-align: center;
-    background-color: rgba(0, 0, 0, 0.6);
+    text-align: left;
+    background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.7));
     color: white;
-    padding: 10px 0;
+    padding: 1rem 0;
 }
 
-.recipe-title {
-    font-size: 24px;
-    margin: 0;
+.recipe-titlezz {
+    font-size: 3rem;
+    text-align: left;
+    color: #FFFFFF;
+    margin-left: 3.5rem;
+    margin-bottom: -0.5rem;
 }
 
 .recipe-subtitle {
-    font-size: 14px;
-    margin: 0;
+    font-size: 1.4rem;
+    margin-left: 3.5rem;
 }
 
 .recipe-info {
@@ -43,32 +48,138 @@ h3 {
     margin-top: 20px;
 }
 
-.ingredient-list, .steps-list, .allergy-list {
-    list-style-type: none;
+.steps-list  {
+    list-style-type:decimal;
+    margin-left: 1.2rem;
+    margin-top: -0.5rem;
+    padding: 0;
+}
+
+.ingredient-list, .allergy-list  {
+    list-style-type:circle;
+    margin-left: 1rem;
+    margin-top: -0.5rem;
     padding: 0;
 }
 
 .ingredient-list li, .steps-list li, .allergy-list li {
-    padding: 5px 0;
+    padding: 4px 0;
 }
 
-/* Nutrition Table */
+
+/* ----------------- Nutrition Table ------------------ */
 .nutrition-table {
-    width: 100%;
+    width: 90%;
     border-collapse: collapse;
-    margin-top: 20px;
+    margin: 3rem auto;
+    text-align: right;
 }
 
 .nutrition-table th, .nutrition-table td {
     border: 1px solid #ccc;
-    padding: 10px;
-    text-align: left;
+    padding: 0.4rem 2rem;
 }
 
-.nutrition-table th {
-    background-color: #f8f8f8;
-}
-
-.nutrition-table td {
+.nutrition-table th{
     text-align: center;
+}
+
+.nutrition-table th:first-child,
+.nutrition-table td:first-child {
+    border-left: none;
+}
+
+.nutrition-table th:last-child,
+.nutrition-table td:last-child {
+    border-right: none;
+}
+
+/* Custom horizontal line thickness */
+.nutrition-table tbody tr {
+    border-bottom: 2px solid #ccc;
+}
+
+/* Header Styling */
+.nutrition-table th {
+    background-color:#ffffff;
+    font-size: 1.2rem;
+    border-top: 4px solid #333;
+    border-bottom: 6px solid #333;
+}
+
+/* Table Cell Styling */
+.nutrition-table td {
+    font-size: 0.8rem;
+}
+
+/* "Calories" row */
+.nutrition-table tbody tr:first-child td {
+    font-weight: bold;
+    font-size: 1.4rem;
+}
+
+/* "Calories" row */
+.nutrition-table tbody tr:first-child {
+    border-bottom: 6px solid #333;
+}
+
+/* Bold and larger */
+.nutrition-table tbody tr:nth-child(2) td,
+.nutrition-table tbody tr:nth-child(5) td,
+.nutrition-table tbody tr:nth-child(6) td,
+.nutrition-table tbody tr:nth-child(7) td,
+.nutrition-table tbody tr:nth-child(11) td,
+.nutrition-table tbody tr:nth-child(11) td { 
+    font-weight: bold;
+    font-size: 1rem; /* Adjust size */
+}
+
+/* Increased border */
+.nutrition-table tbody tr:nth-child(2),
+.nutrition-table tbody tr:nth-child(4),
+.nutrition-table tbody tr:nth-child(5),
+.nutrition-table tbody tr:nth-child(6),
+.nutrition-table tbody tr:nth-child(7),
+.nutrition-table tbody tr:nth-child(10),
+.nutrition-table tbody tr:nth-child(11) {
+    border-bottom: 2px solid #333;
+}
+
+/* Increased border */
+.nutrition-table tbody tr:nth-child(3),
+.nutrition-table tbody tr:nth-child(8),
+.nutrition-table tbody tr:nth-child(9) {
+    border-bottom: 1px solid #555;
+}
+
+/* Style for % Daily Value Columns */
+.nutrition-table th:nth-child(3),
+.nutrition-table th:nth-child(5),
+.nutrition-table td:nth-child(3),
+.nutrition-table td:nth-child(5) {
+    font-weight: bold;
+    padding-right: 0.5rem;
+    width: 7%;
+}
+
+/* Hover effect specifically for % DV columns */
+.nutrition-table tbody tr:hover td:nth-child(3),
+.nutrition-table tbody tr:hover td:nth-child(5) {
+    background-color: #ffffff; /* Lighter background for hover */
+}
+
+
+/* Style for % Daily Value Columns */
+.nutrition-table th:nth-child(3),
+.nutrition-table th:nth-child(5) {
+    font-size: 0.7rem !important; /* Header font size for % DV columns */
+    color: #555 !important; /* Darker shade for emphasis */
+    text-align: right;
+}
+
+.nutrition-table td:nth-child(3),
+.nutrition-table td:nth-child(5) {
+    font-size: 0.9rrem !important; /* Content font size for % DV columns */
+    color: #555; /* Subtle gray for content */
+    text-align: right;
 }

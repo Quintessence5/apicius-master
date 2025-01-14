@@ -35,7 +35,7 @@ const AllRecipes = () => {
                     <div key={recipe.recipe_id} className="recipe-card"
                     onClick={() => navigate(`/recipe/${recipe.recipe_id}`)} // Navigate to details page
                     >
-                        <h2 className="recipe-title">{recipe.title}</h2>
+                        <div className="recipe-title">{recipe.title}</div>
                         <div className="recipe-content">
                             {/* Left Column: Image and Nutrition/Allergies */}
                             <div className="recipe-left-column">
@@ -45,13 +45,13 @@ const AllRecipes = () => {
                                         alt={recipe.title || "No Image Available"}
                                     />
                                 </div>
-                                <div className="recipe-nutrition">
-                                    <h3>Nutrition Values:</h3>
+                                <div className="recipe-nutritionz">
+                                    <h3>Nutrition Values</h3>
                                     <ul>
-                                        <li>Calories: {(recipe.total_nutrition?.calories || 0).toFixed(2)} kcal</li>
-                                        <li>Protein: {(recipe.total_nutrition?.protein || 0).toFixed(2)} g</li>
-                                        <li>Lipids: {(recipe.total_nutrition?.lipids || 0).toFixed(2)} g</li>
-                                        <li>Carbohydrates: {(recipe.total_nutrition?.carbohydrates || 0).toFixed(2)} g</li>
+                                        <li>Calories - {(recipe.total_nutrition?.calories || 0).toFixed(2)} kcal</li>
+                                        <li>Protein - {(recipe.total_nutrition?.protein || 0).toFixed(2)} g</li>
+                                        <li>Lipids - {(recipe.total_nutrition?.lipids || 0).toFixed(2)} g</li>
+                                        <li>Carbohydrates - {(recipe.total_nutrition?.carbohydrates || 0).toFixed(2)} g</li>
                                     </ul>
 
                                 </div>
@@ -59,12 +59,12 @@ const AllRecipes = () => {
 
                             {/* Right Column: Recipe Details */}
                             <div className="recipe-right-column">
-                                <p><strong>Difficulty:</strong> {recipe.difficulty}</p>
-                                {recipe.course_type &&<p><strong>Course Type:</strong> {recipe.course_type}</p>}
-                                {recipe.meal_type &&<p><strong>Meal Type:</strong> {recipe.meal_type}</p>}
-                                {recipe.cuisine_type &&<p><strong>Cuisine Type:</strong> {recipe.cuisine_type}</p>}
-                                <p><strong>Total Time:</strong> {recipe.total_time} mins</p>
-                                {recipe.source && <p><strong>Source:</strong> {recipe.source}</p>}
+                                <p><strong>Difficulty - </strong> {recipe.difficulty}</p>
+                                {recipe.course_type &&<p><strong>Course Type - </strong> {recipe.course_type}</p>}
+                                {recipe.meal_type &&<p><strong>Meal Type -</strong> {recipe.meal_type}</p>}
+                                {recipe.cuisine_type &&<p><strong>Cuisine Type -</strong> {recipe.cuisine_type}</p>}
+                                <p><strong>Total Time -</strong> {recipe.total_time} mins</p>
+                                {recipe.source && <p><strong>Source -</strong> {recipe.source}</p>}
 
                                 <h3>Ingredients</h3>
                                 <ul>

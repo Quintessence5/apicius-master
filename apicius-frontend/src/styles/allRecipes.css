@@ -1,8 +1,10 @@
 /* Page Layout */
 .all-recipes-page {
     font-family: 'Arial', sans-serif;
-    padding: 20px;
+    padding: 2.8rem;
     background-color: #f9f9f9;
+    border-radius: 28px;
+
 }
 
 /* Page Title */
@@ -19,7 +21,7 @@
     border: 1px solid #ddd;
     border-radius: 12px;
     padding: 2rem;
-    margin: 1rem 2rem;
+    margin: 1rem 4rem;
     margin-bottom: 2rem;
     padding-left: 8%;
     padding-right: 8%;
@@ -57,52 +59,56 @@
     flex-direction: column;
     align-items: center; /* Center the image */
     text-align: center;
+    margin-top: 1.5rem;
 }
 
 /* Right Column: Recipe Details */
 .recipe-right-column {
     flex: 1;
+    margin-top: 2.7rem;
 }
 
 /* Details */
 .recipe-details ul,
 .recipe-details p,
-.recipe-nutrition ul,
-.recipe-nutrition p {
+.recipe-nutritionz ul,
+.recipe-nutritionz p {
     margin: 0.5rem 0;
 }
 
-.recipe-nutrition {
-    margin-top: 0.9rem;
-    margin-bottom: 1rem;
-    text-align: left;
-}
-
-.recipe-nutrition h3 {
-    margin-top: 2.6rem;
-    margin-bottom: 0.5rem;
-}
 
 .recipe-content h4 {
     margin-bottom: -0.5rem;
 }
 
+.recipe-nutritionz {
+    margin-top: 0.5rem;
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+.recipe-nutritionz h3 {
+    margin-top: 2.6rem;
+    margin-bottom: 0.5rem;
+}
+
 /* Allergies List */
-.recipe-nutrition ul {
+.recipe-nutritionz ul {
     list-style: none;
+    text-align: left;
     padding: 0;
 }
 
-.recipe-nutrition ul li {
-    margin: 2px 0;
+.recipe-nutritionz ul li {
+    margin: 3px 0;
 }
 
 /* Recipe Title */
 .recipe-title {
     font-size: 2rem;
+    font-weight: bold;
     text-align: center;
-    margin-top: 0.9rem;
-    margin-bottom: 1.9rem;
+    margin-bottom: 0.2rem;
     color: #007bff;
 }
 
@@ -124,15 +130,15 @@
     color: #333;
 }
 
-/* Ingredients Section */
-.recipe-ingredients {
-    margin-top: 1rem;
-}
-
 .recipe-right-column h3 {
     font-size: 1rem;
     margin-bottom: -0.4rem;
     color: #000000;
+}
+
+/* Ingredients Section */
+.recipe-ingredients {
+    margin-top: 1rem;
 }
 
 .recipe-ingredients ul {
