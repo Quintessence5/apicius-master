@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/recipeDetailed.css';
 import NoImageAvailable from '../assets/images/No_Image_Avail.jpg';
 
 const RecipeDetails = () => {
-    const { id } = useParams(); // Get recipe ID from URL params
+    const navigate = useNavigate();
+    const { id } = useParams(); 
     const [recipe, setRecipe] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -32,18 +33,31 @@ const RecipeDetails = () => {
     const nutritionFacts = recipe.total_nutrition;
     const portions = recipe.portions || 1; // Prevent division by zero
 
+    const handleEdit = () => {
+        if (!recipe) {
+            console.error("Error: Recipe data is missing!");
+            return;
+        }
+    
+        // Ensure the recipe has an ID (either from API or URL)
+        const recipeWithId = { ...recipe, recipe_id: recipe.recipe_id || id };
+    
+        navigate(`/add-recipe`, { state: { recipe: recipeWithId } });
+    };
+    
     return (
         <div className="recipe-details-page">
             {/* Recipe Image */}
             <div className="recipe-headerzz">
                 <img 
                     className="recipe-imagezz" 
-                    src={recipe.image_path ? `http://localhost:5010/${recipe.image_path}` : NoImageAvailable} 
+                    src={recipe.image_path ? `http://localhost:5010/uploads/${recipe.image_path.split('/').pop()}` : NoImageAvailable}
                     alt={recipe.title} 
                 />
                 <div className="recipe-title-container">
                     <h1 className="recipe-titlezz">{recipe.title}</h1>
                     <p className="recipe-subtitle">{recipe.meal_type} | {recipe.course_type}</p>
+                    <button className="edit-recipe-btn" onClick={handleEdit}>Edit</button>
                 </div>
             </div>
 

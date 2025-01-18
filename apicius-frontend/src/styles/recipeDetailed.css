@@ -183,3 +183,22 @@ h3 {
     color: #555; /* Subtle gray for content */
     text-align: right;
 }
+
+.edit-recipe-btn {
+    position: absolute;
+    top: 1rem;
+    right: 2rem;
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 1rem;
+    margin-top: 4rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.edit-recipe-btn:hover {
+    background-color: #e68900;
+}

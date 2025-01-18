@@ -259,71 +259,91 @@ const addRecipe = async (req, res) => {
 
 // 4. Update a recipe by ID
 const updateRecipe = async (req, res) => {
-    const { id } = req.params;
-    const uploadedFile = req.file; // Get the uploaded file, if any
-    const imagePath = uploadedFile ? uploadedFile.path : null;
-
-    const {
-        title, steps, notes, prep_time, cook_time, difficulty,
-        course_type, meal_type, cuisine_type, public, source, portions, ingredients
-    } = req.body;
-
+    console.log("DEBUG: updateRecipe function is running...");
     try {
+        const { id } = req.params;
+        const uploadedFile = req.file;
+        const imagePath = uploadedFile ? uploadedFile.path : null;
+
+        console.log(`Updating recipe ID: ${id}`);
+        console.log("Incoming request body:", req.body);
+
+        let { 
+            title, steps, notes, prep_time, cook_time, difficulty, 
+            course_type, meal_type, cuisine_type, public, source, portions, ingredients 
+        } = req.body;
+
         const total_time = parseInt(prep_time) + parseInt(cook_time);
 
-        // Update recipe details
-        const updatedRecipeQuery = `
+        // --- Update the recipe details ---
+        let updateQuery = `
             UPDATE recipes 
             SET title = $1, steps = $2::jsonb, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7, 
-                course_type = $8, meal_type = $9, cuisine_type = $10, public = $11, source = $12, portions = $13 ${imagePath ? ', image_path = $14' : ''}
-            WHERE id = $15 RETURNING *;
+                course_type = $8, meal_type = $9, cuisine_type = $10, public = $11, source = $12, portions = $13
         `;
 
         const queryValues = [
-            title, JSON.stringify(steps), notes, prep_time, cook_time, total_time, difficulty,
+            title, JSON.stringify(steps), notes, prep_time, cook_time, total_time, difficulty, 
             course_type, meal_type, cuisine_type, public, source, portions
         ];
 
-        if (imagePath) queryValues.push(imagePath);
-        queryValues.push(id);
-
-        const updatedRecipe = await pool.query(updatedRecipeQuery, queryValues);
-
-        if (updatedRecipe.rows.length === 0) {
-            return res.status(404).json({ message: 'Recipe not found' });
+        if (imagePath) {
+            updateQuery += `, image_path = $14`;
+            queryValues.push(imagePath);
         }
 
-        // Handle file renaming for uploaded image
+        updateQuery += ` WHERE id = $${queryValues.length + 1} RETURNING *;`;
+        queryValues.push(id);
+
+        const updatedRecipe = await pool.query(updateQuery, queryValues);
+
+        if (updatedRecipe.rows.length === 0) {
+            console.error("ERROR: Recipe not found!");
+            return res.status(404).json({ message: "Recipe not found" });
+        }
+
+        console.log("✅ Recipe details updated successfully!");
+
+        // --- Rename uploaded file if needed ---
         if (uploadedFile) {
             const newFileName = `${id}-${title.replace(/\s+/g, '_')}${path.extname(uploadedFile.originalname)}`;
             const newPath = path.join(__dirname, '..', 'uploads', newFileName);
 
-            fs.rename(uploadedFile.path, newPath, (err) => {
+            fs.rename(uploadedFile.path, newPath, async (err) => {
                 if (err) {
                     console.error("Error renaming file:", err);
                     return res.status(500).json({ message: "Error renaming file" });
                 }
 
-                pool.query(`UPDATE recipes SET image_path = $1 WHERE id = $2`, [newPath, id])
-                    .catch(error => console.error("Error updating image_path:", error));
+                console.log(`✅ File renamed successfully to: ${newFileName}`);
+
+                await pool.query(`UPDATE recipes SET image_path = $1 WHERE id = $2`, [newPath, id]);
             });
         }
 
-        // Update ingredients
-        await pool.query(`DELETE FROM recipe_ingredients WHERE recipe_id = $1`, [id]); // Clear existing ingredients
+        // --- Handling Ingredients ---
+        console.log("Processing ingredients...");
 
-        if (ingredients && ingredients.length > 0) {
+        // ✅ Convert ingredients object into an array
+        if (typeof ingredients === "object" && !Array.isArray(ingredients)) {
+            ingredients = Object.values(ingredients).filter(ing => ing.ingredientId || ing.name);
+        }
+
+        if (Array.isArray(ingredients) && ingredients.length > 0) {
+            console.log(`🔄 Updating ${ingredients.length} ingredients...`);
+
             for (const ingredient of ingredients) {
-                if (!ingredient.ingredientId && !ingredient.name) continue;
+                if (!ingredient.ingredientId && !ingredient.name) continue; // Skip empty entries
 
                 let ingredientId = ingredient.ingredientId;
 
-                // Add new ingredient if it doesn't exist
+                // 🔹 **Insert ingredient if it doesn't exist**
                 if (!ingredientId) {
                     const ingredientResult = await pool.query(
                         `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
                         [ingredient.name]
                     );
+
                     ingredientId = ingredientResult.rows[0]?.id;
 
                     if (!ingredientId) {
@@ -335,19 +355,35 @@ const updateRecipe = async (req, res) => {
                     }
                 }
 
+                if (req.body.deletedIngredients) {
+                    const deletedIngredientIds = JSON.parse(req.body.deletedIngredients);
+                    if (deletedIngredientIds.length > 0) {
+                        await pool.query(
+                            `DELETE FROM recipe_ingredients WHERE recipe_id = $1 AND ingredient_id = ANY($2::int[])`,
+                            [id, deletedIngredientIds]
+                        );
+                        console.log(`🗑️ Deleted ingredients: ${deletedIngredientIds.join(", ")}`);
+                    }
+                }                
+
+                // 🔹 **Insert ingredient into `recipe_ingredients`**
                 if (ingredientId) {
                     await pool.query(
                         `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
                         VALUES ($1, $2, $3, $4)`,
                         [id, ingredientId, ingredient.quantity || null, ingredient.unit || null]
                     );
+                    console.log(`✅ Added/Updated ingredient: ${ingredient.name} (ID: ${ingredientId})`);
                 }
             }
+        } else {
+            console.log("⚠️ No valid ingredients provided. Keeping existing ingredients.");
         }
 
         res.json({ message: "Recipe updated successfully!", updatedRecipe: updatedRecipe.rows[0] });
+
     } catch (error) {
-        console.error("Error in updateRecipe:", error);
+        console.error("❌ Error in updateRecipe:", error);
         res.status(500).json({ message: "Error updating recipe" });
     }
 };

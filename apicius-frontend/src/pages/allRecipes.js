@@ -41,7 +41,7 @@ const AllRecipes = () => {
                             <div className="recipe-left-column">
                                 <div className="recipe-image">
                                     <img
-                                        src={recipe.image_path ? `http://localhost:5010/${recipe.image_path}` : NoImageAvailable}
+                                        src={recipe.image_path ? `http://localhost:5010/uploads/${recipe.image_path.split('/').pop()}` : NoImageAvailable}
                                         alt={recipe.title || "No Image Available"}
                                     />
                                 </div>

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import AsyncSelect from 'react-select/async';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import "../styles/addRecipe.css";
 
 const AddRecipe = () => {
-    const [recipe, setRecipe] = useState({
+    const location = useLocation();
+    const editingRecipe = location.state?.recipe || null;
+    const [recipe, setRecipe] = useState(editingRecipe || {
         title: '', steps: [], notes: '', prep_time: '', cook_time: '', total_time: '', difficulty: '', 
         course_type: '', meal_type: '', cuisine_type: '', public: false, source: '', portions: ''
     });
@@ -20,6 +22,7 @@ const AddRecipe = () => {
     const [selectedImage, setSelectedImage] = useState(null);
     const [previewUrl, setPreviewUrl] = useState('');
     const [currentStep, setCurrentStep] = useState("");
+    const [deletedIngredients, setDeletedIngredients] = useState([]);
     const navigate = useNavigate();
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -38,23 +41,46 @@ const AddRecipe = () => {
     // Fetch available ingredients and units on component mount
     useEffect(() => {
       const fetchUnits = async () => {
-        try {
-            const unitResponse = await axios.get('/api/units');
-            console.log("Unit response:", unitResponse.data); // Log raw unit data
-            const normalizedUnits = unitResponse.data.map((unit) => ({
-                ...unit,
-                type: unit.type.toLowerCase(), // Normalize to lowercase
-            }));
-            console.log("Normalized units:", normalizedUnits); // Log normalized units
-            setAvailableUnits(normalizedUnits || []);
-        } catch (error) {
-            setError("Failed to fetch units. Please try again.");
-            console.error("Error fetching units:", error);
-        }
-    };    
-    
-        fetchUnits();
-    }, []);
+          try {
+              const unitResponse = await axios.get('/api/units');
+              const normalizedUnits = unitResponse.data.map((unit) => ({
+                  ...unit,
+                  type: unit.type.toLowerCase(),
+              }));
+              setAvailableUnits(normalizedUnits || []);
+          } catch (error) {
+              setError("Failed to fetch units. Please try again.");
+              console.error("Error fetching units:", error);
+          }
+      };
+  
+      if (editingRecipe) {
+          setRecipe(editingRecipe);
+  
+          // Ensure ingredients are set correctly and always include an empty row for adding new ones
+          if (editingRecipe.ingredients) {
+              const formattedIngredients = editingRecipe.ingredients.map((ing) => ({
+                  ingredientId: ing.ingredient_id || "",
+                  ingredientName: ing.ingredient_name || "",
+                  quantity: ing.quantity || "",
+                  unit: ing.unit || "",
+                  form: ing.form || "",
+                  locked: true
+              }));
+
+              // Add an empty ingredient field at the end
+              formattedIngredients.push({ ingredientId: "", ingredientName: "", quantity: "", unit: "", form: "", locked: false });
+  
+              setIngredients(formattedIngredients);
+          }
+      } else {
+          // Ensure there's at least one empty ingredient row for new recipes
+          setIngredients([{ ingredientId: "", ingredientName: "", quantity: "", unit: "", form: "", locked: false }]);
+      }
+  
+      fetchUnits();
+      console.log("Received recipe for editing:", editingRecipe);
+  }, [editingRecipe]);  
 
     const handleChange = (e) => {
       const { name, value, type, checked } = e.target;
@@ -75,15 +101,13 @@ const AddRecipe = () => {
       }));
   };  
 
-    const handleIngredientChange = (index, selectedOption) => {
-      const newIngredients = [...ingredients];
-      newIngredients[index].ingredientId = selectedOption.value;
-      newIngredients[index].ingredientName = selectedOption.label;
-      newIngredients[index].form = selectedOption.form; // Ensure this is correctly set
-      newIngredients[index].unit = ""; // Reset unit when ingredient changes
-      setIngredients(newIngredients);
-      console.log("Updated ingredient:", newIngredients[index]); // Log the updated ingredient
-  };  
+  const handleIngredientChange = (index, selectedOption) => {
+    const newIngredients = [...ingredients];
+    newIngredients[index].ingredientId = selectedOption.value;
+    newIngredients[index].ingredientName = selectedOption.label;
+    newIngredients[index].form = selectedOption.form; 
+    setIngredients(newIngredients);
+};
     
   const fetchIngredients = async (inputValue) => {
     if (!inputValue || inputValue.trim().length < 2) return [];
@@ -127,8 +151,14 @@ const AddRecipe = () => {
     
         const removeIngredient = (index) => {
           setIngredients((prev) => prev.filter((_, i) => i !== index));
-        };        
-
+      
+          // If the ingredient has an ID, mark it for deletion
+          const ingredientToRemove = ingredients[index];
+          if (ingredientToRemove.ingredientId) {
+              setDeletedIngredients((prev) => [...prev, ingredientToRemove.ingredientId]);
+          }
+      };
+      
     //Unit Handler
     const handleUnitChange = (index, e) => {
         const { name, value } = e.target;
@@ -183,20 +213,19 @@ const handleDeleteStep = (index) => {
   }));
 };
 
-    const handleSaveEdit = (index) => {
-      const updatedIngredients = [...ingredients];
-      updatedIngredients[index].locked = true; // Lock the ingredient
-      setIngredients(updatedIngredients);
-      setEditingIndex(null); // Reset editing index after saving
-    };
-      
+const handleSaveEdit = (index) => {
+  const updatedIngredients = [...ingredients];
+  updatedIngredients[index].locked = true; 
+  setIngredients(updatedIngredients);
+  setEditingIndex(null);
+};   
     
     // Save and delete functions
     const handleSave = async () => {
       try {
           const formData = new FormData();
   
-          // Append recipe fields to FormData
+          // 🔹 Append recipe fields
           Object.entries(recipe).forEach(([key, value]) => {
               if (key === "steps") {
                   value.forEach((step, index) => formData.append(`steps[${index}]`, step));
@@ -205,33 +234,69 @@ const handleDeleteStep = (index) => {
               }
           });
   
-          // Append ingredients
-          ingredients
-              .filter((ingredient) => ingredient.ingredientId || ingredient.name) // Skip empty ingredients
-              .forEach((ingredient, index) => {
-                  formData.append(`ingredients[${index}][ingredientId]`, ingredient.ingredientId || '');
-                  formData.append(`ingredients[${index}][name]`, ingredient.name || '');
-                  formData.append(`ingredients[${index}][quantity]`, ingredient.quantity || '');
-                  formData.append(`ingredients[${index}][unit]`, ingredient.unit || '');
-              });
+          // 🔹 Determine if updating or creating a new recipe
+          const isEditing = !!editingRecipe;
+          const recipeId = isEditing ? (editingRecipe.recipe_id || editingRecipe.id) : null;
   
-          // Append selected image
+          if (isEditing && !recipeId) {
+              console.error("❌ Error: Recipe ID is missing!");
+              return;
+          }
+  
+          // 🔹 Append recipe ID only if updating
+          if (isEditing) {
+              formData.append("id", recipeId);
+          }
+  
+          // 🔹 Append ingredients (ensuring proper structure)
+          if (ingredients.length > 0) {
+              ingredients.forEach((ingredient, index) => {
+                  if (ingredient.ingredientId || ingredient.name) {
+                      formData.append(`ingredients[${index}][ingredientId]`, ingredient.ingredientId || "");
+                      formData.append(`ingredients[${index}][name]`, ingredient.ingredientName || "");
+                      formData.append(`ingredients[${index}][quantity]`, ingredient.quantity || "");
+                      formData.append(`ingredients[${index}][unit]`, ingredient.unit || "");
+                      formData.append(`ingredients[${index}][recipeId]`, recipeId || ""); // Attach to recipe ID when editing
+                  }
+              });
+          } else {
+              console.warn("⚠️ No ingredients to append.");
+          }
+  
+          // 🔹 Append deleted ingredients if any
+          if (deletedIngredients.length > 0) {
+              formData.append("deletedIngredients", JSON.stringify(deletedIngredients));
+          }
+  
+          // 🔹 Append selected image (if present)
           if (selectedImage) {
               formData.append("image", selectedImage);
           }
   
-          await axios.post("/api/recipes", formData, {
-              headers: { "Content-Type": "multipart/form-data" },
-          });
+          // 🔹 API call: Choose POST (new) or PUT (update)
+          if (isEditing) {
+              console.log(`Updating recipe ID: ${recipeId}`);
+              await axios.put(`/api/recipes/${recipeId}`, formData, {
+                  headers: { "Content-Type": "multipart/form-data" },
+              });
+              alert("✅ Recipe updated successfully!");
+          } else {
+              console.log("Creating new recipe...");
+              const response = await axios.post("/api/recipes", formData, {
+                  headers: { "Content-Type": "multipart/form-data" },
+              });
   
-          alert("Recipe saved successfully!");
+              console.log("🆕 New recipe created:", response.data);
+              alert("✅ Recipe saved successfully!");
+          }
+  
           navigate("/all-recipes");
       } catch (err) {
-          console.error("Error saving recipe:", err);
+          console.error("❌ Error saving recipe:", err);
           setError("Failed to save the recipe. Please try again.");
       }
   };
-  
+        
   const handleDelete = () => {
     const confirmDelete = window.confirm("Are you sure you want to delete this recipe?");
     if (confirmDelete) {
@@ -398,7 +463,7 @@ const handleImageUpload = async () => {
             <div className="steps-container">
     <h4>Steps</h4>
     <ul>
-        {recipe.steps.map((step, index) => (
+        {(recipe.steps || []).map((step, index) => (
             <li key={index} className="step-row">
                 {editingIndex === index ? (
                     <>
@@ -458,8 +523,7 @@ const handleImageUpload = async () => {
         {/* Ingredients Section */}
     <div className="ingredients-container">
       <h3>Ingredients</h3>
-      {ingredients.map((ingredient, index) => (
-        
+      {(ingredients || []).map((ingredient, index) => (
         <div className="ingredient-row" key={index}>
  {ingredient.locked ? (
   <div className="locked-ingredient-row">
@@ -484,14 +548,15 @@ const handleImageUpload = async () => {
         <>
           {/* Ingredient Selection */}
           <div className="ingredientRS-select">
+          
           <AsyncSelect
   className="ingredientRS-select"
   classNamePrefix="custom-select"
-  placeholder="Type to search" // Initial placeholder
+  placeholder="Type to search"
   cacheOptions
-  defaultOptions={false} // Prevent dropdown from opening prematurely
-  loadOptions={fetchIngredients} // Use the fetchIngredients function
-  noOptionsMessage={() => "No options"} // Display this when no matches are found
+  defaultOptions={false}
+  loadOptions={fetchIngredients}
+  noOptionsMessage={() => "No options"}
   onChange={(selectedOption) => handleIngredientChange(index, selectedOption)}
   value={
     ingredient.ingredientId
