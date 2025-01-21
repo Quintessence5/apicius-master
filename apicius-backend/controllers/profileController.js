@@ -17,6 +17,8 @@ exports.getProfile = async (req, res) => {
                 up.origin_country, 
                 up.language,
                 up.bio,
+                up.phone, 
+                up.newsletter,
                 u.email, 
                 u.password,
                 u.role 
@@ -40,15 +42,19 @@ exports.getProfile = async (req, res) => {
             origin_country, 
             language,
             bio, 
+            phone, 
+            newsletter,
             email, 
             password,
             role 
         } = result.rows[0];
 
-        // Check if the profile is complete (e.g., username is not null)
-        const isProfileComplete = !!username; // Replace with your logic for profile completion
+        // Check if the profile is complete
+        const isProfileComplete = !!username;
 
         // Respond with user profile data
+    const userData = result.rows[0];
+    console.log("Database Response:", userData);
         res.status(200).json({
             username,
             first_name,
@@ -57,11 +63,13 @@ exports.getProfile = async (req, res) => {
             origin_country,
             language,
             bio,
+            phone,
+            newsletter,
             email,
             password,
             user_id: userId,
             role,
-            isProfileComplete, // Add this field
+            isProfileComplete,
         });
     } catch (error) {
         console.error('Error fetching profile:', error);
@@ -100,7 +108,8 @@ exports.updateUserProfile = async (req, res) => {
         birthdate,
         origin_country,
         language,
-        phone,
+        phone_code,
+        phone_number,
         newsletter,
         email,
         newPassword,
@@ -114,6 +123,9 @@ exports.updateUserProfile = async (req, res) => {
     }
 
     try {
+        // Combine phone code and number with a space
+        const phone = phone_code && phone_number ? `${phone_code} ${phone_number}` : null;
+
         // 1. Update `user_profile` table
         const profileFieldsToUpdate = [];
         const profileValues = [];
@@ -276,7 +288,8 @@ exports.saveUserProfile = async (req, res) => {
             first_name, 
             last_name, 
             bio, 
-            phone, 
+            phone_code,
+            phone_number,
             newsletter,
             birthdate,
             origin_country,
@@ -288,6 +301,8 @@ exports.saveUserProfile = async (req, res) => {
         if (!user_id) {
             return res.status(400).json({ message: "User ID is required" });
         }
+
+        const phone = phone_code && phone_number ? `${phone_code} ${phone_number}` : null;
 
         // Insert or update user profile data
         const query = `

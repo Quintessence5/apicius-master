@@ -74,7 +74,7 @@ const RegisterForm = () => {
     
         try {
             const extractedPhoneCode = phoneCode ? phoneCode.split(' ')[1] : '';
-            const formattedPhone = phone ? `${extractedPhoneCode}${phone}` : '';
+            const formattedPhone = phone ? `${extractedPhoneCode} ${phone}` : '';
     
             await axios.post(
                 'http://localhost:5010/api/users/user_profile',
@@ -223,7 +223,7 @@ const RegisterForm = () => {
                     </div>
 
                     {/* Phone Code and Number Fields */}
-                    <div className="form-group phone-group">
+                    <div className="phone-group">
                         <div className="phone-field">
                             <select
                                 className="phone-code"

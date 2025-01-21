@@ -16,7 +16,9 @@ const ProfilePage = () => {
   const [tags, setTags] = useState({ allergy: [], intolerance: [], diets: [] });
   const [selectedTags, setSelectedTags] = useState({ allergy: [], intolerance: [], diets: [] });
   const [notification, setNotification] = useState({ message: "", visible: false });
-
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
   // Function to show notification
   const showNotification = (message) => {
     setNotification({ message, visible: true });
@@ -27,20 +29,24 @@ const ProfilePage = () => {
 
   const fetchUserProfile = async () => {
     try {
-      const { data } = await apiClient.get("/users/profile"); // Destructure `data` directly
-  
+      const { data } = await apiClient.get("/users/profile");
+      
       // Extract phone code and number separately
-      const phoneData = data.phone || ""; // Default empty if not provided
-      const phoneCode = phoneData.match(/^\+?\d+/)?.[0] || ""; // Extract code part
-      const phoneNumber = phoneData.replace(phoneCode, "").trim(); // Extract number part
+      const phoneData = data.phone || ""; 
+  
+      // Extract the phone code (e.g., +33) and phone number (e.g., 123321123)
+      const phoneCodeMatch = phoneData.match(/^\+?\d{1,3}/); // Match the country code (1-3 digits)
+      const phoneCode = phoneCodeMatch ? phoneCodeMatch[0] : ""; // Extract the matched code
+      const phoneNumber = phoneCode ? phoneData.slice(phoneCode.length).trim() : phoneData; // Extract the number
   
       setUserProfile(data);
       setFormData((prevFormData) => ({
         ...prevFormData,
         email: data.email || "",
-        phone_number: phoneNumber, // Phone number
-        newsletter: data.newsletter_preferences ? "Yes" : "No", // Map boolean to Yes/No
-        origin_country: data.country_of_origin || "",
+        phone_code: phoneCode, // Phone code (e.g., +33)
+        phone_number: phoneNumber, // Phone number (e.g., 123321123)
+        newsletter: data.newsletter ? "Yes" : "No", // Map boolean to Yes/No
+        origin_country: data.origin_country || "",
       }));
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -51,10 +57,10 @@ const ProfilePage = () => {
     const fetchDropdownData = async () => {
       try {
           const [countriesRes, languagesRes, phoneCodesRes, tagsRes] = await Promise.all([
-              apiClient.get("/country/countries"), // Use apiClient
-              apiClient.get("/country/languages"), // Use apiClient
-              apiClient.get("/country/phonecodes"), // Use apiClient
-              apiClient.get("/users/tags"), // Use apiClient
+              apiClient.get("/country/countries"),  
+              apiClient.get("/country/languages"),  
+              apiClient.get("/country/phonecodes"),  
+              apiClient.get("/users/tags"),  
           ]);
   
           setCountries(countriesRes.data);
@@ -189,19 +195,23 @@ const ProfilePage = () => {
       // Create a copy of formData to work with
       const updatedData = { ...formData };
   
+      // Validate password fields
+    if (updatedData.newPassword || updatedData.confirmNewPassword) {
+      if (!updatedData.newPassword || !updatedData.confirmNewPassword) {
+        showNotification("Both password fields are required.");
+        return;
+      }
+      if (updatedData.newPassword !== updatedData.confirmNewPassword) {
+        showNotification("Passwords do not match. Please try again.");
+        return;
+      }
+    }
+
       // Combine phone code and number, but exclude the country name
       if (formData.phone_code && formData.phone_number) {
         // Extract only the numeric phone code part, excluding the country name
         const extractedPhoneCode = formData.phone_code.match(/\+\d+/)?.[0] || "";
         updatedData.phone = `${extractedPhoneCode}${formData.phone_number}`.trim(); // Combine properly
-      }
-  
-      // Validate password fields
-      if (formData.newPassword && formData.confirmNewPassword) {
-        if (formData.newPassword !== formData.confirmNewPassword) {
-          showNotification("Passwords do not match. Please try again.");
-          return;
-        }
       }
   
       // Check if user_id exists before proceeding
@@ -324,157 +334,177 @@ const ProfilePage = () => {
               />
             </div>
             <div>
-              <label>New Password</label>
-              <input
-                type="password"
-                name="newPassword"
-                placeholder="Enter your New Password"
-                value={formData.newPassword || ""}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div>
-              <label>Confirm Password</label>
-              <input
-                type="password"
-                name="confirmNewPassword"
-                placeholder="Confirm your New Password"
-                value={formData.confirmNewPassword || ""}
-                onChange={handleInputChange}
-              />
-            </div>
+  <label>New Password</label>
+  <div className="password-input-container">
+    <input
+      type={showNewPassword ? "text" : "password"}
+      name="newPassword"
+      placeholder="Enter your New Password"
+      value={formData.newPassword || ""}
+      onChange={handleInputChange}
+    />
+    <span
+      className="password-toggle-icon"
+      onClick={() => setShowNewPassword(!showNewPassword)}
+    >
+      {showNewPassword ? "👁️" : "👁️‍🗨️"}
+    </span>
+  </div>
+</div>
+<div>
+  <label>Confirm Password</label>
+  <div className="password-input-container">
+    <input
+      type={showConfirmPassword ? "text" : "password"}
+      name="confirmNewPassword"
+      placeholder="Confirm your New Password"
+      value={formData.confirmNewPassword || ""}
+      onChange={handleInputChange}
+    />
+    <span
+      className="password-toggle-icon"
+      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+    >
+      {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+    </span>
+  </div>
+</div>
           </form>
                )}
 
-          {activeModal === "profile" && (
-            <form onSubmit={(e) => e.preventDefault()}>
-              {/* Bio */}
-              <div>
-                <label>Bio</label>
-                <input
-                  type="text"
-                  name="bio"
-                  placeholder={formData.bio || ""}
-                  onChange={handleInputChange}
-                />
-              </div>
-              
-              {/* Username */}
-              <div>
-                <label>Username</label>
-                <input
-                  type="text"
-                  name="username"
-                  placeholder={formData.username || ""}
-                  onChange={handleInputChange}
-                />
-              </div>
-          
-              {/* First Name */}
-              <div>
-                <label>First Name</label>
-                <input
-                  type="text"
-                  name="first_name"
-                  placeholder={formData.first_name || ""}
-                  onChange={handleInputChange}
-                />
-              </div>
-          
-              {/* Last Name */}
-              <div>
-                <label>Last Name</label>
-                <input
-                  type="text"
-                  name="last_name"
-                  placeholder={formData.last_name || ""}
-                  onChange={handleInputChange}
-                />
-              </div>
-          
-               {/* Origin Country Dropdown */}
-              <div className="modal-content">
-                <label className="modal-label">Country</label>
-                <select
-                  name="origin_country"
-                  className="modal-country-dropdown"
-                  value={formData.origin_country || ""}
-                  onChange={handleInputChange}
-                  style={{
-                    color: formData.origin_country ? "#999" : "#000000",
-                  }}>
-                  <option value="" disabled>Select your country</option>
-                  {countries.map((country) => (
-                    <option key={country.iso} value={country.name}>
-                      {country.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+{activeModal === "profile" && (
+  <form onSubmit={(e) => e.preventDefault()}>
+    {/* Bio */}
+    <div>
+      <label>Bio</label>
+      <input
+        type="text"
+        name="bio"
+        placeholder={formData.bio || ""}
+        onChange={handleInputChange}
+      />
+    </div>
+    
+    {/* Username */}
+    <div>
+      <label>Username</label>
+      <input
+        type="text"
+        name="username"
+        placeholder={formData.username || ""}
+        onChange={handleInputChange}
+      />
+    </div>
 
-              {/* Language Dropdown */}
-              <div className="modal-content-row">
-                <label className="modal-label">Language</label>
-                <select
-                  name="language"
-                  className="modal-country-dropdown"
-                  value={formData.language || ""}
-                  onChange={handleInputChange}
-                  style={{
-                    color: formData.origin_country ? "#999" : "#000000",
-                  }}>
-                  <option value="" disabled>Select your language</option>
-                  {languages.map((lang, index) => (
-                    <option key={index} value={lang}>{lang}</option>
-                  ))}
-                </select>
-              </div>
+    {/* First Name */}
+    <div>
+      <label>First Name</label>
+      <input
+        type="text"
+        name="first_name"
+        placeholder={formData.first_name || ""}
+        onChange={handleInputChange}
+      />
+    </div>
 
-              {/* Phone Field with Code Dropdown */}
-              <div>
-                <label>Phone</label>
-                <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                  <select
-                    name="phone_code"
-                    className="modal-phonecode"
-                    value={formData.phone_code || ""}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">PhoneCode</option>
-                    {phoneCodes.map((code, index) => (
-                      <option key={index} value={code}>
-                        {code}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="tel"
-                    name="phone_number"
-                    className="modal-phonez"
-                    placeholder="Enter your phone number"
-                    value={formData.phone_number || ""}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
+    {/* Last Name */}
+    <div>
+      <label>Last Name</label>
+      <input
+        type="text"
+        name="last_name"
+        placeholder={formData.last_name || ""}
+        onChange={handleInputChange}
+      />
+    </div>
 
-                <div>
-                    <label>Newsletter</label>
-                    <select
-                        name="newsletter"
-                        className="modal-country-dropdown"
-                        value={formData.newsletter || ""}
-                        onChange={handleInputChange}
-                        style={{
-                          color: formData.origin_country ? "#999" : "#000000",
-                        }}>
-                        <option value="" disabled>Subscribe to our awesome Newsletter ?</option>
-                        <option value="Yes">Yes</option>
-                        <option value="No">No</option>
-                    </select>
-                </div>
-              </form>
-               )}
+    {/* Origin Country Dropdown */}
+    <div className="modal-content">
+      <label className="modal-label">Country</label>
+      <select
+        name="origin_country"
+        className="modal-country-dropdown"
+        value={formData.origin_country || ""}
+        onChange={handleInputChange}
+        style={{
+          color: formData.origin_country ? "#999" : "#000000",
+        }}>
+        <option value="" disabled>Select your country</option>
+        {countries.map((country) => (
+          <option key={country.iso} value={country.name}>
+            {country.name}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* Language Dropdown */}
+    <div className="modal-content-row">
+      <label className="modal-label">Language</label>
+      <select
+        name="language"
+        className="modal-country-dropdown"
+        value={formData.language || ""}
+        onChange={handleInputChange}
+        style={{
+          color: formData.origin_country ? "#999" : "#000000",
+        }}>
+        <option value="" disabled>Select your language</option>
+        {languages.map((lang, index) => (
+          <option key={index} value={lang}>{lang}</option>
+        ))}
+      </select>
+    </div>
+
+    {/* Phone Field with Code Dropdown */}
+    <div className="modal-phone-field">
+  <label>Phone</label>
+  <div className="modal-phone-input-container">
+    <select
+      name="phone_code"
+      className="modal-phonecode"
+      value={formData.phone_code || ""}
+      onChange={handleInputChange}
+    >
+      <option value="">PhoneCode</option>
+      {phoneCodes.map((code, index) => {
+        const phoneCode = code.match(/\+?\d{1,3}/)?.[0] || "";
+        return (
+          <option key={index} value={phoneCode}>
+            {code}
+          </option>
+        );
+      })}
+    </select>
+    <input
+      type="tel"
+      name="phone_number"
+      className="modal-phonez"
+      placeholder="Enter your phone number"
+      value={formData.phone_number || ""}
+      onChange={handleInputChange}
+    />
+  </div>
+</div>
+
+    {/* Newsletter Subscription */}
+    <div>
+      <label>Newsletter</label>
+      <select
+        name="newsletter"
+        className="modal-country-dropdown"
+        value={formData.newsletter || ""}
+        onChange={handleInputChange}
+        style={{
+          color: formData.origin_country ? "#999" : "#000000",
+        }}>
+        <option value="" disabled>Subscribe to our awesome Newsletter ?</option>
+        <option value="Yes">Yes</option>
+        <option value="No">No</option>
+      </select>
+    </div>
+  </form>
+)}
 
           {activeModal === "preferences" && (
                     <form onSubmit={(e) => e.preventDefault()} className="preferences-form">

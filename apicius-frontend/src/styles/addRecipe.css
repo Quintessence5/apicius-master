@@ -253,8 +253,8 @@
   border-radius: 5px;
 }
 
-.step-row .edit-button,
-.step-row .delete-button {
+.steps-edit-button,
+.steps-delete-button {
     flex: 0 0 2rem;
     padding: 5px 0.6125px;
     font-size: 0.8rem;
@@ -267,42 +267,57 @@
     text-align: center;
   }
 
+  .steps-save-edit-button {
+    background-color: #4caf50;
+    color: white;
+    height: 2rem;
+    border: none;
+    margin-top: 0rem;
+    border-radius: 3px;
+    padding: 5px 10px;
+    margin-left: 2%;
+    cursor: pointer;
+  }
+
 /* -----------------Checkbox row------------------ */
-.checkbox-row {
+.addrecipe-checkbox-row {
   display: flex;
   align-items: center;
-  margin-top: -0.5rem;
-  margin-left: 1.2rem;
-  gap: 10px;
+  margin-top: 0.5rem;
+  margin-left: 0.8rem;
+  gap: 1rem;
 }
 
-.checkbox-label {
+.addrecipe-checkbox-label {
   font-size: 1.1rem;
   font-weight: bold;
+  align-items: center;
+  gap: 0.8rem;
   color: #333;
   display: flex;
 }
 
-.checkbox-label:hover {
+.addrecipe-checkbox-label:hover {
   color: #007bff;
 }
 
-.checkbox-label input[type="checkbox"] {
+.addrecipe-checkbox-label input[type="checkbox"] {
   appearance: none;
   border: 2px solid #999;
   border-radius: 0.4rem;
-  width: 9rem;
+  width: 1.5rem;
+  height: 1.5rem;
   background-color: #fff;
   cursor: pointer;
 }
-.checkbox-label input[type="checkbox"]:checked {
+.addrecipe-checkbox-label input[type="checkbox"]:checked {
   background-color: #007bff;
   border-color: #0056b3;
   display: inline-block;
   position: relative;
 }
 
-.checkbox-label input[type="checkbox"]:checked::before {
+.addrecipe-checkbox-label input[type="checkbox"]:checked::before {
   content: "✔";
   display: block;
   text-align: center;
@@ -326,7 +341,7 @@
   font-weight: bold;
   margin-top: -2rem;
   margin-bottom: 0.5rem;
-  margin-left: 2.4rem;
+  margin-left: 2.8rem;
 }
 
 .ingredient-row {
@@ -462,29 +477,29 @@ word-wrap: break-word;
 }
 
 /* Buttons */
-.ingredient-row .edit-button,
-.ingredient-row .delete-button {
+.ingredient-edit-button,
+.ingredient-delete-button {
   flex: 0 0 2rem;
   padding: 5px 0.6125px;
   font-size: 0.8rem;
   margin-top: -0.4rem;
   cursor: pointer;
-  background-color: #f5f5f5;
+  background-color: #ffffff;
   border: 1px solid #ccc;
   border-radius: 5px;
   text-align: center;
 }
 
-.ingredient-row .edit-button {
+.ingredient-edit-button {
   width: auto;
   color: #3498db;
 }
 
-.ingredient-row .delete-button {
+.ingredient-delete-button {
   color: #e74c3c;
 }
 
-.save-edit-button {
+.ingredient-save-edit-button {
   background-color: #4caf50;
   color: white;
   height: 2rem;
@@ -500,8 +515,8 @@ word-wrap: break-word;
   background-color: #45a049;
 }
 
-.ingredient-row .edit-button:hover,
-.ingredient-row .delete-button:hover {
+.ingredient-edit-button:hover,
+.ingredient-delete-button:hover {
   background-color: #eaeaea;
 }
 
@@ -751,8 +766,8 @@ margin-top: 0.5rem;
 font-size: 0.9rem;
 }
 
-.step-row .edit-button,
-.step-row .delete-button {
+.steps-edit-button,
+.steps-delete-button {
   flex: 0 0 1.8rem;
   padding: 5px 0.6125px;
   font-size: 0.6rem;
@@ -774,7 +789,7 @@ font-size: 1rem;
 .checkbox-label input[type="checkbox"] {
 border: 1.2px solid #999;
 border-radius: 0.3rem;
-width: 8rem;
+width: 1rem;
 }
 
 .checkbox-label input[type="checkbox"]:checked::before {
@@ -898,8 +913,8 @@ font-size: 0.9rem;
 }
 
 /* Buttons */
-.ingredient-row .edit-button,
-.ingredient-row .delete-button {
+.ingredient-edit-button,
+.ingredient-delete-button {
   flex: 0 0 1.8rem;
   padding: 5px 0.6125px;
   font-size: 0.6rem;
@@ -915,8 +930,8 @@ padding: 5px 10px;
 margin-left: 2%;
 }
 
-.ingredient-row .edit-button:hover,
-.ingredient-row .delete-button:hover {
+.ingredient-edit-button:hover,
+.ingredient-delete-button:hover {
 background-color: #eaeaea;
 }
 
@@ -1279,8 +1294,8 @@ margin-top: 0.8rem;
   }
   
   /* Buttons */
-  .ingredient-row .edit-button,
-  .ingredient-row .delete-button {
+  .ingredient-edit-button,
+  .ingredient-delete-button {
     flex: 0 0 1.8rem;
     padding: 5px 0.6125px;
     font-size: 0.6rem;
@@ -1296,8 +1311,8 @@ margin-top: 0.8rem;
   margin-left: 2%;
   }
   
-  .ingredient-row .edit-button:hover,
-  .ingredient-row .delete-button:hover {
+  .ingredient-edit-button:hover,
+  .ingredient-delete-button:hover {
   background-color: #eaeaea;
   }
   

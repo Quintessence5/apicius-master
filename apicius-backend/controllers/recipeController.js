@@ -91,7 +91,7 @@ const getRecipeById = async (req, res) => {
         const recipeResult = await pool.query(`
             SELECT r.id, r.title, r.notes, r.prep_time, r.cook_time, r.total_time, r.difficulty, 
                    r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, r.portions,
-                   ri.quantity, ri.unit, i.name AS ingredient_name, i.calories_per_100g, 
+                   ri.quantity, ri.unit, i.id AS ingredient_id, i.name AS ingredient_name, i.calories_per_100g, 
                    i.protein, i.lipids, i.carbohydrates, i.saturated_fat, i.trans_fat, 
                    i.cholesterol, i.sodium, i.fibers, i.sugars, i.added_sugars, i.allergies
             FROM recipes r
@@ -135,6 +135,7 @@ const getRecipeById = async (req, res) => {
             if (row.ingredient_name) {
                 // Add ingredient
                 recipe.ingredients.push({
+                    ingredient_id: row.ingredient_id, // Ensure this is included
                     ingredient_name: row.ingredient_name,
                     quantity: row.quantity,
                     unit: row.unit
@@ -261,133 +262,135 @@ const addRecipe = async (req, res) => {
 const updateRecipe = async (req, res) => {
     console.log("DEBUG: updateRecipe function is running...");
     try {
-        const { id } = req.params;
-        const uploadedFile = req.file;
-        const imagePath = uploadedFile ? uploadedFile.path : null;
-
-        console.log(`Updating recipe ID: ${id}`);
-        console.log("Incoming request body:", req.body);
-
-        let { 
-            title, steps, notes, prep_time, cook_time, difficulty, 
-            course_type, meal_type, cuisine_type, public, source, portions, ingredients 
-        } = req.body;
-
-        const total_time = parseInt(prep_time) + parseInt(cook_time);
-
-        // --- Update the recipe details ---
-        let updateQuery = `
-            UPDATE recipes 
-            SET title = $1, steps = $2::jsonb, notes = $3, prep_time = $4, cook_time = $5, total_time = $6, difficulty = $7, 
-                course_type = $8, meal_type = $9, cuisine_type = $10, public = $11, source = $12, portions = $13
-        `;
-
-        const queryValues = [
-            title, JSON.stringify(steps), notes, prep_time, cook_time, total_time, difficulty, 
-            course_type, meal_type, cuisine_type, public, source, portions
-        ];
-
-        if (imagePath) {
-            updateQuery += `, image_path = $14`;
-            queryValues.push(imagePath);
-        }
-
-        updateQuery += ` WHERE id = $${queryValues.length + 1} RETURNING *;`;
-        queryValues.push(id);
-
-        const updatedRecipe = await pool.query(updateQuery, queryValues);
-
-        if (updatedRecipe.rows.length === 0) {
-            console.error("ERROR: Recipe not found!");
-            return res.status(404).json({ message: "Recipe not found" });
-        }
-
-        console.log("✅ Recipe details updated successfully!");
-
-        // --- Rename uploaded file if needed ---
-        if (uploadedFile) {
-            const newFileName = `${id}-${title.replace(/\s+/g, '_')}${path.extname(uploadedFile.originalname)}`;
-            const newPath = path.join(__dirname, '..', 'uploads', newFileName);
-
-            fs.rename(uploadedFile.path, newPath, async (err) => {
-                if (err) {
-                    console.error("Error renaming file:", err);
-                    return res.status(500).json({ message: "Error renaming file" });
-                }
-
-                console.log(`✅ File renamed successfully to: ${newFileName}`);
-
-                await pool.query(`UPDATE recipes SET image_path = $1 WHERE id = $2`, [newPath, id]);
-            });
-        }
-
-        // --- Handling Ingredients ---
-        console.log("Processing ingredients...");
-
-        // ✅ Convert ingredients object into an array
-        if (typeof ingredients === "object" && !Array.isArray(ingredients)) {
-            ingredients = Object.values(ingredients).filter(ing => ing.ingredientId || ing.name);
-        }
-
-        if (Array.isArray(ingredients) && ingredients.length > 0) {
-            console.log(`🔄 Updating ${ingredients.length} ingredients...`);
-
-            for (const ingredient of ingredients) {
-                if (!ingredient.ingredientId && !ingredient.name) continue; // Skip empty entries
-
-                let ingredientId = ingredient.ingredientId;
-
-                // 🔹 **Insert ingredient if it doesn't exist**
-                if (!ingredientId) {
-                    const ingredientResult = await pool.query(
-                        `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
-                        [ingredient.name]
-                    );
-
-                    ingredientId = ingredientResult.rows[0]?.id;
-
-                    if (!ingredientId) {
-                        const existingIngredient = await pool.query(
-                            `SELECT id FROM ingredients WHERE name = $1`,
-                            [ingredient.name]
-                        );
-                        ingredientId = existingIngredient.rows[0]?.id;
-                    }
-                }
-
-                if (req.body.deletedIngredients) {
-                    const deletedIngredientIds = JSON.parse(req.body.deletedIngredients);
-                    if (deletedIngredientIds.length > 0) {
-                        await pool.query(
-                            `DELETE FROM recipe_ingredients WHERE recipe_id = $1 AND ingredient_id = ANY($2::int[])`,
-                            [id, deletedIngredientIds]
-                        );
-                        console.log(`🗑️ Deleted ingredients: ${deletedIngredientIds.join(", ")}`);
-                    }
-                }                
-
-                // 🔹 **Insert ingredient into `recipe_ingredients`**
-                if (ingredientId) {
-                    await pool.query(
-                        `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
-                        VALUES ($1, $2, $3, $4)`,
-                        [id, ingredientId, ingredient.quantity || null, ingredient.unit || null]
-                    );
-                    console.log(`✅ Added/Updated ingredient: ${ingredient.name} (ID: ${ingredientId})`);
-                }
+      const { id } = req.params;
+      const uploadedFile = req.file;
+      const imagePath = uploadedFile ? uploadedFile.path : null;
+  
+      console.log(`Updating recipe ID: ${id}`);
+      console.log("Incoming request body:", req.body);
+  
+      let { 
+        title, steps, notes, prep_time, cook_time, difficulty, 
+        course_type, meal_type, cuisine_type, public, source, portions, ingredients, deletedIngredients 
+      } = req.body;
+  
+      const total_time = parseInt(prep_time) + parseInt(cook_time);
+  
+      // --- Update the recipe details ---
+      let updateQuery = `
+        UPDATE recipes 
+        SET title = \$1, steps = \$2::jsonb, notes = \$3, prep_time = \$4, cook_time = \$5, total_time = \$6, difficulty = \$7, 
+            course_type = \$8, meal_type = \$9, cuisine_type = \$10, public = \$11, source = \$12, portions = \$13
+      `;
+  
+      const queryValues = [
+        title, JSON.stringify(steps), notes, prep_time, cook_time, total_time, difficulty, 
+        course_type, meal_type, cuisine_type, public, source, portions
+      ];
+  
+      if (imagePath) {
+        updateQuery += `, image_path = $14`;
+        queryValues.push(imagePath);
+      }
+  
+      updateQuery += ` WHERE id = $${queryValues.length + 1} RETURNING *;`;
+      queryValues.push(id);
+  
+      const updatedRecipe = await pool.query(updateQuery, queryValues);
+  
+      if (updatedRecipe.rows.length === 0) {
+        console.error("ERROR: Recipe not found!");
+        return res.status(404).json({ message: "Recipe not found" });
+      }
+  
+      console.log("✅ Recipe details updated successfully!");
+  
+      // --- Rename uploaded file if needed ---
+      if (uploadedFile) {
+        const newFileName = `${id}-${title.replace(/\s+/g, '_')}${path.extname(uploadedFile.originalname)}`;
+        const newPath = path.join(__dirname, '..', 'uploads', newFileName);
+  
+        fs.rename(uploadedFile.path, newPath, async (err) => {
+          if (err) {
+            console.error("Error renaming file:", err);
+            return res.status(500).json({ message: "Error renaming file" });
+          }
+  
+          console.log(`✅ File renamed successfully to: ${newFileName}`);
+  
+          await pool.query(`UPDATE recipes SET image_path = $1 WHERE id = $2`, [newPath, id]);
+        });
+      }
+  
+      // --- Handling Ingredients ---
+      console.log("Processing ingredients...");
+  
+      // ✅ Convert ingredients object into an array
+      if (typeof ingredients === "object" && !Array.isArray(ingredients)) {
+        ingredients = Object.values(ingredients).filter(ing => ing.ingredientId || ing.name);
+      }
+  
+      if (Array.isArray(ingredients) && ingredients.length > 0) {
+        console.log(`🔄 Updating ${ingredients.length} ingredients...`);
+  
+        for (const ingredient of ingredients) {
+          if (!ingredient.ingredientId && !ingredient.name) continue; // Skip empty entries
+  
+          let ingredientId = ingredient.ingredientId;
+  
+          // 🔹 **Insert ingredient if it doesn't exist**
+          if (!ingredientId) {
+            const ingredientResult = await pool.query(
+              `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
+              [ingredient.name]
+            );
+  
+            ingredientId = ingredientResult.rows[0]?.id;
+  
+            if (!ingredientId) {
+              const existingIngredient = await pool.query(
+                `SELECT id FROM ingredients WHERE name = $1`,
+                [ingredient.name]
+              );
+              ingredientId = existingIngredient.rows[0]?.id;
             }
-        } else {
-            console.log("⚠️ No valid ingredients provided. Keeping existing ingredients.");
+          }
+  
+          // 🔹 **Insert ingredient into `recipe_ingredients`**
+          if (ingredientId) {
+            await pool.query(
+              `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
+              VALUES (\$1, \$2, \$3, \$4)`,
+              [id, ingredientId, ingredient.quantity || null, ingredient.unit || null]
+            );
+            console.log(`✅ Added/Updated ingredient: ${ingredient.name} (ID: ${ingredientId})`);
+          }
         }
-
-        res.json({ message: "Recipe updated successfully!", updatedRecipe: updatedRecipe.rows[0] });
-
+      } else {
+        console.log("⚠️ No valid ingredients provided. Keeping existing ingredients.");
+      }
+  
+      // --- Handling Deleted Ingredients ---
+      if (deletedIngredients && deletedIngredients.length > 0) {
+        console.log(`🔄 Deleting ${deletedIngredients.length} ingredients...`);
+  
+        for (const ingredientId of deletedIngredients) {
+          await pool.query(
+            `DELETE FROM recipe_ingredients WHERE recipe_id = $1 AND ingredient_id = $2`,
+            [id, ingredientId]
+          );
+          console.log(`✅ Deleted ingredient: ${ingredientId}`);
+        }
+      }
+  
+      res.json({ message: "Recipe updated successfully!", updatedRecipe: updatedRecipe.rows[0] });
+  
     } catch (error) {
-        console.error("❌ Error in updateRecipe:", error);
-        res.status(500).json({ message: "Error updating recipe" });
+      console.error("❌ Error in updateRecipe:", error);
+      res.status(500).json({ message: "Error updating recipe" });
     }
-};
-
+  };
+  
 // 5. Delete a recipe by ID
 const deleteRecipe = async (req, res) => {
     const { id } = req.params;
@@ -432,7 +435,7 @@ const getIngredientSuggestions = async (req, res) => {
     try {
         const { search } = req.query;
 
-        if (!search || search.trim().length < 1) {
+        if (!search || search.trim().length < 0) {
             return res.status(400).json({ message: "Search query must be at least 2 characters." });
         }
 

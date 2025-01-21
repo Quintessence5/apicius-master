@@ -9,7 +9,7 @@ const AddRecipe = () => {
     const editingRecipe = location.state?.recipe || null;
     const [recipe, setRecipe] = useState(editingRecipe || {
         title: '', steps: [], notes: '', prep_time: '', cook_time: '', total_time: '', difficulty: '', 
-        course_type: '', meal_type: '', cuisine_type: '', public: false, source: '', portions: ''
+        course_type: '', meal_type: '', cuisine_type: '', public: false, source: '', portions: '',
     });
     const [ingredients, setIngredients] = useState([{ ingredientId: '', quantity: '', unit: '', form: '', locked: false }]);
     const [availableUnits, setAvailableUnits] = useState([]);
@@ -18,7 +18,8 @@ const AddRecipe = () => {
     const cuisineTypes = ['Italian', 'Chinese', 'Indian', 'Mexican', 'French', 'Others'];
     const difficulty = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard' ];
     const [error, setError] = useState("");
-    const [editingIndex, setEditingIndex] = useState(null);
+    const [editingIngredientIndex, setEditingIngredientIndex] = useState(null); // For ingredients
+    const [editingStepIndex, setEditingStepIndex] = useState(null); // For steps
     const [selectedImage, setSelectedImage] = useState(null);
     const [previewUrl, setPreviewUrl] = useState('');
     const [currentStep, setCurrentStep] = useState("");
@@ -55,32 +56,35 @@ const AddRecipe = () => {
       };
   
       if (editingRecipe) {
-          setRecipe(editingRecipe);
-  
-          // Ensure ingredients are set correctly and always include an empty row for adding new ones
-          if (editingRecipe.ingredients) {
-              const formattedIngredients = editingRecipe.ingredients.map((ing) => ({
-                  ingredientId: ing.ingredient_id || "",
-                  ingredientName: ing.ingredient_name || "",
-                  quantity: ing.quantity || "",
-                  unit: ing.unit || "",
-                  form: ing.form || "",
-                  locked: true
-              }));
-
-              // Add an empty ingredient field at the end
-              formattedIngredients.push({ ingredientId: "", ingredientName: "", quantity: "", unit: "", form: "", locked: false });
-  
-              setIngredients(formattedIngredients);
-          }
+        setRecipe({
+          ...editingRecipe,
+          public: editingRecipe.public || false, // Ensure public is a boolean
+        });
+    
+        // Ensure ingredients are set correctly
+        if (editingRecipe.ingredients) {
+          const formattedIngredients = editingRecipe.ingredients.map((ing) => ({
+            ingredientId: ing.ingredient_id || "", // Ensure this matches the backend response
+            ingredientName: ing.ingredient_name || "", // Map ingredient_name to ingredientName
+            quantity: ing.quantity || "",
+            unit: ing.unit || "",
+            form: ing.form || "",
+            locked: true,
+          }));
+    
+          // Add an empty ingredient field at the end
+          formattedIngredients.push({ ingredientId: "", ingredientName: "", quantity: "", unit: "", form: "", locked: false });
+    
+          setIngredients(formattedIngredients);
+        }
       } else {
-          // Ensure there's at least one empty ingredient row for new recipes
-          setIngredients([{ ingredientId: "", ingredientName: "", quantity: "", unit: "", form: "", locked: false }]);
+        // Ensure there's at least one empty ingredient row for new recipes
+        setIngredients([{ ingredientId: "", ingredientName: "", quantity: "", unit: "", form: "", locked: false }]);
       }
-  
+    
       fetchUnits();
       console.log("Received recipe for editing:", editingRecipe);
-  }, [editingRecipe]);  
+    }, [editingRecipe]);  
 
     const handleChange = (e) => {
       const { name, value, type, checked } = e.target;
@@ -105,24 +109,34 @@ const AddRecipe = () => {
     const newIngredients = [...ingredients];
     newIngredients[index].ingredientId = selectedOption.value;
     newIngredients[index].ingredientName = selectedOption.label;
-    newIngredients[index].form = selectedOption.form; 
+    newIngredients[index].form = selectedOption.form || "unknown"; // Ensure form is set
     setIngredients(newIngredients);
-};
+  };
     
-  const fetchIngredients = async (inputValue) => {
-    if (!inputValue || inputValue.trim().length < 2) return [];
-    try {
-        const response = await axios.get(`/api/ingredients/suggestions?search=${inputValue.trim()}`);
-        console.log("Fetched ingredients:", response.data); // Debug API response
-        return response.data.map((ingredient) => ({
-            value: ingredient.id,
-            label: ingredient.name,
-            form: ingredient.form || "unknown", // Include form; default to "unknown" if missing
-        }));
-    } catch (error) {
-        console.error("Error fetching ingredient suggestions:", error);
-        return [];
-    }
+const fetchIngredients = async (inputValue) => {
+  if (!inputValue || inputValue.trim().length < 2) {
+    // If no input value, return the existing ingredient (if any)
+    return ingredients
+      .filter((ing) => ing.ingredientId && ing.ingredientName)
+      .map((ing) => ({
+        value: ing.ingredientId,
+        label: ing.ingredientName,
+        form: ing.form || "unknown",
+      }));
+  }
+
+  try {
+    const response = await axios.get(`/api/ingredients/suggestions?search=${inputValue.trim()}`);
+    console.log("Fetched ingredients:", response.data); // Debug API response
+    return response.data.map((ingredient) => ({
+      value: ingredient.id,
+      label: ingredient.name,
+      form: ingredient.form || "unknown", // Include form; default to "unknown" if missing
+    }));
+  } catch (error) {
+    console.error("Error fetching ingredient suggestions:", error);
+    return [];
+  }
 };
 
       const addIngredient = () => {
@@ -143,11 +157,11 @@ const AddRecipe = () => {
         !ingredient.locked;
     
         const handleEdit = (index) => {
-          setEditingIndex(index); // Set the current editing index
+          setEditingIngredientIndex(index); // Set the current editing index for ingredients
           const updatedIngredients = [...ingredients];
           updatedIngredients[index].locked = false; // Unlock the ingredient for editing
           setIngredients(updatedIngredients);
-        };        
+        };      
     
         const removeIngredient = (index) => {
           setIngredients((prev) => prev.filter((_, i) => i !== index));
@@ -159,50 +173,57 @@ const AddRecipe = () => {
           }
       };
       
-    //Unit Handler
-    const handleUnitChange = (index, e) => {
-        const { name, value } = e.target;
-        const newIngredients = [...ingredients];
-        newIngredients[index][name] = value;
-        setIngredients(newIngredients);
-    };
+      const handleSaveEditIngredient = (index) => {
+        const updatedIngredients = [...ingredients];
+        updatedIngredients[index].locked = true;
+        setIngredients(updatedIngredients);
+        setEditingIngredientIndex(null); // Clear the editing index for ingredients
+      };
 
-    const getFilteredUnits = (form) => {
-      console.log("Filtering units for form:", form); // Log the form being used
-      if (!form) return [];
-      if (form === "solid") {
-          return availableUnits.filter((unit) => unit.type === "weight" || unit.type === "quantity");
-      }
-      if (form === "liquid") {
-          return availableUnits.filter((unit) => unit.type === "volume");
-      }
-      return [];
-  };  
+        //Unit Handler
+        const handleUnitChange = (index, e) => {
+            const { name, value } = e.target;
+            const newIngredients = [...ingredients];
+            newIngredients[index][name] = value;
+            setIngredients(newIngredients);
+         };
+
+         const getFilteredUnits = (form) => {
+          console.log("Filtering units for form:", form); // Log the form being used
+          if (!form) return availableUnits; // Return all units if form is undefined
+          if (form === "solid") {
+            return availableUnits.filter((unit) => unit.type === "weight" || unit.type === "quantity");
+          }
+          if (form === "liquid") {
+            return availableUnits.filter((unit) => unit.type === "volume");
+          }
+          return [];
+        };
 
   const handleAddStep = (e) => {
     if (e.key === 'Enter' && currentStep.trim()) {
         e.preventDefault(); // Prevent default behavior of Enter
         setRecipe((prev) => ({
             ...prev,
-            steps: [...prev.steps, currentStep.trim()] // Add new step, trimming whitespace
+            steps: [...(prev.steps || []), currentStep.trim()], // Ensure steps is an array
         }));
         setCurrentStep(""); // Clear the input
     }
 };
 
 const handleEditStepStart = (index) => {
-  setEditingIndex(index); // Track the editing index
+  setEditingStepIndex(index); // Set the current editing index for steps
 };
 
 const handleSaveEditStep = (index) => {
-  setEditingIndex(null); // Exit edit mode
+  setEditingStepIndex(null); // Clear the editing index for steps
 };
 
 const handleEditStep = (index, newValue) => {
   setRecipe((prev) => {
-      const updatedSteps = [...prev.steps];
-      updatedSteps[index] = newValue.trim(); 
-      return { ...prev, steps: updatedSteps };
+    const updatedSteps = [...prev.steps];
+    updatedSteps[index] = newValue.trim();
+    return { ...prev, steps: updatedSteps };
   });
 };
 
@@ -213,13 +234,6 @@ const handleDeleteStep = (index) => {
   }));
 };
 
-const handleSaveEdit = (index) => {
-  const updatedIngredients = [...ingredients];
-  updatedIngredients[index].locked = true; 
-  setIngredients(updatedIngredients);
-  setEditingIndex(null);
-};   
-    
     // Save and delete functions
     const handleSave = async () => {
       try {
@@ -227,12 +241,14 @@ const handleSaveEdit = (index) => {
   
           // 🔹 Append recipe fields
           Object.entries(recipe).forEach(([key, value]) => {
-              if (key === "steps") {
-                  value.forEach((step, index) => formData.append(`steps[${index}]`, step));
-              } else {
-                  formData.append(key, value);
-              }
-          });
+            if (key === "steps") {
+                // Ensure steps is an array
+                const stepsArray = Array.isArray(value) ? value : [];
+                stepsArray.forEach((step, index) => formData.append(`steps[${index}]`, step));
+            } else {
+                formData.append(key, value);
+            }
+        });
   
           // 🔹 Determine if updating or creating a new recipe
           const isEditing = !!editingRecipe;
@@ -249,6 +265,7 @@ const handleSaveEdit = (index) => {
           }
   
           // 🔹 Append ingredients (ensuring proper structure)
+          const ingredientsArray = Array.isArray(ingredients) ? ingredients : [];
           if (ingredients.length > 0) {
               ingredients.forEach((ingredient, index) => {
                   if (ingredient.ingredientId || ingredient.name) {
@@ -465,36 +482,36 @@ const handleImageUpload = async () => {
     <ul>
         {(recipe.steps || []).map((step, index) => (
             <li key={index} className="step-row">
-                {editingIndex === index ? (
-                    <>
-                        <textarea
-                            value={recipe.steps[index]}
-                            onChange={(e) => handleEditStep(index, e.target.value)}
-                            className="step-edit-textarea"
-                        ></textarea>
-                        <button
-                            className="save-edit-button"
-                            onClick={() => handleSaveEditStep(index)}
-                        >
-                            ✔
-                        </button>
-                    </>
-                ) : (
-                    <>
-                        <span>{index + 1}. {step}</span>
-                        <button
-                            className="edit-button"
-                            onClick={() => handleEditStepStart(index)}
-                        >
-                            ✏️
-                        </button>
-                        <button
-                            className="delete-button"
-                            onClick={() => handleDeleteStep(index)}
-                        >
-                            ❌
-                        </button>
-                    </>
+                {editingStepIndex === index ? (
+  <>
+    <textarea
+      value={recipe.steps[index]}
+      onChange={(e) => handleEditStep(index, e.target.value)}
+      className="step-edit-textarea"
+    ></textarea>
+    <button
+      className="steps-save-edit-button"
+      onClick={() => handleSaveEditStep(index)}
+    >
+      ✔
+    </button>
+  </>
+) : (
+  <>
+    <span>{index + 1}. {step}</span>
+    <button
+      className="steps-edit-button"
+      onClick={() => handleEditStepStart(index)}
+    >
+      ✏️
+    </button>
+    <button
+      className="steps-delete-button"
+      onClick={() => handleDeleteStep(index)}
+    >
+      ❌
+    </button>
+  </>
                 )}
             </li>
         ))}
@@ -508,8 +525,8 @@ const handleImageUpload = async () => {
     ></textarea>
 </div>
 
-            <div className="checkbox-row">
-              <label className="checkbox-label">
+            <div className="addrecipe-checkbox-row">
+              <label className="addrecipe-checkbox-label">
                   <input
                   type="checkbox"
                   name="public"
@@ -528,17 +545,16 @@ const handleImageUpload = async () => {
  {ingredient.locked ? (
   <div className="locked-ingredient-row">
     <span className="locked-ingredient-text">
-      {ingredient.quantity}
-      {ingredient.unit} of {ingredient.ingredientName}
+      {ingredient.quantity} {ingredient.unit} of {ingredient.ingredientName}
     </span>
     <button
-      className="edit-button"
+      className="ingredient-edit-button"
       onClick={() => handleEdit(index)}
     >
       ✏️
     </button>
     <button
-      className="delete-button"
+      className="ingredient-delete-button"
       onClick={() => removeIngredient(index)}
     >
       ❌
@@ -548,6 +564,7 @@ const handleImageUpload = async () => {
         <>
           {/* Ingredient Selection */}
           <div className="ingredientRS-select">
+          
           
           <AsyncSelect
   className="ingredientRS-select"
@@ -593,10 +610,10 @@ const handleImageUpload = async () => {
     </select>
     </div>
      {/* Save/Confirm Button */}
-     {editingIndex === index && (
+     {editingIngredientIndex === index && (
           <button
-            className="save-edit-button"
-            onClick={() => handleSaveEdit(index)}
+            className="ingredient-save-edit-button"
+            onClick={() => handleSaveEditIngredient(index)}
             disabled={!isValidIngredient(ingredients[index])}
           >
             ✔

@@ -87,6 +87,83 @@
     font-size: 14px;
     color: #666;
 }
+/* Phone Field Styles */
+.modal-phone-field {
+    margin-bottom: 1.5rem;
+    border: none;
+}
+
+.modal-phone-input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-phonecode {
+    width: 30%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    color: #33333300;
+    background-color: #fff;
+}
+
+.modal-phonez {
+    width: 65%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    color: #333;
+    background-color: #fff;
+}
+
+/* Password Field Styles */
+.password-input-container {
+    position: relative;
+}
+
+.password-input-container input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+    color: #333;
+    background-color: #fff;
+    padding-right: 2.5rem; /* Space for the eye icon */
+}
+
+.password-toggle-icon {
+    position: absolute;
+    right: 7.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #777;
+}
+
+.password-toggle-icon:hover {
+    color: #333;
+}
+
+/* Text Color Classes */
+.black-text {
+    color: #000; /* Black for fields with data */
+}
+
+.grey-text {
+    color: #333; /* Light grey for placeholders */
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important; /* White background */
+    -webkit-text-fill-color: #000 !important; /* Black text */
+}
 
 @media (max-width: 480px) {
     .profile-page {
