@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 
-// Check if a token is revoked (for refresh tokens)
 const checkIfTokenRevoked = async (token) => {
     const result = await pool.query('SELECT revoked FROM refresh_tokens WHERE token = $1', [token]);
     return result.rows.length > 0 && result.rows[0].revoked;
@@ -9,9 +8,13 @@ const checkIfTokenRevoked = async (token) => {
 
 // Token Authentication Middleware
 const authenticateToken = async (req, res, next) => {
-    const token = req.cookies?.accessToken || req.headers['authorization']?.split(' ')[1];
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer <token>"
+
+    console.log('Received token:', token);
 
     if (!token) {
+        console.log('Token is missing'); 
         return res.status(401).json({ message: 'Unauthorized: Token is missing' });
     }
 
@@ -27,13 +30,16 @@ const authenticateToken = async (req, res, next) => {
                 }
             }
 
-            // Optional: Check if the token is revoked (if access tokens can be revoked)
+            // Optional: Check if the token is revoked
             const isRevoked = await checkIfTokenRevoked(token);
             if (isRevoked) {
+                console.log('Token has been revoked'); 
                 return res.status(403).json({ message: 'Token has been revoked' });
             }
 
-            req.userId = decoded.userId; // Attach user ID to the request
+            console.log('Token verified. User ID:', decoded.userId, 'Role:', decoded.role);
+            req.userId = decoded.userId;
+            req.userRole = decoded.role;
             next();
         });
     } catch (error) {

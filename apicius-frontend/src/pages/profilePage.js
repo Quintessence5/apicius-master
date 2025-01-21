@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import Modal from "../components/modal";
+import apiClient from '../services/apiClient';
 
 import "../App.css";
 import "../styles/profilePage.css";
@@ -27,24 +27,20 @@ const ProfilePage = () => {
 
   const fetchUserProfile = async () => {
     try {
-      const response = await axios.get("http://localhost:5010/api/users/profile", {
-        withCredentials: true,
-      });
-  
-      console.log("Fetched user profile data structure:", response.data);
+      const { data } = await apiClient.get("/users/profile"); // Destructure `data` directly
   
       // Extract phone code and number separately
-      const phoneData = response.data.phone || ""; // Default empty if not provided
+      const phoneData = data.phone || ""; // Default empty if not provided
       const phoneCode = phoneData.match(/^\+?\d+/)?.[0] || ""; // Extract code part
       const phoneNumber = phoneData.replace(phoneCode, "").trim(); // Extract number part
   
-      setUserProfile(response.data);
+      setUserProfile(data);
       setFormData((prevFormData) => ({
         ...prevFormData,
-        email: response.data.email || "",
+        email: data.email || "",
         phone_number: phoneNumber, // Phone number
-        newsletter: response.data.newsletter_preferences ? "Yes" : "No", // Map boolean to Yes/No
-        origin_country: response.data.country_of_origin || "",
+        newsletter: data.newsletter_preferences ? "Yes" : "No", // Map boolean to Yes/No
+        origin_country: data.country_of_origin || "",
       }));
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -54,30 +50,21 @@ const ProfilePage = () => {
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        const [countriesRes, languagesRes, phoneCodesRes, tagsRes] = await Promise.all([
-          axios.get("http://localhost:5010/api/country/countries"),
-          axios.get("http://localhost:5010/api/country/languages"),
-          axios.get("http://localhost:5010/api/country/phonecodes"),
-          axios.get("http://localhost:5010/api/users/tags"),
-        ]);
+          const [countriesRes, languagesRes, phoneCodesRes, tagsRes] = await Promise.all([
+              apiClient.get("/country/countries"), // Use apiClient
+              apiClient.get("/country/languages"), // Use apiClient
+              apiClient.get("/country/phonecodes"), // Use apiClient
+              apiClient.get("/users/tags"), // Use apiClient
+          ]);
   
-        setCountries(countriesRes.data);
-        setLanguages(languagesRes.data.map((lang) => lang.language));
-        setPhoneCodes(phoneCodesRes.data);
-        setTags(tagsRes.data);
+          setCountries(countriesRes.data);
+          setLanguages(languagesRes.data.map((lang) => lang.language));
+          setPhoneCodes(phoneCodesRes.data);
+          setTags(tagsRes.data);
       } catch (error) {
-        console.error("Error fetching dropdown data:", error);
+          console.error("Error fetching dropdown data:", error);
       }
-      try {
-        const [tagsRes] = await Promise.all([
-            axios.get("http://localhost:5010/api/users/tags"),
-        ]);
-
-        setTags(tagsRes.data);
-    } catch (error) {
-        console.error("Error fetching dropdown data:", error);
-    }
-    };
+  };
     fetchDropdownData();
     fetchUserProfile();
     fetchUserPreferences();
@@ -86,16 +73,17 @@ const ProfilePage = () => {
   // Tags from DB
   const fetchUserPreferences = async () => {
     try {
-      const response = await axios.get("http://localhost:5010/api/users/preferences", {
-        withCredentials: true,
-      });
+      const { data } = await apiClient.get("/users/preferences"); // Destructure `data` directly
   
       // Initialize selectedTags from database
       setSelectedTags({
-        allergy: response.data.allergy || [],
-        intolerance: response.data.intolerance || [],
-        diets: response.data.diets || [],
+        allergy: data.allergy || [],
+        intolerance: data.intolerance || [],
+        diets: data.diets || [],
       });
+  
+      // Optional: Log the data for debugging
+      console.log("User preferences fetched:", data);
     } catch (error) {
       console.error("Error fetching user preferences:", error);
     }
@@ -198,8 +186,6 @@ const ProfilePage = () => {
   
   const saveProfileChanges = async () => {
     try {
-      console.log("Form data before saving:", formData); // Debugging
-  
       // Create a copy of formData to work with
       const updatedData = { ...formData };
   
@@ -225,10 +211,8 @@ const ProfilePage = () => {
         return;
       }
   
-      console.log("Payload to save:", updatedData); // Debugging before API call
-  
-      // Send the updated data to the backend
-      await axios.put("http://localhost:5010/api/users/profile", updatedData, {
+      // Send the updated data to the backend using apiClient
+      await apiClient.put("/users/profile", updatedData, {
         withCredentials: true,
       });
   
@@ -239,31 +223,31 @@ const ProfilePage = () => {
       console.error("Error saving changes:", error);
       showNotification("Failed to save changes.");
     }
-  }; 
-  
+  };
+
   const savePreferences = async () => {
     try {
       // Ensure user_id is included in the payload
       const payload = {
-          user_id: userProfile.user_id, // Ensure user ID is taken from the userProfile
-          allergy: selectedTags.allergy || [],
-          intolerance: selectedTags.intolerance || [],
-          diets: selectedTags.diets || [],
+        user_id: userProfile.user_id, // Ensure user ID is taken from the userProfile
+        allergy: selectedTags.allergy || [],
+        intolerance: selectedTags.intolerance || [],
+        diets: selectedTags.diets || [],
       };
-
+  
       console.log("Save Preferences Payload:", payload); // Debug the payload before sending
-
-      const response = await axios.post("http://localhost:5010/api/users/preferences", payload, {
-          withCredentials: true,
+  
+      await apiClient.post("/users/preferences", payload, {
+        withCredentials: true,
       });
-
-      console.log("Preferences saved successfully:", response.data);
+  
       showNotification("Preferences saved successfully");
       closeModal(); // Close the modal on success
-  } catch (error) {
+    } catch (error) {
       console.error("Error saving preferences:", error);
-  }
-};
+      showNotification("Failed to save preferences.");
+    }
+  };
 
   return (
     <div className="profile-page">

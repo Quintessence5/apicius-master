@@ -22,7 +22,14 @@ const Register = () => {
                 { email, password },
                 { withCredentials: true } // Include cookies in the request
             );
-            const { userId } = response.data;
+    
+            const { userId, accessToken, refreshToken } = response.data;
+    
+            // Store tokens in localStorage
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('refreshToken', refreshToken);
+    
+            // Redirect to the registration form with the userId
             navigate('/registerForm', { state: { userId } });
         } catch (err) {
             setError('Registration failed. Please try again.');

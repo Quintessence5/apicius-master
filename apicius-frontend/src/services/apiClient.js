@@ -1,10 +1,7 @@
 import axios from 'axios';
 
-let accessToken = null; // Store accessToken in memory
-
 const apiClient = axios.create({
     baseURL: 'http://localhost:5010/api',
-    withCredentials: true, // Include cookies for refresh token
 });
 
 // Flag to prevent infinite refresh loops
@@ -23,6 +20,7 @@ const onRefreshed = (token) => {
 // Request interceptor to include accessToken in headers
 apiClient.interceptors.request.use(
     (config) => {
+        const accessToken = localStorage.getItem('accessToken');
         if (accessToken) {
             config.headers['Authorization'] = `Bearer ${accessToken}`;
         }
@@ -53,9 +51,13 @@ apiClient.interceptors.response.use(
             isRefreshing = true;
 
             try {
-                const response = await axios.post('http://localhost:5010/api/users/refresh-token', {}, { withCredentials: true });
-                const newAccessToken = response.data.accessToken;
-                setAccessToken(newAccessToken);
+                const refreshToken = localStorage.getItem('refreshToken');
+                const response = await axios.post('http://localhost:5010/api/users/refresh-token', { refreshToken });
+                const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
+
+                // Update tokens in localStorage
+                localStorage.setItem('accessToken', newAccessToken);
+                localStorage.setItem('refreshToken', newRefreshToken);
 
                 onRefreshed(newAccessToken);
 
@@ -63,6 +65,11 @@ apiClient.interceptors.response.use(
                 return apiClient(originalRequest); // Retry the original request
             } catch (refreshError) {
                 console.error('Token refresh failed:', refreshError);
+                // Clear tokens and redirect to login if refresh fails
+                localStorage.removeItem('accessToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('userId');
+                window.location.href = '/login';
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
@@ -72,9 +79,5 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
     }
 );
-
-export const setAccessToken = (token) => {
-    accessToken = token;
-};
 
 export default apiClient;

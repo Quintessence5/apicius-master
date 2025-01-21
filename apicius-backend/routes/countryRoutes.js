@@ -29,7 +29,6 @@ router.get('/phonecodes', async (req, res) => {
     try {
         const result = await pool.query('SELECT nicename, phonecode FROM country WHERE phonecode IS NOT NULL ORDER BY nicename ASC');
         const formattedPhoneCodes = result.rows.map(row => `${row.nicename} +${row.phonecode}`);
-        console.log('Phone codes fetched:', formattedPhoneCodes); // Debugging
         res.json(formattedPhoneCodes);
     } catch (error) {
         console.error('Error fetching phone codes:', error);
@@ -41,7 +40,6 @@ router.get('/phonecodes', async (req, res) => {
     try {
         const result = await pool.query('SELECT nicename, phonecode FROM country WHERE phonecode IS NOT NULL ORDER BY nicename ASC');
         const formattedPhoneCodes = result.rows.map(row => `${row.nicename} +${row.phonecode}`);
-        console.log('Phone codes fetched:', formattedPhoneCodes); // Debugging
         res.json(formattedPhoneCodes);
     } catch (error) {
         console.error('Error fetching phone codes:', error);

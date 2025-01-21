@@ -4,10 +4,11 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const serviceAccount = require('../config/apicius05-firebase-adminsdk-w5v1o-505d701e82.json'); // Update the path
+const admin = require('../config/firebaseConfig');
 
 // Generate Access Token
-const generateAccessToken = (userId) => {
-    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+const generateAccessToken = (userId, role) => {
+    return jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: '15m' });
 };
 
 // Generate Refresh Token with Expiry
@@ -61,23 +62,36 @@ exports.googleLogin = async (req, res) => {
         const existingUser = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
 
         let userId;
+        let isNewUser = false;
+
         if (existingUser.rows.length === 0) {
+            // New user: Insert into the database
             const newUser = await pool.query(
                 'INSERT INTO users (email) VALUES ($1) RETURNING id',
                 [email]
             );
             userId = newUser.rows[0].id;
+            isNewUser = true;
 
             await pool.query(
                 'INSERT INTO user_profile (user_id, first_name, last_name, firebase_uid, photo_url) VALUES ($1, $2, $3, $4, $5)',
                 [userId, firstName, lastName, uid, picture]
             );
         } else {
+            // Existing user
             userId = existingUser.rows[0].id;
         }
 
-        const appToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
-        res.status(200).json({ message: 'Google login successful', token: appToken });
+        const accessToken = generateAccessToken(userId, 'standard'); // Default role is 'standard'
+        const refreshToken = await generateRefreshToken(userId);
+
+        res.status(200).json({ 
+            message: 'Google login successful', 
+            userId, 
+            accessToken, 
+            refreshToken,
+            isNewUser, // Indicates whether the user is new
+        });
     } catch (error) {
         console.error('Google Login Error:', error);
         res.status(500).json({ message: 'Authentication failed' });
@@ -86,7 +100,8 @@ exports.googleLogin = async (req, res) => {
 
 // Register User
 exports.registerUser = async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, role = 'standard' } = req.body; // Default role is 'standard'
+
     try {
         if (!email || !password) {
             return res.status(400).json({ message: 'Email and password are required' });
@@ -99,31 +114,20 @@ exports.registerUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
         const userResult = await pool.query(
-            'INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id',
-            [email, hashedPassword]
+            'INSERT INTO users (email, password, role) VALUES ($1, $2, $3) RETURNING id, role',
+            [email, hashedPassword, role]
         );
-        const userId = userResult.rows[0].id;
+        const { id, role: userRole } = userResult.rows[0];
 
-        const accessToken = generateAccessToken(userId);
-        const refreshToken = await generateRefreshToken(userId); // Await the token
-
-        res.cookie('accessToken', accessToken, {
-            httpOnly: false,  // Allow browser-side JavaScript to access the cookie
-            secure: false,    // Set `true` only if using HTTPS in production
-            maxAge: 5 * 60 * 1000,  // 5 minutes
-            sameSite: 'Lax',  // Adjust as needed for cross-origin scenarios
-        });        
-
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: false,
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-            sameSite: 'lax',
-        });
+        const accessToken = generateAccessToken(id, userRole); // Include role in token
+        const refreshToken = await generateRefreshToken(id); // Await the token
 
         res.status(201).json({
             message: 'User registered successfully',
-            userId, // Include userId in the response
+            userId: id,
+            role: userRole,
+            accessToken,
+            refreshToken,
         });
     } catch (error) {
         console.error('Error registering user:', error);
@@ -134,6 +138,7 @@ exports.registerUser = async (req, res) => {
 // Login User
 exports.loginUser = async (req, res) => {
     const { email, password } = req.body;
+
     try {
         const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         const user = userResult.rows[0];
@@ -147,27 +152,16 @@ exports.loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        const accessToken = generateAccessToken(user.id);
+        const accessToken = generateAccessToken(user.id, user.role); // Include role in token
         const refreshToken = await generateRefreshToken(user.id); // Await the token
 
-        // Set tokens as secure cookies
-        res.cookie('accessToken', accessToken, {
-            httpOnly: true,
-            secure: false, // Set to `true` in production
-            maxAge: 15 * 60 * 1000, // 15 minutes
-            sameSite: 'lax',
+        res.status(200).json({
+            message: 'Login successful',
+            userId: user.id,
+            role: user.role, // Include role in the response
+            accessToken,
+            refreshToken,
         });
-
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: false, // Set to `true` in production
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-            sameSite: 'lax',
-        });
-
-        console.log('Set Refresh Token Cookie:', refreshToken);
-
-        res.status(200).json({ message: 'Login successful' });
     } catch (error) {
         console.error('Error logging in:', error);
         res.status(500).json({ message: 'Server error' });
@@ -222,23 +216,18 @@ exports.resetPassword = async (req, res) => {
 // Logout User
 exports.logoutUser = async (req, res) => {
     try {
-        console.log('Logout initiated. Cookies:', req.cookies);
+        const refreshToken = req.body?.refreshToken;
 
-        const refreshToken = req.cookies?.refreshToken;
         if (!refreshToken) {
-            console.warn('No refresh token provided for logout.');
-            return res.status(400).json({ message: 'Refresh token not provided' });
+            return res.status(400).json({ message: 'Refresh token is required' });
         }
 
-        await pool.query('UPDATE refresh_tokens SET revoked = true WHERE token = $1', [refreshToken]);
+        // Revoke the refresh token in the database
+        await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
 
-        res.clearCookie('accessToken');
-        res.clearCookie('refreshToken');
-
-        console.log('Logout successful. Cookies cleared.');
-        res.status(200).json({ message: 'Logged out successfully' });
+        res.status(200).json({ message: 'Logout successful' });
     } catch (error) {
-        console.error('Error during logout:', error);
+        console.error('Error logging out:', error);
         res.status(500).json({ message: 'Server error' });
     }
 };
@@ -265,8 +254,7 @@ exports.dashboard = async (req, res) => {
             'SELECT username FROM user_profile WHERE user_id = $1', 
             [req.userId]
         );
-        console.log('Database query result:', result.rows); // Log the query result
-
+        
         if (!result.rows.length) {
             return res.status(404).json({ message: 'User not found' });
         }

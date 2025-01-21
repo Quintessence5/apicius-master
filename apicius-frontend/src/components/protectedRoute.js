@@ -1,30 +1,26 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Navigate } from 'react-router-dom';
-import apiClient from '../services/apiClient';
 
-const ProtectedRoute = ({ children }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false); // `null` indicates loading state
-    const [isLoading, setIsLoading] = useState(true);
+const ProtectedRoute = ({ user, loading, children }) => {
+    console.log('ProtectedRoute - User:', user);
+    console.log('ProtectedRoute - Loading:', loading);
 
-    useEffect(() => {
-        const checkSession = async () => {
-            try {
-                await apiClient.get('/users/session-status');
-                setIsAuthenticated(true);
-            } catch (error) {
-                console.error("Session invalid:", error);
-                setIsAuthenticated(false);
-            } finally {
-                setIsLoading(false);
-            }
-        };
+    // If still loading, do not render anything
+    if (loading) {
+        return null; // Or return a loading spinner
+    }
 
-        checkSession();
-    }, []);
+    // Check for accessToken in localStorage
+    const accessToken = localStorage.getItem('accessToken');
 
-    if (isLoading) return <p>Loading...</p>;
+    // If the user is not authenticated, redirect to the login page
+    if (!accessToken) {
+        console.log('User not authenticated. Redirecting to login...');
+        return <Navigate to="/login" />;
+    }
 
-    return isAuthenticated ? children : <Navigate to="/login" />;
+    // If the user is authenticated, render the children (protected content)
+    return children;
 };
 
 export default ProtectedRoute;

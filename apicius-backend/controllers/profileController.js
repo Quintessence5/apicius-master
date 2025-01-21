@@ -6,8 +6,7 @@ const crypto = require('crypto');
 exports.getProfile = async (req, res) => {
     try {
         const userId = req.userId; // Assuming `verifyToken` middleware adds `userId`
-        console.log('Fetching profile for userId:', userId);
-
+        
         // Fetch data from both user_profile and users tables using a JOIN
         const query = `
             SELECT 
@@ -19,15 +18,13 @@ exports.getProfile = async (req, res) => {
                 up.language,
                 up.bio,
                 u.email, 
-                u.password 
+                u.password,
+                u.role 
             FROM user_profile AS up
             INNER JOIN users AS u ON up.user_id = u.id
             WHERE up.user_id = $1
         `;
         const result = await pool.query(query, [userId]);
-
-        // Log the query result
-        console.log('Query result:', result.rows);
 
         // Check if any result was returned
         if (result.rows.length === 0) {
@@ -45,8 +42,11 @@ exports.getProfile = async (req, res) => {
             bio, 
             email, 
             password,
-            user_Id 
+            role 
         } = result.rows[0];
+
+        // Check if the profile is complete (e.g., username is not null)
+        const isProfileComplete = !!username; // Replace with your logic for profile completion
 
         // Respond with user profile data
         res.status(200).json({
@@ -60,6 +60,8 @@ exports.getProfile = async (req, res) => {
             email,
             password,
             user_id: userId,
+            role,
+            isProfileComplete, // Add this field
         });
     } catch (error) {
         console.error('Error fetching profile:', error);
@@ -67,23 +69,28 @@ exports.getProfile = async (req, res) => {
     }
 };
 
-exports.saveUserProfile = async (req, res) => {
-    const { user_id, username, first_name, last_name, birthdate, origin_country, language, phone, newsletter, terms_condition, bio } = req.body;
-    
+exports.getUserPreferences = async (req, res) => {
     try {
-        await pool.query(
-            `INSERT INTO user_profile 
-            (first_name, last_name, birthdate, user_id, firebase_uid, photo_url, username, origin_country, language, phone, newsletter, terms_condition, bio )
-            VALUES ($1, $2, $3, $4, NULL, NULL, $5, $6, $7, $8, $9, $10, $11)`,
-            [first_name, last_name, birthdate, user_id, username, origin_country, language, phone || null, newsletter, terms_condition, bio ]
-        );
-        res.status(201).json({ message: 'Profile saved successfully' });
+        const userId = req.userId; 
+        
+        const query = `
+            SELECT user_id, allergy, intolerance, diets
+            FROM user_restrictions
+            WHERE user_id = $1
+        `;
+        const result = await pool.query(query, [userId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Preferences not found' });
+        }
+
+        const { user_id, allergy, intolerance, diets } = result.rows[0];
+        res.status(200).json({ user_id, allergy, intolerance, diets });
     } catch (error) {
-        console.error('Error saving profile:', error);
-        res.status(500).json({ message: 'Failed to save profile' });
+        console.error('Error fetching preferences:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
-
 exports.updateUserProfile = async (req, res) => {
     const {
         user_id,
@@ -99,8 +106,6 @@ exports.updateUserProfile = async (req, res) => {
         newPassword,
         bio,
     } = req.body;
-
-    console.log("Received Data:", req.body); // Log incoming payload
 
     // Ensure `user_id` is provided
     if (!user_id) {
@@ -158,9 +163,7 @@ exports.updateUserProfile = async (req, res) => {
                 SET ${profileFieldsToUpdate.join(", ")}
                 WHERE user_id = $${profileIndex}
             `;
-            console.log("Profile Update Query:", profileQuery);
-            console.log("Profile Update Values:", profileValues);
-
+        
             const profileResult = await pool.query(profileQuery, profileValues);
             console.log("Profile Update Result:", profileResult);
         }
@@ -188,11 +191,8 @@ exports.updateUserProfile = async (req, res) => {
                 SET ${userFieldsToUpdate.join(", ")}
                 WHERE id = $${userIndex}
             `;
-            console.log("User Update Query:", userQuery);
-            console.log("User Update Values:", userValues);
 
             const userResult = await pool.query(userQuery, userValues);
-            console.log("User Update Result:", userResult);
 
             // Handle case where no user rows were updated
             if (userResult.rowCount === 0) {
@@ -248,7 +248,6 @@ exports.getControlTags = async (req, res) => {
 exports.getUserPreferences = async (req, res) => {
     try {
         const userId = req.userId; // Assuming middleware adds userId
-        console.log('Fetching preferences for userId:', userId);
 
         const query = `
             SELECT user_id, allergy, intolerance, diets
@@ -269,36 +268,103 @@ exports.getUserPreferences = async (req, res) => {
     }
 };
 
+exports.saveUserProfile = async (req, res) => {
+    try {
+        const { 
+            user_id, 
+            username, 
+            first_name, 
+            last_name, 
+            bio, 
+            phone, 
+            newsletter,
+            birthdate,
+            origin_country,
+            language,
+            terms_condition
+        } = req.body;
+
+        // Ensure `user_id` is provided
+        if (!user_id) {
+            return res.status(400).json({ message: "User ID is required" });
+        }
+
+        // Insert or update user profile data
+        const query = `
+            INSERT INTO user_profile (
+                user_id, 
+                username, 
+                first_name, 
+                last_name, 
+                bio, 
+                phone, 
+                newsletter,
+                birthdate,
+                origin_country,
+                language,
+                terms_condition
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            ON CONFLICT (user_id) 
+            DO UPDATE SET 
+                username = $2,
+                first_name = $3,
+                last_name = $4,
+                bio = $5,
+                phone = $6,
+                newsletter = $7,
+                birthdate = $8,
+                origin_country = $9,
+                language = $10,
+                terms_condition = $11
+        `;
+        const values = [
+            user_id, 
+            username, 
+            first_name, 
+            last_name, 
+            bio, 
+            phone, 
+            newsletter,
+            birthdate,
+            origin_country,
+            language,
+            terms_condition
+        ];
+
+        await pool.query(query, values);
+
+        res.status(200).json({ message: "Profile saved successfully" });
+    } catch (error) {
+        console.error("Error saving user profile:", error);
+        res.status(500).json({ message: "Failed to save profile" });
+    }
+};
+
 exports.saveUserPreferences = async (req, res) => {
-    const { user_id, allergy, intolerance, diets } = req.body; // Extract user ID and preferences
+    const { user_id, allergy, intolerance, diets } = req.body;
 
     if (!user_id) {
-        console.error("Save Preferences Error: User ID is missing");
         return res.status(400).json({ message: "User ID is required" });
     }
 
     try {
-        // Log the incoming payload for debugging
-        console.log("Save Preferences Request Payload:", { user_id, allergy, intolerance, diets });
+        const query = `
+            INSERT INTO user_restrictions (user_id, allergy, intolerance, diets)
+            VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb)
+            ON CONFLICT (user_id) 
+            DO UPDATE SET 
+                allergy = $2::jsonb,
+                intolerance = $3::jsonb,
+                diets = $4::jsonb
+        `;
+        const values = [user_id, JSON.stringify(allergy || []), JSON.stringify(intolerance || []), JSON.stringify(diets || [])];
 
-        // Upsert logic to handle existing or new entries
-        const result = await pool.query(
-            `INSERT INTO user_restrictions (user_id, allergy, intolerance, diets)
-             VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb)
-             ON CONFLICT (user_id) 
-             DO UPDATE SET 
-             allergy = $2::jsonb,
-             intolerance = $3::jsonb,
-             diets = $4::jsonb`,
-            [user_id, JSON.stringify(allergy || {}), JSON.stringify(intolerance || {}), JSON.stringify(diets || {})]
-        );
-
-        // Log successful query execution
-        console.log("Save Preferences Query Result:", result);
+        await pool.query(query, values);
 
         res.status(200).json({ message: "Preferences saved successfully" });
     } catch (error) {
         console.error("Error saving preferences:", error);
-        res.status(500).json({ message: "Server error" });
+        res.status(500).json({ message: "Failed to save preferences" });
     }
 };

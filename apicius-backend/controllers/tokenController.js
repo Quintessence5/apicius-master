@@ -3,8 +3,8 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 
 // Generate Access Token
-const generateAccessToken = (userId) => {
-    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '15m' });
+const generateAccessToken = (userId, role) => {
+    return jwt.sign({ userId, role }, process.env.JWT_SECRET, { expiresIn: '15m' });
 };
 
 // Generate Refresh Token with Expiry
@@ -37,10 +37,9 @@ const generateRefreshToken = async (userId) => {
     }
 };
 
-
 // Refresh Tokens
 exports.refreshToken = async (req, res) => {
-    const refreshToken = req.cookies?.refreshToken;
+    const refreshToken = req.body?.refreshToken; // Get refresh token from the request body
 
     console.log("Incoming refresh request. Refresh Token:", refreshToken);
 
@@ -69,16 +68,11 @@ exports.refreshToken = async (req, res) => {
         // Revoke old token
         await pool.query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
 
-        // Set new refresh token in cookies
-        res.cookie('refreshToken', newRefreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-
         console.log('Tokens refreshed successfully for user:', userId);
-        return res.status(200).json({ accessToken: newAccessToken });
+        return res.status(200).json({
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+        });
     } catch (error) {
         console.error('Error refreshing token:', error);
         res.status(500).json({ message: 'Server error' });
@@ -88,16 +82,21 @@ exports.refreshToken = async (req, res) => {
 // Check Session Status
 exports.sessionStatus = async (req, res) => {
     try {
-        const token = req.cookies?.accessToken;
+        const token = req.body?.accessToken;
+
+        console.log('Received session status request. Token:', token);
 
         if (!token) {
+            console.log('Access token missing.');
             return res.status(401).json({ message: 'Access token missing' });
         }
 
         jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
             if (err) {
+                console.log('Invalid or expired token:', err.message);
                 return res.status(401).json({ message: 'Invalid or expired token' });
             }
+            console.log('Session is active. User ID:', decoded.userId);
             res.status(200).json({ message: 'Session active', userId: decoded.userId });
         });
     } catch (error) {
