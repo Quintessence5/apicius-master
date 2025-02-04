@@ -5,8 +5,8 @@
 
 .recipe-headerzz {
     position: relative;
-    margin-left: -2.5rem;
-    width: 108%;
+    margin-left: -6%;
+    width: 111%;
     overflow: hidden;
 }
 
@@ -172,15 +172,16 @@ h3 {
 /* Style for % Daily Value Columns */
 .nutrition-table th:nth-child(3),
 .nutrition-table th:nth-child(5) {
-    font-size: 0.7rem !important; /* Header font size for % DV columns */
+    font-size: 0.7rem !important;
+    padding: 0;
     color: #555 !important; /* Darker shade for emphasis */
-    text-align: right;
+    text-align: center;
 }
 
 .nutrition-table td:nth-child(3),
 .nutrition-table td:nth-child(5) {
-    font-size: 0.9rrem !important; /* Content font size for % DV columns */
-    color: #555; /* Subtle gray for content */
+    font-size: 1rem !important; /* Content font size for % DV columns */
+    color: #bf8753; /* Subtle gray for content */
     text-align: right;
 }
 

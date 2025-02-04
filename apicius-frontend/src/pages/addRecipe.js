@@ -7,10 +7,23 @@ import "../styles/addRecipe.css";
 const AddRecipe = () => {
     const location = useLocation();
     const editingRecipe = location.state?.recipe || null;
-    const [recipe, setRecipe] = useState(editingRecipe || {
-        title: '', steps: [], notes: '', prep_time: '', cook_time: '', total_time: '', difficulty: '', 
-        course_type: '', meal_type: '', cuisine_type: '', public: false, source: '', portions: '',
-    });
+    const [recipe, setRecipe] = useState({
+      title: editingRecipe?.title || '',
+      steps: editingRecipe?.steps || [],
+      notes: editingRecipe?.notes || '',
+      prep_time: editingRecipe?.prep_time || '',
+      cook_time: editingRecipe?.cook_time || '',
+      total_time: editingRecipe?.total_time || '',
+      difficulty: editingRecipe?.difficulty || '',
+      course_type: editingRecipe?.course_type || '',
+      meal_type: editingRecipe?.meal_type || '',
+      cuisine_type: editingRecipe?.cuisine_type || '',
+      public: editingRecipe?.public || false,
+      source: editingRecipe?.source || '',
+      portions: editingRecipe?.portions || '',
+      image_path: editingRecipe?.image_path || null, 
+      ...editingRecipe,
+  });
     const [ingredients, setIngredients] = useState([{ ingredientId: '', quantity: '', unit: '', form: '', locked: false }]);
     const [availableUnits, setAvailableUnits] = useState([]);
     const courseTypes = ['Appetizer', 'Main Course', 'Dessert', 'Snack', 'Beverage'];
@@ -58,7 +71,7 @@ const AddRecipe = () => {
       if (editingRecipe) {
         setRecipe({
           ...editingRecipe,
-          public: editingRecipe.public || false, // Ensure public is a boolean
+          public: editingRecipe.public || false,
         });
     
         // Ensure ingredients are set correctly
@@ -239,18 +252,17 @@ const handleDeleteStep = (index) => {
       try {
           const formData = new FormData();
   
-          // 🔹 Append recipe fields
+          // Append recipe fields
           Object.entries(recipe).forEach(([key, value]) => {
-            if (key === "steps") {
-                // Ensure steps is an array
-                const stepsArray = Array.isArray(value) ? value : [];
-                stepsArray.forEach((step, index) => formData.append(`steps[${index}]`, step));
-            } else {
-                formData.append(key, value);
-            }
-        });
+              if (key === "steps") {
+                  const stepsArray = Array.isArray(value) ? value : [];
+                  stepsArray.forEach((step, index) => formData.append(`steps[${index}]`, step));
+              } else {
+                  formData.append(key, value);
+              }
+          });
   
-          // 🔹 Determine if updating or creating a new recipe
+          // Determine if updating or creating a new recipe
           const isEditing = !!editingRecipe;
           const recipeId = isEditing ? (editingRecipe.recipe_id || editingRecipe.id) : null;
   
@@ -259,38 +271,42 @@ const handleDeleteStep = (index) => {
               return;
           }
   
-          // 🔹 Append recipe ID only if updating
+          // Append recipe ID only if updating
           if (isEditing) {
               formData.append("id", recipeId);
           }
   
+          // Filter out empty or invalid ingredients
+          const validIngredients = ingredients.filter(
+              (ing) => ing.locked && (ing.ingredientId || ing.name) // Only include locked and valid ingredients
+          );
+  
           // 🔹 Append ingredients (ensuring proper structure)
-          const ingredientsArray = Array.isArray(ingredients) ? ingredients : [];
           if (ingredients.length > 0) {
-              ingredients.forEach((ingredient, index) => {
-                  if (ingredient.ingredientId || ingredient.name) {
-                      formData.append(`ingredients[${index}][ingredientId]`, ingredient.ingredientId || "");
-                      formData.append(`ingredients[${index}][name]`, ingredient.ingredientName || "");
-                      formData.append(`ingredients[${index}][quantity]`, ingredient.quantity || "");
-                      formData.append(`ingredients[${index}][unit]`, ingredient.unit || "");
-                      formData.append(`ingredients[${index}][recipeId]`, recipeId || ""); // Attach to recipe ID when editing
-                  }
-              });
-          } else {
-              console.warn("⚠️ No ingredients to append.");
-          }
+            ingredients.forEach((ingredient, index) => {
+                if (ingredient.ingredientId || ingredient.name) {
+                    formData.append(`ingredients[${index}][ingredientId]`, ingredient.ingredientId || "");
+                    formData.append(`ingredients[${index}][name]`, ingredient.ingredientName || "");
+                    formData.append(`ingredients[${index}][quantity]`, ingredient.quantity || "");
+                    formData.append(`ingredients[${index}][unit]`, ingredient.unit || "");
+                    formData.append(`ingredients[${index}][recipeId]`, recipeId || ""); // Attach to recipe ID when editing
+                }
+            });
+        } else {
+            console.warn("⚠️ No ingredients to append.");
+        }
   
-          // 🔹 Append deleted ingredients if any
-          if (deletedIngredients.length > 0) {
-              formData.append("deletedIngredients", JSON.stringify(deletedIngredients));
-          }
+          // Append deletedIngredients as a JSON array
+        if (deletedIngredients.length > 0) {
+          formData.append("deletedIngredients", JSON.stringify(deletedIngredients));
+      }
   
-          // 🔹 Append selected image (if present)
+          // Append selected image (if present)
           if (selectedImage) {
               formData.append("image", selectedImage);
           }
   
-          // 🔹 API call: Choose POST (new) or PUT (update)
+          // Make the API call
           if (isEditing) {
               console.log(`Updating recipe ID: ${recipeId}`);
               await axios.put(`/api/recipes/${recipeId}`, formData, {
@@ -302,7 +318,6 @@ const handleDeleteStep = (index) => {
               const response = await axios.post("/api/recipes", formData, {
                   headers: { "Content-Type": "multipart/form-data" },
               });
-  
               console.log("🆕 New recipe created:", response.data);
               alert("✅ Recipe saved successfully!");
           }
@@ -314,27 +329,48 @@ const handleDeleteStep = (index) => {
       }
   };
         
-  const handleDelete = () => {
+  const handleDelete = async () => {
     const confirmDelete = window.confirm("Are you sure you want to delete this recipe?");
     if (confirmDelete) {
-      setRecipe({
-        title: "",
-        description: "",
-        notes: "",
-        prep_time: "",
-        cook_time: "",
-        total_time: "",
-        difficulty: "",
-        course_type: "",
-        meal_type: "",
-        cuisine_type: "",
-        public: false,
-        source: "",
-      });
-      setIngredients([{ ingredientId: "", quantity: "", unit: "", form: "" }]);
-      setError("");
+        try {
+            const recipeId = editingRecipe?.id || editingRecipe?.recipe_id;
+            if (!recipeId) {
+                console.error("❌ Error: Recipe ID is missing!");
+                return;
+            }
+
+            // Call the backend API to delete the recipe
+            await axios.delete(`/api/recipes/${recipeId}`);
+
+            // Reset the form state
+            setRecipe({
+              title: "",
+              steps: [],
+              notes: "",
+              prep_time: "",
+              cook_time: "",
+              total_time: "",
+              difficulty: "",
+              course_type: "",
+              meal_type: "",
+              cuisine_type: "",
+              public: false,
+              source: "",
+              portions: "",
+              image_path: null,
+          });
+            setIngredients([{ ingredientId: "", quantity: "", unit: "", form: "", locked: false }]);
+            setDeletedIngredients([]);
+            setError("");
+
+            // Navigate back to the recipe list
+            navigate("/all-recipes");
+        } catch (error) {
+            console.error("❌ Error deleting recipe:", error);
+            setError("Failed to delete the recipe. Please try again.");
+        }
     }
-  };
+};
 
   const handleImageChange = (event) => {
     const file = event.target.files[0];
@@ -383,12 +419,12 @@ const handleImageUpload = async () => {
             
             <div className="add-recipe-container">
         <div className="header-row">
-            <input type="text" name="title" value={recipe.title} onChange={handleChange} placeholder="Title" required />
+            <input type="text" name="title" value={recipe.title || ""} onChange={handleChange} placeholder="Title" required />
         </div>
 
             <div className="difficulty-row"> 
             <div className="difficulty">
-              <select name="difficulty" value={recipe.difficulty} onChange={handleChange} required>
+              <select name="difficulty" value={recipe.difficulty || ""} onChange={handleChange} required>
                 <option value="">Difficulty</option>
                 {difficulty.map((type) => (
                 <option key={type} value={type}>{type}</option>
@@ -397,7 +433,7 @@ const handleImageUpload = async () => {
             </div>
 
             <div className="source-container">
-            <input type="text" name="source" value={recipe.source} onChange={handleChange} placeholder="Source (Optional)" />
+            <input type="text" name="source" value={recipe.source || ""} onChange={handleChange} placeholder="Source (Optional)" />
             </div>
 
             <div className="portions-row">
@@ -415,21 +451,21 @@ const handleImageUpload = async () => {
             
 
             <div className="meal-type">
-            <select name="course_type" value={recipe.course_type} onChange={handleChange} required>
+            <select name="course_type" value={recipe.course_type || ""} onChange={handleChange} required>
                 <option value="">Course Type</option>
                 {courseTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
                 ))}
             </select>
 
-            <select name="meal_type" value={recipe.meal_type} onChange={handleChange} required>
+            <select name="meal_type" value={recipe.meal_type || ""} onChange={handleChange} required>
                 <option value="">Meal Type</option>
                 {mealTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
                 ))}
             </select>
 
-            <select name="cuisine_type" value={recipe.cuisine_type} onChange={handleChange} required>
+            <select name="cuisine_type" value={recipe.cuisine_type || ""} onChange={handleChange} required>
                 <option value="">Cuisine Type</option>
                 {cuisineTypes.map((type) => (
                 <option key={type} value={type}>{type}</option>
@@ -441,7 +477,7 @@ const handleImageUpload = async () => {
               <input
                 type="number"
                 name="prep_time"
-                value={recipe.prep_time}
+                value={recipe.prep_time || ""}
                 onChange={handleChange}
                 placeholder="Prep Time (minutes)"
                 min="0"
@@ -451,7 +487,7 @@ const handleImageUpload = async () => {
               <input
                 type="number"
                 name="cook_time"
-                value={recipe.cook_time}
+                value={recipe.cook_time || ""}
                 onChange={handleChange}
                 placeholder="Cook Time (minutes)"
                 min="0"
@@ -461,7 +497,7 @@ const handleImageUpload = async () => {
               <input
                 type="number"
                 name="total_time"
-                value={recipe.total_time}
+                value={recipe.total_time || ""}
                 placeholder="Total Time (auto-calculated)"
                 className="time-field"
                 readOnly
@@ -471,7 +507,7 @@ const handleImageUpload = async () => {
             <div className="notes-container">
             <textarea
             name="notes"
-            value={recipe.notes}
+            value={recipe.notes || ""}
             onChange={handleChange}
             placeholder="Notes (optional)"
             />
@@ -485,7 +521,7 @@ const handleImageUpload = async () => {
                 {editingStepIndex === index ? (
   <>
     <textarea
-      value={recipe.steps[index]}
+      value={recipe.steps[index] || ""}
       onChange={(e) => handleEditStep(index, e.target.value)}
       className="step-edit-textarea"
     ></textarea>
@@ -530,7 +566,7 @@ const handleImageUpload = async () => {
                   <input
                   type="checkbox"
                   name="public"
-                  checked={recipe.public}
+                  checked={recipe.public || false}
                   onChange={handleChange}
                   /> Public
               </label>

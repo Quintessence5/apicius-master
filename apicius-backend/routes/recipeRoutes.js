@@ -3,7 +3,9 @@ const router = express.Router();
 const multer = require('multer');
 const pool = require('../config/db');
 const upload = multer({ dest: 'uploads/' });
-const { getIngredientSuggestions, addRecipe, updateRecipe, getAllRecipes, getRecipeById } = require('../controllers/recipeController');
+const { getIngredientSuggestions, addRecipe, updateRecipe, 
+    getAllRecipes, getRecipeById, deleteRecipe, 
+    getDropdownOptions } = require('../controllers/recipeController');
 
 router.use((req, res, next) => {
     console.log(`Recipe route accessed: ${req.method} ${req.url}`);
@@ -15,6 +17,9 @@ router.get('/ingredients', getIngredientSuggestions);
 
 // Add new recipe and navigate to all recipes
 router.post('/', upload.single('image'), addRecipe);
+
+// Get Ingredient Suggestion (React Select)
+router.get('/options', getDropdownOptions);
 
 // Update an existing recipe
 router.put('/:id', upload.single('image'), updateRecipe);
@@ -37,20 +42,7 @@ router.post('/upload-image', upload.single('image'), (req, res) => {
 });
 
 // Delete an existing recipe
-router.delete('/:id', async (req, res) => {
-    const { id } = req.params;
-    
-    try {
-        const deleteRecipe = await pool.query('DELETE FROM recipes WHERE id = $1 RETURNING *;', [id]);
+router.delete('/:id', deleteRecipe);
 
-        if (deleteRecipe.rows.length === 0) {
-            return res.status(404).json({ msg: 'Recipe not found' });
-        }
 
-        res.json({ msg: 'Recipe deleted successfully' });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
 module.exports = router;

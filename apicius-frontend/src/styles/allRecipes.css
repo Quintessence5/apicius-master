@@ -161,6 +161,36 @@
     font-style: italic;
 }
 
+/* Search Field */
+.search-filter-section {
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+
+}
+
+.search-filter-section input,
+.search-filter-section select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.search-filter-section input {
+    flex: 2;
+}
+
+.search-filter-section select {
+    flex: 1;
+}
+
+.search-toggle-button{
+    margin-top: 4rem;
+    margin-right: 2rem;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .recipe-card {
