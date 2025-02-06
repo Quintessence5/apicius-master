@@ -1,0 +1,209 @@
+/* timer.css */
+.timer-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
+.recipe-name {
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+.add-timer-section {
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 20px;
+}
+
+.add-timer-button {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.3rem;
+    font-weight: bold;
+    background-color: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.add-timer-form {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.add-timer-form input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.add-timer-form button {
+    padding: 10px 20px;
+    background-color: #007aff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.timer-container {
+    width: 100%;
+    max-width: 600px;
+}
+
+.step-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    opacity: 0.7;
+}
+
+.current-step {
+    align-items: center;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.step-info {
+    text-align: left;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    margin-left: 0.6rem;
+}
+
+.step-info span {
+    margin-right: 10px;
+}
+
+.well-done-card {
+    text-align: center;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.well-done-card h2 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+.well-done-card button {
+    padding: 10px 20px;
+    background-color: #007aff;
+    color: white;
+    border: none;
+    font-weight: bold;
+    font-size: 1rem;
+    border-radius: 5px;
+    margin-bottom: 1rem;
+    margin-top: 1rem;
+    cursor: pointer;
+}
+
+.well-done-card button:hover {
+    background-color: #005bb5;
+}
+
+.step-duration {
+    font-weight: bold;
+}
+
+.timer {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.time-display {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.time-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.time-value {
+    font-size: 5rem;
+    font-weight: bold;
+}
+
+.time-label {
+    font-size: 1rem;
+    color: #888;
+    margin-top: -0.5rem;
+}
+
+.time-colon {
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 0 5px;
+}
+
+.timer-controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.timer-controls button {
+    padding: 10px 20px;
+    background-color: #007aff;
+    font-weight: bold;
+    color: white;
+    border: none;
+    margin-top: 0.8rem;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.timer-controls button:hover {
+    background-color: #005bb5;
+}
+
+.edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.edit-form input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.edit-form button {
+    padding: 10px 20px;
+    background-color: #007aff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.edit-form button:hover {
+    background-color: #005bb5;
+}

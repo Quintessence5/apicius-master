@@ -10,6 +10,7 @@ import ForgotPassword from './pages/forgotPassword';
 import AddRecipe from './pages/addRecipe';
 import AllRecipes from './pages/allRecipes';
 import RecipeDetailed from './pages/recipeDetailed';
+import TimerPage from './pages/timer';
 import Profile from './pages/profilePage';
 import apiClient from './services/apiClient';
 
@@ -109,6 +110,7 @@ const App = () => {
                     <Route path="/add-recipe" element={<ProtectedRoute user={user} loading={loading}> <AddRecipe /> </ProtectedRoute>} />
                     <Route path="/all-recipes" element={<ProtectedRoute user={user} loading={loading}> <AllRecipes /> </ProtectedRoute>} />
                     <Route path="/recipe/:id" element={<ProtectedRoute user={user} loading={loading}> <RecipeDetailed /> </ProtectedRoute>} />
+                    <Route path="/timer" element={<ProtectedRoute user={user} loading={loading}> <TimerPage /> </ProtectedRoute>} />
                 </Route>
             </Routes>
         </Router>

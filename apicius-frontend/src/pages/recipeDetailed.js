@@ -25,6 +25,13 @@ const RecipeDetails = () => {
         fetchRecipe();
     }, [id]);
     
+    const handleTimer = () => {
+        if (!recipe) {
+            console.error("Error: Recipe data is missing!");
+            return;
+        }
+        navigate('/timer', { state: { steps: recipe.steps } });
+    };
 
     if (loading) return <p>Loading recipe...</p>;
     if (!recipe) return <p>Recipe not found.</p>;
@@ -57,6 +64,7 @@ const RecipeDetails = () => {
                 <div className="recipe-title-container">
                     <h1 className="recipe-titlezz">{recipe.title}</h1>
                     <p className="recipe-subtitle">{recipe.meal_type} | {recipe.course_type}</p>
+                    <button className="timer-btn" onClick={handleTimer}>Timer</button>
                     <button className="edit-recipe-btn" onClick={handleEdit}>Edit</button>
                 </div>
             </div>

@@ -130,7 +130,7 @@ const AllRecipes = () => {
                                 {recipe.course_type && <p><strong>Course Type - </strong> {recipe.course_type}</p>}
                                 {recipe.meal_type && <p><strong>Meal Type -</strong> {recipe.meal_type}</p>}
                                 {recipe.cuisine_type && <p><strong>Cuisine Type -</strong> {recipe.cuisine_type}</p>}
-                                <p><strong>Total Time -</strong> {recipe.total_time} mins</p>
+                                <p><strong>Total Time -</strong> {recipe.total_time} mn</p>
                                 {recipe.source && <p><strong>Source -</strong> {recipe.source}</p>}
 
                                 <h3>Ingredients</h3>
