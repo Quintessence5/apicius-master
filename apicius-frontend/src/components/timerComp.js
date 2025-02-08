@@ -10,8 +10,7 @@ const Timer = ({
     onPrevious,
     isFirst,
     isLast,
-    onTimeUpdate,
-    autoStart, // Auto-start the timer for all steps
+    autoStart, // Auto-start the timer for all steps except the first one
 }) => {
     const [timeLeft, setTimeLeft] = useState(duration);
     const [isRunning, setIsRunning] = useState(false);
@@ -20,21 +19,17 @@ const Timer = ({
     const [editDuration, setEditDuration] = useState(duration);
     const [editDescription, setEditDescription] = useState(description);
     const intervalRef = useRef(null);
-
-    // Auto-start the timer if `autoStart` is true
-    useEffect(() => {
-        if (autoStart) {
-            startTimer();
-        }
-    }, [autoStart]);
-
-    // Reset timer when duration changes
-    useEffect(() => {
-        setTimeLeft(duration);
-        setIsRunning(false);
-        setIsPaused(false);
-    }, [duration]);
-
+ 
+    useEffect(() => { 
+    setTimeLeft(duration);
+    setIsRunning(false);
+    setIsPaused(false);
+  
+    if (autoStart) {
+      startTimer();
+    }
+  }, [duration, autoStart]);
+  
     useEffect(() => {
         if (isRunning && timeLeft > 0) {
             intervalRef.current = setInterval(() => {

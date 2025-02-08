@@ -54,20 +54,20 @@ const TimerPage = () => {
 
     const handlePrevious = () => {
         if (currentTimerIndex > 0) {
-            setCurrentTimerIndex(currentTimerIndex - 1); // Move to the previous step
+            setCurrentTimerIndex(currentTimerIndex - 1);
         }
     };
 
     const handleNext = () => {
         if (currentTimerIndex < timers.length - 1) {
-            setCurrentTimerIndex(currentTimerIndex + 1); // Move to the next step
+            setCurrentTimerIndex(currentTimerIndex + 1);
         } else {
-            setAllTimersCompleted(true); // All timers are done
+            setAllTimersCompleted(true);
         }
     };
 
     const handleBackToRecipes = () => {
-        navigate('/all-recipes'); // Navigate back to the "All Recipes" page
+        navigate('/all-recipes');
     };
 
     return (
@@ -116,7 +116,7 @@ const TimerPage = () => {
             <div className="timer-container">
                 {allTimersCompleted ? (
                     <div className="well-done-card">
-                        <h2>Well Done, Enjoy!</h2>
+                        <h2>Well Done, and Enjoy!</h2>
                         <button onClick={handleBackToRecipes}>Back to Recipes</button>
                     </div>
                 ) : timers.length > 0 ? (
@@ -135,6 +135,7 @@ const TimerPage = () => {
                                 <span>Step {timers[currentTimerIndex].id} - {timers[currentTimerIndex].description}</span>
                             </div>
                             <Timer
+                                key={currentTimerIndex}
                                 duration={timers[currentTimerIndex].duration}
                                 description={timers[currentTimerIndex].description}
                                 onNext={handleNext}
@@ -145,7 +146,7 @@ const TimerPage = () => {
                                 onPrevious={handlePrevious}
                                 isFirst={currentTimerIndex === 0}
                                 isLast={currentTimerIndex === timers.length - 1}
-                                autoStart={true} // Auto-start the timer for all steps
+                                autoStart={currentTimerIndex > 0}
                             />
                         </div>
                         
