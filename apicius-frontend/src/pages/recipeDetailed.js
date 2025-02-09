@@ -30,7 +30,11 @@ const RecipeDetails = () => {
             console.error("Error: Recipe data is missing!");
             return;
         }
-        navigate('/timer', { state: { steps: recipe.steps } });
+        navigate('/timer', { 
+            state: { 
+                steps: recipe.steps,
+                recipeName: recipe.title
+            } });
     };
 
     if (loading) return <p>Loading recipe...</p>;
