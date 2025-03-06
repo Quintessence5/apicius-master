@@ -282,7 +282,7 @@ const handleDeleteStep = (index) => {
           );
   
           // 🔹 Append ingredients (ensuring proper structure)
-          if (ingredients.length > 0) {
+          if (validIngredients.length > 0) {
             ingredients.forEach((ingredient, index) => {
                 if (ingredient.ingredientId || ingredient.name) {
                     formData.append(`ingredients[${index}][ingredientId]`, ingredient.ingredientId || "");
