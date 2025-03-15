@@ -44,8 +44,7 @@
 /* ---------------Header Section--------------- */
 .header-row {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    position: relative;
     margin-top: -2rem;
     width: 100%;
 }
@@ -57,10 +56,58 @@
     border: 1px solid #ccc;
     border-radius: 5px;
     margin-top: 1rem;
+    transition: border-color 0.2s ease-in-out;
+}
+
+/* Placeholder styling */
+.header-row input::placeholder,
+.difficulty-row input::placeholder,
+.source-container input::placeholder {
+  margin-top: 1rem;
+  color: #777;
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Input focus styling */
+.header-row input:focus,
+.difficulty-row input:focus,
+.source-container input:focus {
+  border-color: #007bff;
+}
+
+/* Hide placeholder when typing */
+.header-row input:not(:placeholder-shown)::placeholder,
+.difficulty-row input:not(:placeholder-shown)::placeholder,
+.source-container input:not(:placeholder-shown)::placeholder {
+  opacity: 0;
+}
+
+/* Label styling */
+.header-row label {
+  position: absolute;
+  top: 1.5rem;
+  left: 0.5rem;
+  font-size: 1.1rem;
+  color: #777;
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
+  background-color: #ffffff;
+  padding: 0 0.25rem;
+}
+
+/* Floating label effect */
+.header-row input:focus + label,
+.header-row label.float{
+  top: 0.5rem;
+  left: 0.9rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  color: #007bff;
 }
 
 /* -------------------Difficulty Row----------------- */
 .difficulty-row {
+  position: relative;
   display: flex;
   gap: 1rem;
   max-width: 100%;
@@ -71,6 +118,30 @@
 
 .difficulty-row > div {
   max-width: 40%;
+}
+
+.difficulty label {
+  position: absolute;
+  top: 1rem;
+  left: 0.5rem;
+  font-size: 1.1rem;
+  color: #777;
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
+  background-color: #ffffff;
+  border-radius: 5px;
+  padding: 0 0.25rem;
+}
+
+/* Floating label effect */
+.difficulty select:focus + label,
+.difficulty select:valid + label,
+.difficulty-row label.float {
+  top: -0.2rem;
+  left: 0.7rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  color: #007bff;
 }
 
 .difficulty {
@@ -98,6 +169,8 @@
 }
 
 .source-container {
+  display: flex;
+  position: relative;
   width: 120%; 
 }
 
@@ -112,7 +185,30 @@
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 
+.source-container label {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.5rem;
+  font-size: 1.1rem;
+  color: #777;
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
+  background-color: #ffffff;
+  padding: 0 0.25rem;
+}
+
+/* Floating label effect */
+.source-container input:focus + label,
+.source-container label.float {
+  top: -0.5rem;
+  left: 0.7rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  color: #007bff;
+}
+
 .portions-row {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 80%;
@@ -130,9 +226,33 @@
   height: 1.35rem;
 }
 
+/* Label styling */
+.portions-row label {
+  position: absolute;
+  top: 0.6rem;
+  margin-left: 0.6rem;
+  font-size: 1.1rem;
+  color: #777;
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
+  background-color: #ffffff;
+  padding: 0 0.25rem;
+}
+
+/* Floating label effect */
+.portions-row input:focus + label,
+.portions-row label.float{
+  top: -0.4rem;
+  left: 0.2rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  color: #007bff;
+}
+
 /* ------------------Meal Row------------------- */
 .meal-type {
     display: flex;
+    position: relative;
     max-width: 100%;
     height: 2.55rem;
     gap: 1rem;
@@ -141,23 +261,64 @@
     margin-top: -0.3rem;
   }
   
-  .meal-type select {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    color: #777;
-    font-size: 1rem;
+ /* Individual Select Container */
+.meal-type-select {
+  position: relative;
+  flex: 1;
 }
 
-.meal-type select:valid {
-  color: #000;
+/* Select Styling */
+.meal-type-select select {
+  width: 100%;
+  font-size: 1rem;
+  border: 1px solid #cecece;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s ease-in-out;
+  appearance: none;
+  padding-left: 0.6rem;
+  background: white;
+  height: 40px;
 }
 
-.meal-type select[value=""] {
-    color: #000000;
+/* Labels */
+.meal-type-select label {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.6rem;
+  font-size: 1.1rem;
+  color: #777;
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
+  background-color: #ffffff;
+  padding: 0 0.25rem;
 }
 
+/* Floating Effect */
+.meal-type-select select:focus + label,
+.meal-type-select select:valid + label,
+.meal-type-select label.float {
+  top: -8px;
+  left: 0.75rem;
+  font-size: 0.9rem;
+  color: #007bff;
+}
+
+/* Focus Styling */
+.meal-type-select select:focus {
+  border-color: #007bff;
+}
+
+/* Dropdown Arrow */
+.meal-type-select::after {
+  content: "˅";
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+  pointer-events: none;
+}
   
 /* ------------------Time Row------------------ */
 .time-row {
@@ -175,15 +336,49 @@
 }
 
   /* ------------------Notes Row------------------ */
+  .notes-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
 .notes-container textarea {
-    width: 98.5%;
+    width: 99%;
     font-family: Arial, sans-serif;
     resize: vertical;
     border: 1px solid #ccc;
-    padding: 0.5rem;
     border-radius: 5px;
     margin-top: 0.7rem;
+    padding-top: 0.6rem;
+    padding-left: 0.6rem;
     font-size: 1rem;
+}
+
+/* Labels */
+.notes-container label {
+  position: absolute;
+  top: 1.4rem;
+  left: 0.6rem;
+  font-size: 1.1rem;
+  color: #777;
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
+  background-color: #ffffff;
+  padding: 0 0.25rem;
+}
+
+/* Floating Effect */
+.notes-container select:focus + label,
+.notes-container select:valid + label,
+.notes-container label.float {
+  top: 0.2rem;
+  left: 0.75rem;
+  font-size: 0.9rem;
+  color: #007bff;
+}
+
+/* Focus Styling */
+.notes-container select:focus {
+  border-color: #007bff;
 }
 
 /* -------------Steps Container---------------- */

@@ -418,22 +418,39 @@ const handleImageUpload = async () => {
             </div>
             
             <div className="add-recipe-container">
-        <div className="header-row">
-            <input type="text" name="title" value={recipe.title || ""} onChange={handleChange} placeholder="Title" required />
-        </div>
+        
+            <div className="header-row">
+    <input
+        type="text"
+        id="titleInput"
+        name="title"
+        value={recipe.title || ""}
+        onChange={handleChange}
+        placeholder=" "
+        required
+    />
+    <label htmlFor="titleInput" className={recipe.title ? 'float' : ''}> Title </label>
+</div>
 
             <div className="difficulty-row"> 
             <div className="difficulty">
               <select name="difficulty" value={recipe.difficulty || ""} onChange={handleChange} required>
-                <option value="">Difficulty</option>
+                <option value=""></option>
                 {difficulty.map((type) => (
                 <option key={type} value={type}>{type}</option>
                 ))}
               </select>
+              <label className={recipe.difficulty ? 'float' : ''}> Difficulty </label>
             </div>
 
             <div className="source-container">
-            <input type="text" name="source" value={recipe.source || ""} onChange={handleChange} placeholder="Source (Optional)" />
+            <input 
+            type="text" 
+            name="source" 
+            value={recipe.source || ""} 
+            onChange={handleChange} 
+            placeholder=" " />
+            <label className={recipe.source ? 'float' : ''}> Source (Optional) </label>
             </div>
 
             <div className="portions-row">
@@ -443,34 +460,65 @@ const handleImageUpload = async () => {
             name="portions"
             value={recipe.portions}
             onChange={handleChange}
-            placeholder="Portion Number"
             min="1"
             />
+            <label htmlFor="portions" className={recipe.portions ? 'float' : ''}> Portion Number </label>
             </div>
             </div>
             
 
             <div className="meal-type">
-            <select name="course_type" value={recipe.course_type || ""} onChange={handleChange} required>
-                <option value="">Course Type</option>
-                {courseTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
-                ))}
-            </select>
+                {/* Course Type */}
+                <div className="meal-type-select">
+                    <select
+                        id="courseTypeSelect"
+                        name="course_type"
+                        value={recipe.course_type || ""}
+                        onChange={handleChange}
+                        required
+                    >
+                        <option value=""></option>
+                        {courseTypes.map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                        ))}
+                    </select>
+                    <label htmlFor="courseTypeSelect" className={recipe.course_type ? 'float' : ''}>Course Type
+                    </label>
+                </div>
 
-            <select name="meal_type" value={recipe.meal_type || ""} onChange={handleChange} required>
-                <option value="">Meal Type</option>
-                {mealTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
-                ))}
-            </select>
+                {/* Meal Type */}
+                <div className="meal-type-select">
+                    <select
+                        id="mealTypeSelect"
+                        name="meal_type"
+                        value={recipe.meal_type || ""}
+                        onChange={handleChange}
+                        required
+                    >
+                        <option value=""></option>
+                        {mealTypes.map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                        ))}
+                    </select>
+                    <label htmlFor="mealTypeSelect" className={recipe.meal_type ? 'float' : ''}>Meal Type</label>
+                </div>
 
-            <select name="cuisine_type" value={recipe.cuisine_type || ""} onChange={handleChange} required>
-                <option value="">Cuisine Type</option>
-                {cuisineTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
-                ))}
-            </select>
+                {/* Cuisine Type */}
+                <div className="meal-type-select">
+                    <select
+                        id="cuisineTypeSelect"
+                        name="cuisine_type"
+                        value={recipe.cuisine_type || ""}
+                        onChange={handleChange}
+                        required
+                    >
+                        <option value=""></option>
+                        {cuisineTypes.map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                        ))}
+                    </select>
+                    <label htmlFor="cuisineTypeSelect" className={recipe.cuisine_type ? 'float' : ''}>Cuisine Type</label>
+                </div>
             </div>
             
             <div className="time-row">
@@ -505,21 +553,23 @@ const handleImageUpload = async () => {
             </div>
             
             <div className="notes-container">
-            <textarea
-            name="notes"
-            value={recipe.notes || ""}
-            onChange={handleChange}
-            placeholder="Notes (optional)"
-            />
+                <textarea
+                    id="recipeNotes"
+                    name="notes"
+                    value={recipe.notes || ""}
+                    onChange={handleChange}
+                    placeholder=" "
+                />
+                <label htmlFor="recipeNotes" className={recipe.notes ? 'float' : ''}>Notes (optional)</label>
             </div>
             
             <div className="steps-container">
-    <h4>Steps</h4>
-    <ul>
-        {(recipe.steps || []).map((step, index) => (
-            <li key={index} className="step-row">
-                {editingStepIndex === index ? (
-  <>
+                <h4>Steps</h4>
+                <ul>
+                    {(recipe.steps || []).map((step, index) => (
+                      <li key={index} className="step-row">
+                      {editingStepIndex === index ? (
+                      <>
     <textarea
       value={recipe.steps[index] || ""}
       onChange={(e) => handleEditStep(index, e.target.value)}
