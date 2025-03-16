@@ -10,8 +10,15 @@ const getAllRecipes = async (req, res) => {
             search,
             meal_type,
             cuisine_type,
-            dietary_restriction,
+            course_type,
+            diets,
+            restrictions,
+            allergies
         } = req.query;
+
+        const dietFilters = diets ? diets.split(',') : [];
+        const restrictionFilters = restrictions ? restrictions.split(',') : [];
+        const allergyFilters = allergies ? allergies.split(',') : [];
 
         // Base query
         let query = `
@@ -43,9 +50,24 @@ const getAllRecipes = async (req, res) => {
             values.push(cuisine_type);
         }
 
-        if (dietary_restriction) {
-            conditions.push(`i.allergies ILIKE $${values.length + 1}`);
-            values.push(`%${dietary_restriction}%`);
+        if (course_type) {
+            conditions.push(`r.course_type ILIKE $${values.length + 1}`);
+            values.push(`%${course_type}%`);
+        }
+
+        if (dietFilters.length > 0) {
+            conditions.push(`i.allergies ILIKE ANY($${values.length + 1}::text[])`);
+            values.push(dietFilters);
+        }
+
+        if (restrictionFilters.length > 0) {
+            conditions.push(`i.allergies ILIKE ANY($${values.length + 1}::text[])`);
+            values.push(restrictionFilters);
+        }
+
+        if (allergyFilters.length > 0) {
+            conditions.push(`i.allergies ILIKE ANY($${values.length + 1}::text[])`);
+            values.push(allergyFilters);
         }
 
         if (conditions.length > 0) {
@@ -455,10 +477,8 @@ const updateRecipe = async (req, res) => {
 const deleteRecipe = async (req, res) => {
     const { id } = req.params;
     try {
-        // Step 1: Delete all associated ingredients from recipe_ingredients
         await pool.query('DELETE FROM recipe_ingredients WHERE recipe_id = $1', [id]);
 
-        // Step 2: Delete the recipe
         const deleteResult = await pool.query('DELETE FROM recipes WHERE id = $1 RETURNING *', [id]);
 
         if (deleteResult.rows.length === 0) {
@@ -524,7 +544,7 @@ const getIngredientSuggestions = async (req, res) => {
         console.error("Error fetching ingredient suggestions:", error);
         res.status(500).json({ message: "Server error" });
     }
-};
+}; 
 
 const getDropdownOptions = async (req, res) => {
     try {
@@ -542,8 +562,13 @@ const getDropdownOptions = async (req, res) => {
         
         // Fetch dietary restrictions
         const dietaryRestrictionsQuery = `
-            SELECT name, category FROM food_control
-            WHERE category ILIKE ANY(ARRAY['Intolerance', 'Diet Medical', 'Diet Cultural', 'Diet Religious', 'Diet Popular']);
+            SELECT name, 
+            CASE
+                WHEN category IN ('Allergy') THEN 'Allergy'
+                WHEN category LIKE 'Diet%' THEN 'Diet'
+                ELSE 'Restriction'
+            END as category
+            FROM food_control;
         `;
         const dietaryRestrictions = await pool.query(dietaryRestrictionsQuery);
         

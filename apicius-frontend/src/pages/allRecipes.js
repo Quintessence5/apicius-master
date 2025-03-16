@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import MultiSelectDropdown from '../components/MultiSelectDropdown';
+
 import '../styles/allRecipes.css';
 import NoImageAvailable from '../assets/images/No_Image_Avail.jpg';
 
@@ -10,14 +12,16 @@ const AllRecipes = () => {
     const [search, setSearch] = useState('');
     const [mealType, setMealType] = useState('');
     const [cuisineType, setCuisineType] = useState('');
-    const [dietaryRestriction, setDietaryRestriction] = useState('');
     const [showSearch, setShowSearch] = useState(false);
+    const [dietaryRestriction] = useState('');
     const [dropdownOptions, setDropdownOptions] = useState({
         mealTypes: [],
         cuisineTypes: [],
-        courseTypes: [],
-        dietaryRestrictions: [],
-    });
+        courseTypes: []});
+        const [selectedDiets, setSelectedDiets] = useState([]);
+        const [selectedRestrictions, setSelectedRestrictions] = useState([]);
+        const [selectedAllergies, setSelectedAllergies] = useState([]);
+        const [courseType, setCourseType] = useState('');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -39,7 +43,11 @@ const AllRecipes = () => {
                     search,
                     meal_type: mealType,
                     cuisine_type: cuisineType,
+                    course_type: courseType || null,
                     dietary_restriction: dietaryRestriction,
+                    diets: selectedDiets.join(','),
+                    restrictions: selectedRestrictions.join(','),
+                    allergies: selectedAllergies.join(',')
                 },
             });
             setRecipes(response.data);
@@ -59,20 +67,29 @@ const AllRecipes = () => {
 
     return (
         <div className="all-recipes-page">
-            <h1 className="all-recipes-title">All Recipes</h1>
-
-            <button className="search-toggle-button" onClick={() => setShowSearch(!showSearch)}>
-                🔎
-            </button>
+            <div className="title-search-container">
+  <h1 className="all-recipes-title">All Recipes</h1>
+  <button className="search-toggle-button" onClick={() => setShowSearch(!showSearch)}>
+    🔎 - Find your next recipe
+  </button>
+</div>
 
             {showSearch && (
                 <div className="search-filter-section">
+                    <div className="single-select-container">
                     <input
                         type="text"
                         placeholder="Search by name or ingredient"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
+
+                      {/* Course Type Dropdown */}
+                    <select value={courseType} onChange={(e) => setCourseType(e.target.value)}>
+                    <option value="">All Course Types</option>
+                    {dropdownOptions.courseTypes.map((type, index) => (
+                    <option key={index} value={type.name}>{type.name}</option>))}
+                    </select>
 
                     {/* Meal Type Dropdown */}
                     <select value={mealType} onChange={(e) => setMealType(e.target.value)}>
@@ -89,14 +106,30 @@ const AllRecipes = () => {
                             <option key={index} value={type.name}>{type.name}</option>
                         ))}
                     </select>
+                </div>
 
                     {/* Dietary Restriction Dropdown */}
-                    <select value={dietaryRestriction} onChange={(e) => setDietaryRestriction(e.target.value)}>
-                        <option value="">All Dietary Restrictions</option>
-                        {dropdownOptions.dietaryRestrictions.map((restriction, index) => (
-                            <option key={index} value={restriction.name}>{restriction.name}</option>
-                        ))}
-                    </select>
+                    <div className="multi-select-container">
+                      
+                    <MultiSelectDropdown 
+                        options={dropdownOptions.dietaryRestrictions.filter(d => d.category === 'Allergy')}
+                        selected={selectedAllergies}
+                        setSelected={setSelectedAllergies}
+                        placeholder="Select Allergies"
+                      />
+                      <MultiSelectDropdown 
+                        options={dropdownOptions.dietaryRestrictions.filter(d => d.category === 'Restriction')}
+                        selected={selectedRestrictions}
+                        setSelected={setSelectedRestrictions}
+                        placeholder="Select Food Restrictions"
+                      />
+                      <MultiSelectDropdown 
+                        options={dropdownOptions.dietaryRestrictions.filter(d => d.category === 'Diet')}
+                        selected={selectedDiets}
+                        setSelected={setSelectedDiets}
+                        placeholder="Select Diets"
+                      />
+                    </div>
                 </div>
             )}
 

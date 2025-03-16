@@ -161,14 +161,36 @@
     font-style: italic;
 }
 
-/* Search Field */
-.search-filter-section {
+/* __________________Search Field______________________ */
+.title-search-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-left: 4rem;
+    margin-bottom: 1rem;
+  }
+
+  .all-recipes-title {
+    text-align: center; 
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+  
+  .search-filter-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: -1.5rem;
+    margin-left: 4rem;
+    margin-right: 4rem;
     margin-bottom: 2rem;
+  }
+
+  .search-filter-section > div {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
-
-}
+  }
 
 .search-filter-section input,
 .search-filter-section select {
@@ -176,6 +198,7 @@
     border: 1px solid #ccc;
     border-radius: 4px;
     font-size: 14px;
+
 }
 
 .search-filter-section input {
@@ -186,10 +209,59 @@
     flex: 1;
 }
 
-.search-toggle-button{
-    margin-top: 4rem;
-    margin-right: 2rem;
-}
+.search-toggle-button {
+    border: 1px solid #007bff00;
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    background: white;
+    color: #777;
+    cursor: pointer;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    margin-left: 1rem;
+    font-size: 1rem;
+    position: static;
+  }
+  
+  .search-toggle-button:hover {
+    background: #f0f0f0;
+  }
+
+  /* __________________Multi Select______________________ */
+  .multi-select {
+    position: relative;
+    flex: 1;
+  }
+  
+  .multi-select select {
+    width: 100%;
+  }
+  
+  .selected-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 5px;
+  }
+  
+  .tag {
+    background: #e0e0e0;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+  
+  .tag:hover {
+    background: #d0d0d0;
+  }
+
+  .tag button {
+    display: none;
+    
+  }
 
 /* Responsive Design */
 @media (max-width: 768px) {
