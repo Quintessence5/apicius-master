@@ -12,6 +12,11 @@ const RecipeDetails = () => {
     const [units, setUnits] = useState([]);
     const [solidUnit, setSolidUnit] = useState('g');
     const [liquidUnit, setLiquidUnit] = useState('mL');
+    const [currentPortions, setCurrentPortions] = useState(1);
+    const [basePortions, setBasePortions] = useState(1);
+    const [isEditingPortions, setIsEditingPortions] = useState(false);
+    const [hasSolidIngredients, setHasSolidIngredients] = useState(false);
+    const [hasLiquidIngredients, setHasLiquidIngredients] = useState(false);
 
     useEffect(() => {
         const fetchRecipe = async () => {
@@ -27,6 +32,23 @@ const RecipeDetails = () => {
         };
         fetchRecipe();
     }, [id]);
+
+    useEffect(() => {
+        if (recipe) {
+            const initialPortions = recipe.portions || 1;
+            setCurrentPortions(initialPortions);
+            setBasePortions(initialPortions);
+        // Check ingredient types
+        let hasSolid = false;
+        let hasLiquid = false;
+        recipe.ingredients?.forEach(ingredient => {
+            if (ingredient.form === 'solid') hasSolid = true;
+            if (ingredient.form === 'liquid') hasLiquid = true;
+        });
+        setHasSolidIngredients(hasSolid);
+        setHasLiquidIngredients(hasLiquid);
+    }
+    }, [recipe]);
 
     useEffect(() => {
         const fetchUnits = async () => {
@@ -101,6 +123,20 @@ const RecipeDetails = () => {
         navigate(`/add-recipe`, { state: { recipe: recipeWithId } });
     };
     
+    const handlePortionChange = (newPortions) => {
+        const validatedPortions = Math.max(newPortions, basePortions);
+        setCurrentPortions(validatedPortions);
+    };
+    
+    const handleIncrement = () => handlePortionChange(currentPortions + 1);
+    const handleDecrement = () => handlePortionChange(currentPortions - 1);
+    
+    const confirmPortionChange = () => setIsEditingPortions(false);
+    const cancelPortionChange = () => {
+        setCurrentPortions(basePortions);
+        setIsEditingPortions(false);
+    };
+    
     return (
         <div className="recipe-details-page">
             {/* Recipe Image */}
@@ -118,40 +154,6 @@ const RecipeDetails = () => {
                 </div>
             </div>
 
-
-            {/* Unit Switches */}
-            <div className="unit-switches-container">
-                <div className="unit-group">
-                    <div className="unit-title">Solids</div>
-                    <div className="unit-btns-container">
-                        {['g', 'kg', 'oz', 'lb'].map((unit) => (
-                            <button
-                                key={unit}
-                                onClick={() => setSolidUnit(unit)}
-                                className={`unit-btn ${solidUnit === unit ? 'active' : ''}`}
-                            >
-                                {unit}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="unit-group">
-                    <div className="unit-title">Liquids</div>
-                    <div className="unit-btns-container">
-                        {['ml', 'L', 'oz', 'pt'].map((unit) => (
-                            <button
-                                key={unit}
-                                onClick={() => setLiquidUnit(unit)}
-                                className={`unit-btn ${liquidUnit === unit ? 'active' : ''}`}
-                            >
-                                {unit}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-
             {/* Recipe Information Sections */}
             <div className="recipe-info">
                 {recipe.source && <p><strong>Source:</strong> {recipe.source}</p>}
@@ -159,7 +161,6 @@ const RecipeDetails = () => {
                 <p><strong>Difficulty:</strong> {recipe.difficulty}</p>
                 <p><strong>Preparation Time:</strong> {recipe.prep_time} mins</p>
                 <p><strong>Cooking Time:</strong> {recipe.cook_time} mins</p>
-                <p><strong>Portions:</strong> {recipe.portions || 1}</p>
 
                 {/* Allergies Section */}
                 {recipe.total_nutrition?.allergies?.length > 0 &&
@@ -176,13 +177,49 @@ const RecipeDetails = () => {
                     </>
                 )}
 
+                <div className="portion-control">
+                    <div className="portion-header">
+                    <strong>Portions:</strong>
+                    {isEditingPortions ? (
+                        <div className="portion-editor">
+                            <button className="portion-btn" onClick={handleDecrement} disabled={currentPortions <= basePortions}>
+                                -
+                            </button>
+                            <input
+                                type="number"
+                                value={currentPortions}
+                                min={basePortions}
+                                onChange={(e) => handlePortionChange(parseInt(e.target.value) || basePortions)}
+                                className="portion-input"
+                            />
+                            <button className="portion-btn" onClick={handleIncrement}>
+                                +
+                            </button>
+                            <button className="confirm-btn" onClick={confirmPortionChange}>OK</button>
+                            <button className="cancel-btn" onClick={cancelPortionChange}>Cancel</button>
+                        </div>
+                    ) : (
+                        <div className="portion-display">
+                            <span className="portion-number">{currentPortions}</span>
+                            <button className="edit-portion-btn" onClick={() => setIsEditingPortions(true)}>
+                                Edit
+                            </button>
+                        </div>
+                    )}
+                </div></div>
+
                 {/* Ingredients Section */}
                 {console.log("Current Recipe Data:", recipe)} {/* 🛠️ Debugging Log */}
 
                 <h3>Ingredients</h3>
                 <ul className="ingredient-list">
                     {recipe.ingredients?.map((ingredient, index) => {
-                        const converted = getConvertedQuantity(ingredient);
+                        const scaledIngredient = {
+                            ...ingredient,
+                            quantity: ingredient.quantity * (currentPortions / basePortions)
+                        };
+
+                        const converted = getConvertedQuantity(scaledIngredient);
                         return (
                             <li key={index}>
                                 {converted.quantity} {converted.unit} of {ingredient.ingredient_name}
@@ -190,6 +227,43 @@ const RecipeDetails = () => {
                         );
                     })}
                 </ul>
+
+                            {/* Unit Switches */}
+            {(hasSolidIngredients || hasLiquidIngredients) && (
+            <div className="unit-switches-container">
+                {hasSolidIngredients && (
+                <div className="unit-group">
+                    <div className="unit-title">Solids</div>
+                    <div className="unit-btns-container">
+                        {['g', 'kg', 'oz', 'lb'].map((unit) => (
+                            <button
+                                key={unit}
+                                onClick={() => setSolidUnit(unit)}
+                                className={`unit-btn ${solidUnit === unit ? 'active' : ''}`}
+                            >
+                                {unit}
+                            </button>
+                        ))}
+                    </div>
+                </div>)}
+
+                {hasLiquidIngredients && (
+                <div className="unit-group">
+                    <div className="unit-title">Liquids</div>
+                    <div className="unit-btns-container">
+                        {['ml', 'L', 'oz', 'pt'].map((unit) => (
+                            <button
+                                key={unit}
+                                onClick={() => setLiquidUnit(unit)}
+                                className={`unit-btn ${liquidUnit === unit ? 'active' : ''}`}
+                            >
+                                {unit}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                )}
+            </div>)}
 
                 <h3>Steps</h3>
                 <ol className="steps-list">
@@ -212,17 +286,17 @@ const RecipeDetails = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>Calories</td><td>{nutritionFacts.calories.toFixed(2)} kcal</td><td>{((nutritionFacts.calories / 2000) * 100).toFixed(2)}%</td><td>{(nutritionFacts.calories / portions).toFixed(2)} kcal</td><td>{(((nutritionFacts.calories / portions) / 2000) * 100).toFixed(2)}%</td></tr>
-                        <tr><td>Total Fat</td><td>{nutritionFacts.lipids.toFixed(2)} g</td><td>{((nutritionFacts.lipids / 70) * 100).toFixed(2)}%</td><td>{(nutritionFacts.lipids / portions).toFixed(2)} g</td><td>{(((nutritionFacts.lipids / portions) / 70) * 100).toFixed(2)}%</td></tr>
-                        <tr><td>Saturated Fat</td><td>{nutritionFacts.saturated_fat.toFixed(2)} g</td><td>{((nutritionFacts.saturated_fat / 20) * 100).toFixed(2)}%</td><td>{(nutritionFacts.saturated_fat / portions).toFixed(2)} g</td><td>{(((nutritionFacts.saturated_fat / portions) / 20) * 100).toFixed(2)}%</td></tr>
-                        <tr><td>Trans Fat</td><td>{nutritionFacts.trans_fat.toFixed(2)} g</td><td>-</td><td>{(nutritionFacts.trans_fat / portions).toFixed(2)} g</td><td>-</td></tr>
-                        <tr><td>Cholesterol</td><td>{nutritionFacts.cholesterol.toFixed(2)} mg</td><td>{((nutritionFacts.cholesterol / 300) * 100).toFixed(2)}%</td><td>{(nutritionFacts.cholesterol / portions).toFixed(2)} mg</td><td>{(((nutritionFacts.cholesterol / portions) / 300) * 100).toFixed(2)}%</td></tr>
-                        <tr><td>Sodium</td><td>{nutritionFacts.sodium.toFixed(2)} mg</td><td>{((nutritionFacts.sodium / 2300) * 100).toFixed(2)}%</td><td>{(nutritionFacts.sodium / portions).toFixed(2)} mg</td><td>{(((nutritionFacts.sodium / portions) / 2300) * 100).toFixed(2)}%</td></tr>
-                        <tr><td>Total Carbohydrates</td><td>{nutritionFacts.carbohydrates.toFixed(2)} g</td><td>{((nutritionFacts.carbohydrates / 275) * 100).toFixed(2)}%</td><td>{(nutritionFacts.carbohydrates / portions).toFixed(2)} g</td><td>{(((nutritionFacts.carbohydrates / portions) / 275) * 100).toFixed(2)}%</td></tr>
-                        <tr><td>Dietary Fibers</td><td>{nutritionFacts.fibers.toFixed(2)} g</td><td>{((nutritionFacts.fibers / 28) * 100).toFixed(2)}%</td><td>{(nutritionFacts.fibers / portions).toFixed(2)} g</td><td>{(((nutritionFacts.fibers / portions) / 28) * 100).toFixed(2)}%</td></tr>
-                        <tr><td>Total Sugars</td><td>{nutritionFacts.sugars.toFixed(2)} g</td><td>-</td><td>{(nutritionFacts.sugars / portions).toFixed(2)} g</td><td>-</td></tr>
-                        <tr><td>Added Sugars</td><td>{nutritionFacts.added_sugars.toFixed(2)} g</td><td>{((nutritionFacts.added_sugars / 50) * 100).toFixed(2)}%</td><td>{(nutritionFacts.added_sugars / portions).toFixed(2)} g</td><td>{(((nutritionFacts.added_sugars / portions) / 50) * 100).toFixed(2)}%</td></tr>
-                        <tr><td>Protein</td><td>{nutritionFacts.protein.toFixed(2)} g</td><td>{((nutritionFacts.protein / 50) * 100).toFixed(2)}%</td><td>{(nutritionFacts.protein / portions).toFixed(2)} g</td><td>{(((nutritionFacts.protein / portions) / 50) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Calories</td><td>{nutritionFacts.calories.toFixed(2)} kcal</td><td>{((nutritionFacts.calories / 2000) * 100).toFixed(2)}%</td><td>{(nutritionFacts.calories / currentPortions).toFixed(2)} kcal</td><td>{(((nutritionFacts.calories / currentPortions) / 2000) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Total Fat</td><td>{nutritionFacts.lipids.toFixed(2)} g</td><td>{((nutritionFacts.lipids / 70) * 100).toFixed(2)}%</td><td>{(nutritionFacts.lipids / currentPortions).toFixed(2)} g</td><td>{(((nutritionFacts.lipids / currentPortions) / 70) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Saturated Fat</td><td>{nutritionFacts.saturated_fat.toFixed(2)} g</td><td>{((nutritionFacts.saturated_fat / 20) * 100).toFixed(2)}%</td><td>{(nutritionFacts.saturated_fat / currentPortions).toFixed(2)} g</td><td>{(((nutritionFacts.saturated_fat / currentPortions) / 20) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Trans Fat</td><td>{nutritionFacts.trans_fat.toFixed(2)} g</td><td>-</td><td>{(nutritionFacts.trans_fat / currentPortions).toFixed(2)} g</td><td>-</td></tr>
+                        <tr><td>Cholesterol</td><td>{nutritionFacts.cholesterol.toFixed(2)} mg</td><td>{((nutritionFacts.cholesterol / 300) * 100).toFixed(2)}%</td><td>{(nutritionFacts.cholesterol / currentPortions).toFixed(2)} mg</td><td>{(((nutritionFacts.cholesterol / currentPortions) / 300) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Sodium</td><td>{nutritionFacts.sodium.toFixed(2)} mg</td><td>{((nutritionFacts.sodium / 2300) * 100).toFixed(2)}%</td><td>{(nutritionFacts.sodium / currentPortions).toFixed(2)} mg</td><td>{(((nutritionFacts.sodium / currentPortions) / 2300) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Total Carbohydrates</td><td>{nutritionFacts.carbohydrates.toFixed(2)} g</td><td>{((nutritionFacts.carbohydrates / 275) * 100).toFixed(2)}%</td><td>{(nutritionFacts.carbohydrates / currentPortions).toFixed(2)} g</td><td>{(((nutritionFacts.carbohydrates / currentPortions) / 275) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Dietary Fibers</td><td>{nutritionFacts.fibers.toFixed(2)} g</td><td>{((nutritionFacts.fibers / 28) * 100).toFixed(2)}%</td><td>{(nutritionFacts.fibers / currentPortions).toFixed(2)} g</td><td>{(((nutritionFacts.fibers / currentPortions) / 28) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Total Sugars</td><td>{nutritionFacts.sugars.toFixed(2)} g</td><td>-</td><td>{(nutritionFacts.sugars / currentPortions).toFixed(2)} g</td><td>-</td></tr>
+                        <tr><td>Added Sugars</td><td>{nutritionFacts.added_sugars.toFixed(2)} g</td><td>{((nutritionFacts.added_sugars / 50) * 100).toFixed(2)}%</td><td>{(nutritionFacts.added_sugars / currentPortions).toFixed(2)} g</td><td>{(((nutritionFacts.added_sugars / currentPortions) / 50) * 100).toFixed(2)}%</td></tr>
+                        <tr><td>Protein</td><td>{nutritionFacts.protein.toFixed(2)} g</td><td>{((nutritionFacts.protein / 50) * 100).toFixed(2)}%</td><td>{(nutritionFacts.protein / currentPortions).toFixed(2)} g</td><td>{(((nutritionFacts.protein / currentPortions) / 50) * 100).toFixed(2)}%</td></tr>
                     </tbody>
                 </table>
             </div>
