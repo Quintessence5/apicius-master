@@ -9,6 +9,9 @@ const RecipeDetails = () => {
     const { id } = useParams(); 
     const [recipe, setRecipe] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [units, setUnits] = useState([]);
+    const [solidUnit, setSolidUnit] = useState('g');
+    const [liquidUnit, setLiquidUnit] = useState('mL');
 
     useEffect(() => {
         const fetchRecipe = async () => {
@@ -24,6 +27,48 @@ const RecipeDetails = () => {
         };
         fetchRecipe();
     }, [id]);
+
+    useEffect(() => {
+        const fetchUnits = async () => {
+            try {
+                const response = await axios.get('/api/units');
+                setUnits(response.data);
+            } catch (error) {
+                console.error("Error fetching units:", error);
+            }
+        };
+        fetchUnits();
+    }, []);
+
+    const getConvertedQuantity = (ingredient) => {
+        console.log('Current Ingredient:', ingredient);
+        if (!units || !ingredient.unit) return { quantity: ingredient.quantity, unit: ingredient.unit };
+        
+        const originalUnit = units.find(u => u.abbreviation === ingredient.unit);
+        if (!originalUnit) return { quantity: ingredient.quantity, unit: ingredient.unit };
+    
+        // Handle quantity units (non-convertible)
+        if (originalUnit.type === 'quantity') {
+            return { quantity: ingredient.quantity, unit: ingredient.unit };
+        }
+    
+        // Determine target unit based on ingredient form
+        const targetAbbr = ingredient.form === 'solid' ? solidUnit : liquidUnit;
+        const targetUnit = units.find(u => u.abbreviation === targetAbbr);
+        
+        if (!targetUnit || originalUnit.type !== targetUnit.type) {
+            return { quantity: ingredient.quantity, unit: ingredient.unit };
+        }
+    
+        // Convert through base units (g or mL)
+        const baseQuantity = ingredient.quantity * originalUnit.conversion_factor;
+        const convertedQuantity = baseQuantity / targetUnit.conversion_factor;
+        
+        return { 
+            quantity: Number(convertedQuantity.toFixed(2)), 
+            unit: targetAbbr 
+        };
+    };
     
     const handleTimer = () => {
         if (!recipe) {
@@ -73,6 +118,40 @@ const RecipeDetails = () => {
                 </div>
             </div>
 
+
+            {/* Unit Switches */}
+            <div className="unit-switches-container">
+                <div className="unit-group">
+                    <div className="unit-title">Solids</div>
+                    <div className="unit-btns-container">
+                        {['g', 'kg', 'oz', 'lb'].map((unit) => (
+                            <button
+                                key={unit}
+                                onClick={() => setSolidUnit(unit)}
+                                className={`unit-btn ${solidUnit === unit ? 'active' : ''}`}
+                            >
+                                {unit}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="unit-group">
+                    <div className="unit-title">Liquids</div>
+                    <div className="unit-btns-container">
+                        {['ml', 'L', 'oz', 'pt'].map((unit) => (
+                            <button
+                                key={unit}
+                                onClick={() => setLiquidUnit(unit)}
+                                className={`unit-btn ${liquidUnit === unit ? 'active' : ''}`}
+                            >
+                                {unit}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* Recipe Information Sections */}
             <div className="recipe-info">
                 {recipe.source && <p><strong>Source:</strong> {recipe.source}</p>}
@@ -100,27 +179,26 @@ const RecipeDetails = () => {
                 {/* Ingredients Section */}
                 {console.log("Current Recipe Data:", recipe)} {/* 🛠️ Debugging Log */}
 
-<h3>Ingredients</h3>
-<ul className="ingredient-list">
-    {recipe.ingredients ? (  // 🛠️ Safe Check
-        recipe.ingredients.map((ingredient, index) => (
-            <li key={index}>
-                {ingredient.quantity} {ingredient.unit} of {ingredient.ingredient_name}
-            </li>
-        ))
-    ) : (
-        <p>No ingredients available.</p>  // 🛠️ Debugging Message
-    )}
-</ul>
+                <h3>Ingredients</h3>
+                <ul className="ingredient-list">
+                    {recipe.ingredients?.map((ingredient, index) => {
+                        const converted = getConvertedQuantity(ingredient);
+                        return (
+                            <li key={index}>
+                                {converted.quantity} {converted.unit} of {ingredient.ingredient_name}
+                            </li>
+                        );
+                    })}
+                </ul>
 
-<h3>Steps</h3>
-<ol className="steps-list">
-    {recipe.steps ? (  // 🛠️ Safe Check
-        recipe.steps.map((step, index) => <li key={index}>{step}</li>)
-    ) : (
-        <p>No steps available.</p>  // 🛠️ Debugging Message
-    )}
-</ol>
+                <h3>Steps</h3>
+                <ol className="steps-list">
+                    {recipe.steps ? (  // 🛠️ Safe Check
+                        recipe.steps.map((step, index) => <li key={index}>{step}</li>)
+                    ) : (
+                        <p>No steps available.</p>  // 🛠️ Debugging Message
+                    )}
+                </ol>
 
                 {/* Nutritional Facts Table */}
                 <table className="nutrition-table">

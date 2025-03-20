@@ -56,17 +56,44 @@ const getAllRecipes = async (req, res) => {
         }
 
         if (dietFilters.length > 0) {
-            conditions.push(`i.allergies ILIKE ANY($${values.length + 1}::text[])`);
+            conditions.push(`
+                EXISTS (
+                    SELECT 1 FROM recipe_ingredients ri
+                    JOIN ingredients i ON ri.ingredient_id = i.id
+                    JOIN food_control fc ON i.dietary_restrictions ILIKE '%' || fc.name || '%'
+                    WHERE ri.recipe_id = r.id
+                    AND fc.category IN ('Diet Medical', 'Diet Cultural', 'Diet Religious', 'Diet Popular')
+                    AND fc.name = ANY($${values.length + 1}::text[])
+                )
+            `);
             values.push(dietFilters);
         }
 
         if (restrictionFilters.length > 0) {
-            conditions.push(`i.allergies ILIKE ANY($${values.length + 1}::text[])`);
+            conditions.push(`
+                NOT EXISTS (
+                    SELECT 1 FROM recipe_ingredients ri
+                    JOIN ingredients i ON ri.ingredient_id = i.id
+                    JOIN food_control fc ON i.intolerance ILIKE '%' || fc.name || '%'
+                    WHERE ri.recipe_id = r.id
+                    AND fc.category = 'Intolerance'
+                    AND fc.name = ANY($${values.length + 1}::text[])
+                )
+            `);
             values.push(restrictionFilters);
         }
 
         if (allergyFilters.length > 0) {
-            conditions.push(`i.allergies ILIKE ANY($${values.length + 1}::text[])`);
+            conditions.push(`
+                NOT EXISTS (
+                    SELECT 1 FROM recipe_ingredients ri
+                    JOIN ingredients i ON ri.ingredient_id = i.id
+                    JOIN food_control fc ON i.allergies ILIKE '%' || fc.name || '%'
+                    WHERE ri.recipe_id = r.id
+                    AND fc.category = 'Allergy'
+                    AND fc.name = ANY($${values.length + 1}::text[])
+                )
+            `);
             values.push(allergyFilters);
         }
 
@@ -157,7 +184,7 @@ const getRecipeById = async (req, res) => {
                    r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, r.portions, r.public,
                    ri.quantity, ri.unit, i.id AS ingredient_id, i.name AS ingredient_name, i.calories_per_100g, 
                    i.protein, i.lipids, i.carbohydrates, i.saturated_fat, i.trans_fat, 
-                   i.cholesterol, i.sodium, i.fibers, i.sugars, i.added_sugars, i.allergies
+                   i.cholesterol, i.sodium, i.fibers, i.sugars, i.added_sugars, i.allergies, i.form
             FROM recipes r
             LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
             LEFT JOIN ingredients i ON ri.ingredient_id = i.id
@@ -203,7 +230,8 @@ const getRecipeById = async (req, res) => {
                     ingredient_id: row.ingredient_id, // Ensure this is included
                     ingredient_name: row.ingredient_name,
                     quantity: row.quantity,
-                    unit: row.unit
+                    unit: row.unit,
+                    form: row.form
                 });
 
                 // Calculate Nutrition Facts per Recipe

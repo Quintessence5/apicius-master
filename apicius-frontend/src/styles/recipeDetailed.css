@@ -219,3 +219,59 @@ h3 {
 .edit-recipe-btn:hover {
     background-color: #e68900;
 }
+
+/* Unit Switches Container */
+.unit-switches-container {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    margin: 1.5rem 0;
+}
+
+.unit-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.unit-title {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.unit-btns-container {
+    border: 2px solid #ddd;
+    border-radius: 14px;
+    display: inline-flex;
+    background: #f8f9fa;
+    overflow: hidden;
+}
+
+.unit-btn {
+    padding: 0.4rem 0.8rem;
+    border: none;
+    background: none;
+    color: #444;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.unit-btn:not(:last-child) {
+    border-right: 1px solid #ddd;
+}
+
+.unit-btn:hover {
+    background: #e9ecef;
+}
+
+.unit-btn.active {
+    background: #007bff;
+    color: white;
+}
+
+.unit-btn.active:hover {
+    background: #0069d9;
+}

@@ -13,7 +13,6 @@ const AllRecipes = () => {
     const [mealType, setMealType] = useState('');
     const [cuisineType, setCuisineType] = useState('');
     const [showSearch, setShowSearch] = useState(false);
-    const [dietaryRestriction] = useState('');
     const [dropdownOptions, setDropdownOptions] = useState({
         mealTypes: [],
         cuisineTypes: [],
@@ -43,8 +42,7 @@ const AllRecipes = () => {
                     search,
                     meal_type: mealType,
                     cuisine_type: cuisineType,
-                    course_type: courseType || null,
-                    dietary_restriction: dietaryRestriction,
+                    course_type: courseType,
                     diets: selectedDiets.join(','),
                     restrictions: selectedRestrictions.join(','),
                     allergies: selectedAllergies.join(',')
@@ -56,7 +54,7 @@ const AllRecipes = () => {
             console.error("Error fetching recipes:", error);
             setLoading(false);
         }
-    }, [search, mealType, cuisineType, dietaryRestriction]);
+    }, [search, mealType, cuisineType, courseType, selectedDiets, selectedRestrictions, selectedAllergies]);
 
     useEffect(() => {
         console.log("Fetching recipes..."); // Debugging log
