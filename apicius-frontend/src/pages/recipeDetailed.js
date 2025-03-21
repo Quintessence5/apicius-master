@@ -11,7 +11,7 @@ const RecipeDetails = () => {
     const [loading, setLoading] = useState(true);
     const [units, setUnits] = useState([]);
     const [solidUnit, setSolidUnit] = useState('g');
-    const [liquidUnit, setLiquidUnit] = useState('mL');
+    const [liquidUnit, setLiquidUnit] = useState('ml');
     const [currentPortions, setCurrentPortions] = useState(1);
     const [basePortions, setBasePortions] = useState(1);
     const [isEditingPortions, setIsEditingPortions] = useState(false);
@@ -22,7 +22,7 @@ const RecipeDetails = () => {
         const fetchRecipe = async () => {
             try {
                 const response = await axios.get(`/api/recipes/${id}`);
-                console.log("Fetched Recipe Data:", response.data);  // 🛠️ Debugging log
+                console.log("Fetched Recipe Data:", response.data); 
                 setRecipe(response.data);
                 setLoading(false);
             } catch (error) {
@@ -66,17 +66,15 @@ const RecipeDetails = () => {
         console.log('Current Ingredient:', ingredient);
         if (!units || !ingredient.unit) return { quantity: ingredient.quantity, unit: ingredient.unit };
         
-        const originalUnit = units.find(u => u.abbreviation === ingredient.unit);
-        if (!originalUnit) return { quantity: ingredient.quantity, unit: ingredient.unit };
+        const originalUnit = units.find(u => u.abbreviation.toLowerCase() === ingredient.unit?.toLowerCase());
+        if (!originalUnit) return { quantity: ingredient.quantity, unit: ingredient.unit};
     
-        // Handle quantity units (non-convertible)
         if (originalUnit.type === 'quantity') {
             return { quantity: ingredient.quantity, unit: ingredient.unit };
         }
     
-        // Determine target unit based on ingredient form
-        const targetAbbr = ingredient.form === 'solid' ? solidUnit : liquidUnit;
-        const targetUnit = units.find(u => u.abbreviation === targetAbbr);
+        const targetAbbr = ingredient.form === 'liquid' ? liquidUnit : solidUnit;
+        const targetUnit = units.find(u => u.abbreviation.toLowerCase() === targetAbbr.toLowerCase());
         
         if (!targetUnit || originalUnit.type !== targetUnit.type) {
             return { quantity: ingredient.quantity, unit: ingredient.unit };
@@ -88,7 +86,7 @@ const RecipeDetails = () => {
         
         return { 
             quantity: Number(convertedQuantity.toFixed(2)), 
-            unit: targetAbbr 
+            unit: targetUnit.abbreviation 
         };
     };
     
@@ -109,7 +107,6 @@ const RecipeDetails = () => {
 
     // Nutritional facts calculations
     const nutritionFacts = recipe.total_nutrition;
-    const portions = recipe.portions || 1; // Prevent division by zero
 
     const handleEdit = () => {
         if (!recipe) {
@@ -117,7 +114,6 @@ const RecipeDetails = () => {
             return;
         }
     
-        // Ensure the recipe has an ID (either from API or URL)
         const recipeWithId = { ...recipe, recipe_id: recipe.recipe_id || id };
     
         navigate(`/add-recipe`, { state: { recipe: recipeWithId } });
@@ -139,6 +135,7 @@ const RecipeDetails = () => {
     
     return (
         <div className="recipe-details-page">
+
             {/* Recipe Image */}
             <div className="recipe-headerzz">
                 <img 
@@ -177,6 +174,7 @@ const RecipeDetails = () => {
                     </>
                 )}
 
+                {/* Portion Control */}
                 <div className="portion-control">
                     <div className="portion-header">
                     <strong>Portions:</strong>
@@ -228,7 +226,7 @@ const RecipeDetails = () => {
                     })}
                 </ul>
 
-                            {/* Unit Switches */}
+            {/* Unit Switches */}
             {(hasSolidIngredients || hasLiquidIngredients) && (
             <div className="unit-switches-container">
                 {hasSolidIngredients && (
@@ -251,7 +249,7 @@ const RecipeDetails = () => {
                 <div className="unit-group">
                     <div className="unit-title">Liquids</div>
                     <div className="unit-btns-container">
-                        {['ml', 'L', 'oz', 'pt'].map((unit) => (
+                        {['ml', 'L', 'fl oz', 'pt'].map((unit) => (
                             <button
                                 key={unit}
                                 onClick={() => setLiquidUnit(unit)}
@@ -267,10 +265,10 @@ const RecipeDetails = () => {
 
                 <h3>Steps</h3>
                 <ol className="steps-list">
-                    {recipe.steps ? (  // 🛠️ Safe Check
+                    {recipe.steps ? ( 
                         recipe.steps.map((step, index) => <li key={index}>{step}</li>)
                     ) : (
-                        <p>No steps available.</p>  // 🛠️ Debugging Message
+                        <p>No steps available.</p> 
                     )}
                 </ol>
 

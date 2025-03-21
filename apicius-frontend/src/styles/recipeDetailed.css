@@ -94,7 +94,7 @@ h3 {
     border-right: none;
 }
 
-/* Custom horizontal line thickness */
+/* Horizontal line thickness */
 .nutrition-table tbody tr {
     border-bottom: 2px solid #ccc;
 }
@@ -131,7 +131,7 @@ h3 {
 .nutrition-table tbody tr:nth-child(11) td,
 .nutrition-table tbody tr:nth-child(11) td { 
     font-weight: bold;
-    font-size: 1rem; /* Adjust size */
+    font-size: 1rem;
 }
 
 /* Increased border */
@@ -162,10 +162,10 @@ h3 {
     width: 7%;
 }
 
-/* Hover effect specifically for % DV columns */
+/* Hover effect */
 .nutrition-table tbody tr:hover td:nth-child(3),
 .nutrition-table tbody tr:hover td:nth-child(5) {
-    background-color: #ffffff; /* Lighter background for hover */
+    background-color: #ffffff; 
 }
 
 
@@ -174,14 +174,14 @@ h3 {
 .nutrition-table th:nth-child(5) {
     font-size: 0.7rem !important;
     padding: 0;
-    color: #555 !important; /* Darker shade for emphasis */
+    color: #555 !important;
     text-align: center;
 }
 
 .nutrition-table td:nth-child(3),
 .nutrition-table td:nth-child(5) {
-    font-size: 1rem !important; /* Content font size for % DV columns */
-    color: #bf8753; /* Subtle gray for content */
+    font-size: 1rem !important; 
+    color: #bf8753;
     text-align: right;
 }
 
@@ -220,7 +220,7 @@ h3 {
     background-color: #e68900;
 }
 
-/* Unit Switches Container */
+/* ______________________Unit Switches Container______________________ */
 .unit-switches-container {
     display: flex;
     gap: 10rem;
@@ -276,7 +276,7 @@ h3 {
     background: #0069d9;
 }
 
-/* Portion Control */
+/* ______________________Portion Control______________________ */
 .portion-control {
     margin: 1rem 0;
     padding: 0.5rem;
@@ -371,4 +371,10 @@ h3 {
 
 .cancel-btn:hover {
     background: #da190b;
+}
+
+.portion-input::-webkit-outer-spin-button,
+.portion-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
