@@ -1,0 +1,232 @@
+.ingredients-container {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 60px);
+  }
+  
+  .ingredients-nav {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    border-bottom: 0px solid #e0e0e0;
+    background: transparent;
+  }
+  
+  .ingredients-nav a {
+    padding: 12px 16px;
+    text-decoration: none;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    margin: 0 4px;
+    transition: all 0.2s;
+  }
+  
+  .ingredients-nav a:hover {
+    border-bottom-color: #adb5bd;
+    background: #f5f5f5;
+  }
+  
+  .ingredients-nav a.active {
+    border-bottom-color: #007bff;
+    color: #007bff;
+    font-weight: 800;
+  }
+  
+  .ingredients-content {
+    flex: 1;
+    padding: 25px;
+    overflow: auto;
+  }
+  
+  /* -----------------All Ingredients----------------- */
+  .all-ingredients-container {
+    padding: 20px;
+    overflow-x: auto;
+  }
+  
+  .table-wrapper {
+    overflow-x: auto;
+    max-width: 100%;
+    margin: 20px 0;
+  }
+  
+  .ingredients-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1200px;
+  }
+  
+  .ingredients-table th,
+  .ingredients-table td {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    text-align: left;
+    min-width: 120px;
+  }
+  
+  .ingredients-table th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+  }
+  
+  .ingredients-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+  
+  .ingredients-table input {
+    width: 100%;
+    padding: 4px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .ingredients-table button {
+    margin: 2px;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .ingredients-table button:hover {
+    opacity: 0.8;
+  }
+
+.ingredients-table th:first-child,
+.ingredients-table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: white;
+  box-shadow: 2px 0 3px -1px rgba(0,0,0,0.1);
+}
+
+.ingredients-table th:nth-child(2),
+.ingredients-table td:nth-child(2) {
+  position: sticky;
+  left: 9rem; /* Adjust based on first column width */
+  z-index: 1;
+  background: white;
+  box-shadow: 2px 0 3px -1px rgba(0,0,0,0.1);
+}
+
+.ingredients-table th:first-child {
+  left: 0;
+  z-index: 1;
+}
+
+.ingredients-table td:first-child {
+  z-index: 1;
+}
+
+/* -----------------Add Ingredients----------------- */
+.add-ingredient-container {
+    padding: 2rem;
+    max-width: 100%;
+    margin: 0 auto;
+  }
+  
+  .add-ingredient-container table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  
+  .add-ingredient-container td {
+    padding: 0.8rem;
+    border: 1px solid #eee;
+  }
+  
+  .add-ingredient-container td:first-child {
+    width: 30%;
+    font-weight: 500;
+    color: #444;
+    background: #fafafa;
+  }
+  
+  .add-ingredient-container input {
+    width: 96%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+  
+  .add-ingredient-container button {
+    padding: 0.75rem 1.5rem;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  
+  .add-ingredient-container button:hover {
+    background: #0056b3;
+  }
+
+  .add-ingredient-container input[type="text"],
+  .add-ingredient-container input[type="number"] {
+  width: 95.5%;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+  /* -----------------Error----------------- */
+  .error-message {
+    color: #dc3545;
+    padding: 1rem;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    margin: 1rem;
+  }
+  
+/* -----------------Buttons----------------- */
+  button {
+    margin: 0 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+  
+  .edit-btn {
+    background: #ffc107;
+    border: 1px solid #d39e00;
+  }
+  
+  .delete-btn {
+    background: #dc3545;
+    color: white;
+    border: 1px solid #bd2130;
+  }
+  
+  .save-btn {
+    background: #28a745;
+    color: white;
+    border: 1px solid #218838;
+  }
+  
+  .cancel-btn {
+    background: #6c757d;
+    color: white;
+    border: 1px solid #5a6268;
+  }
+  
+  button:hover {
+    filter: brightness(90%);
+  }
+  
+  input {
+    padding: 4px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 90%;
+  }
+  
+  input[type='number'] {
+    width: 80px;
+  }

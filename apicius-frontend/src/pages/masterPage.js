@@ -7,7 +7,7 @@ import "../App.css";
 
 const MasterPage = ({ children }) => {
     const navigate = useNavigate();
-    const [username, setUsername] = useState("User"); // Default to "User"
+    const [username, setUsername] = useState("User");
 
     useEffect(() => {
         let refreshInterval = null;
@@ -26,10 +26,10 @@ const MasterPage = ({ children }) => {
                 } catch (error) {
                     console.error('Token refresh failed:', error);
                     if (error.response?.status === 401) {
-                        navigate('/login'); // Redirect on failure
+                        navigate('/login');
                     }
                 }
-            }, 10 * 60 * 1000); // Refresh every 10 minutes
+            }, 10 * 60 * 1000);
         };
 
         const fetchInitialData = async () => {
@@ -47,20 +47,20 @@ const MasterPage = ({ children }) => {
             }
         };
 
-        fetchInitialData(); // Fetch initial token and data
-        scheduleTokenRefresh(); // Start refresh interval
+        fetchInitialData(); 
+        scheduleTokenRefresh();
 
         return () => {
-            if (refreshInterval) clearInterval(refreshInterval); // Clean up interval
+            if (refreshInterval) clearInterval(refreshInterval);
         };
     }, [navigate]);
 
     const handleLogout = async () => {
         try {
             const refreshToken = localStorage.getItem('refreshToken');
-            await apiClient.post('/users/logout', { refreshToken }); // Send refreshToken in the request body
-            clearInterval(window.refreshInterval); // Clear any active intervals
-            window.localStorage.clear(); // Clear storage
+            await apiClient.post('/users/logout', { refreshToken });
+            clearInterval(window.refreshInterval);
+            window.localStorage.clear();
             window.location.href = '/login';
         } catch (error) {
             console.error('Error logging out:', error);

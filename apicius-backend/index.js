@@ -19,15 +19,15 @@ const countryRoutes = require('./routes/countryRoutes');
 
 // Middleware setup
 app.use(cors({
-    origin: 'http://localhost:3000', // Replace with your frontend URL
-    credentials: true, // Enable cookies and other credentials
+    origin: 'http://localhost:3000',  
+    credentials: true,  
     methods: 'GET,POST,PUT,DELETE',
     allowedHeaders: 'Authorization, Content-Type'
 }));
 
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true })); // Parse URL-encoded payload
-app.use(express.json()); // Parses JSON request bodies
+app.use(bodyParser.urlencoded({ extended: true })); 
+app.use(express.json()); 
 
 app.use((req, res, next) => {
     console.log(`Incoming request: ${req.method} ${req.url}`);

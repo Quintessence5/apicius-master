@@ -20,7 +20,7 @@ const Register = () => {
             const response = await axios.post(
                 'http://localhost:5010/api/users/register', 
                 { email, password },
-                { withCredentials: true } // Include cookies in the request
+                { withCredentials: true } 
             );
     
             const { userId, accessToken, refreshToken } = response.data;

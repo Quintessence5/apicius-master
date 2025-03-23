@@ -31,8 +31,8 @@ const AddRecipe = () => {
     const cuisineTypes = ['Italian', 'Chinese', 'Indian', 'Mexican', 'French', 'Others'];
     const difficulty = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard' ];
     const [error, setError] = useState("");
-    const [editingIngredientIndex, setEditingIngredientIndex] = useState(null); // For ingredients
-    const [editingStepIndex, setEditingStepIndex] = useState(null); // For steps
+    const [editingIngredientIndex, setEditingIngredientIndex] = useState(null);
+    const [editingStepIndex, setEditingStepIndex] = useState(null);
     const [selectedImage, setSelectedImage] = useState(null);
     const [previewUrl, setPreviewUrl] = useState('');
     const [currentStep, setCurrentStep] = useState("");
@@ -45,9 +45,9 @@ const AddRecipe = () => {
     
       imageInput.addEventListener("change", () => {
         if (imageInput.files && imageInput.files.length > 0) {
-          label.style.display = "none"; // Hide the label
+          label.style.display = "none"; 
         } else {
-          label.style.display = "block"; // Show the label if no file is selected
+          label.style.display = "block";
         }
       });
     });    
@@ -77,8 +77,8 @@ const AddRecipe = () => {
         // Ensure ingredients are set correctly
         if (editingRecipe.ingredients) {
           const formattedIngredients = editingRecipe.ingredients.map((ing) => ({
-            ingredientId: ing.ingredient_id || "", // Ensure this matches the backend response
-            ingredientName: ing.ingredient_name || "", // Map ingredient_name to ingredientName
+            ingredientId: ing.ingredient_id || "", 
+            ingredientName: ing.ingredient_name || "",
             quantity: ing.quantity || "",
             unit: ing.unit || "",
             form: ing.form || "",
@@ -105,7 +105,7 @@ const AddRecipe = () => {
           type === "checkbox"
               ? checked
               : ["prep_time", "cook_time", "portions"].includes(name)
-              ? value === "" ? null : parseInt(value) // Convert to integer or set to null
+              ? value === "" ? null : parseInt(value)
               : value;
   
       setRecipe((prev) => ({
@@ -122,13 +122,12 @@ const AddRecipe = () => {
     const newIngredients = [...ingredients];
     newIngredients[index].ingredientId = selectedOption.value;
     newIngredients[index].ingredientName = selectedOption.label;
-    newIngredients[index].form = selectedOption.form || "unknown"; // Ensure form is set
+    newIngredients[index].form = selectedOption.form || "unknown";
     setIngredients(newIngredients);
   };
     
 const fetchIngredients = async (inputValue) => {
   if (!inputValue || inputValue.trim().length < 2) {
-    // If no input value, return the existing ingredient (if any)
     return ingredients
       .filter((ing) => ing.ingredientId && ing.ingredientName)
       .map((ing) => ({
@@ -140,11 +139,11 @@ const fetchIngredients = async (inputValue) => {
 
   try {
     const response = await axios.get(`/api/ingredients/suggestions?search=${inputValue.trim()}`);
-    console.log("Fetched ingredients:", response.data); // Debug API response
+    console.log("Fetched ingredients:", response.data); 
     return response.data.map((ingredient) => ({
       value: ingredient.id,
       label: ingredient.name,
-      form: ingredient.form || "unknown", // Include form; default to "unknown" if missing
+      form: ingredient.form || "unknown",
     }));
   } catch (error) {
     console.error("Error fetching ingredient suggestions:", error);
@@ -155,7 +154,7 @@ const fetchIngredients = async (inputValue) => {
       const addIngredient = () => {
         if (isValidIngredient(ingredients[ingredients.length - 1])) {
           const updatedIngredients = [...ingredients];
-          updatedIngredients[updatedIngredients.length - 1].locked = true; // Lock the last one
+          updatedIngredients[updatedIngredients.length - 1].locked = true;
           setIngredients([
             ...updatedIngredients,
             { ingredientId: "", quantity: "", unit: "", form: "", locked: false },
@@ -170,9 +169,9 @@ const fetchIngredients = async (inputValue) => {
         !ingredient.locked;
     
         const handleEdit = (index) => {
-          setEditingIngredientIndex(index); // Set the current editing index for ingredients
+          setEditingIngredientIndex(index); 
           const updatedIngredients = [...ingredients];
-          updatedIngredients[index].locked = false; // Unlock the ingredient for editing
+          updatedIngredients[index].locked = false;
           setIngredients(updatedIngredients);
         };      
     
@@ -190,7 +189,7 @@ const fetchIngredients = async (inputValue) => {
         const updatedIngredients = [...ingredients];
         updatedIngredients[index].locked = true;
         setIngredients(updatedIngredients);
-        setEditingIngredientIndex(null); // Clear the editing index for ingredients
+        setEditingIngredientIndex(null); 
       };
 
         //Unit Handler
@@ -202,8 +201,8 @@ const fetchIngredients = async (inputValue) => {
          };
 
          const getFilteredUnits = (form) => {
-          console.log("Filtering units for form:", form); // Log the form being used
-          if (!form) return availableUnits; // Return all units if form is undefined
+          console.log("Filtering units for form:", form);
+          if (!form) return availableUnits;
           if (form === "solid") {
             return availableUnits.filter((unit) => unit.type === "weight" || unit.type === "quantity");
           }
@@ -215,21 +214,21 @@ const fetchIngredients = async (inputValue) => {
 
   const handleAddStep = (e) => {
     if (e.key === 'Enter' && currentStep.trim()) {
-        e.preventDefault(); // Prevent default behavior of Enter
+        e.preventDefault(); 
         setRecipe((prev) => ({
             ...prev,
-            steps: [...(prev.steps || []), currentStep.trim()], // Ensure steps is an array
+            steps: [...(prev.steps || []), currentStep.trim()],
         }));
-        setCurrentStep(""); // Clear the input
+        setCurrentStep(""); 
     }
 };
 
 const handleEditStepStart = (index) => {
-  setEditingStepIndex(index); // Set the current editing index for steps
+  setEditingStepIndex(index);
 };
 
 const handleSaveEditStep = (index) => {
-  setEditingStepIndex(null); // Clear the editing index for steps
+  setEditingStepIndex(null);
 };
 
 const handleEditStep = (index, newValue) => {
@@ -243,7 +242,7 @@ const handleEditStep = (index, newValue) => {
 const handleDeleteStep = (index) => {
   setRecipe((prev) => ({
       ...prev,
-      steps: prev.steps.filter((_, i) => i !== index) // Remove step
+      steps: prev.steps.filter((_, i) => i !== index)
   }));
 };
 
@@ -281,7 +280,7 @@ const handleDeleteStep = (index) => {
               (ing) => ing.locked && (ing.ingredientId || ing.name) // Only include locked and valid ingredients
           );
   
-          // 🔹 Append ingredients (ensuring proper structure)
+          // 🔹 Append ingredients
           if (validIngredients.length > 0) {
             ingredients.forEach((ingredient, index) => {
                 if (ingredient.ingredientId || ingredient.name) {
@@ -363,7 +362,7 @@ const handleDeleteStep = (index) => {
             setDeletedIngredients([]);
             setError("");
 
-            // Navigate back to the recipe list
+            // Navigate back
             navigate("/all-recipes");
         } catch (error) {
             console.error("❌ Error deleting recipe:", error);
@@ -407,6 +406,7 @@ const handleImageUpload = async () => {
     return (
             <div className="add-recipe-container">
                 {error && <div className="error-message">{error}</div>}
+
                 {/* Save and Delete Buttons */}
             <div className="action-buttons">
                 <button className="save-button" onClick={handleSave}>
@@ -605,7 +605,7 @@ const handleImageUpload = async () => {
     <textarea
         placeholder="Type a step and press Enter"
         value={currentStep}
-        onChange={(e) => setCurrentStep(e.target.value)} // Track input
+        onChange={(e) => setCurrentStep(e.target.value)}
         onKeyDown={handleAddStep}
         className="steps-textarea"
     ></textarea>

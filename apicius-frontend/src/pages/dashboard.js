@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // Use useNavigate instead of useLocation
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 
 const Dashboard = () => {
     const [user, setUser] = useState(null);
-    const navigate = useNavigate(); // Use navigate for redirection if needed
+    const navigate = useNavigate();
 
     // Fetch user profile data
     useEffect(() => {
         const fetchUserProfile = async () => {
             try {
                 const response = await apiClient.get('/users/profile');
-                console.log('Fetched user profile:', response.data); // Debugging
+                console.log('Fetched user profile:', response.data);
                 setUser(response.data);
             } catch (error) {
                 console.error('Error fetching user profile:', error);
-                navigate('/login'); // Redirect to login if there's an error
+                navigate('/login');
             }
         };
         const checkProfileCompletion = async () => {

@@ -65,6 +65,12 @@ const HamburgerMenu = ({ username, handleLogout }) => {
                                     Preferences
                                 </Link>
                             </li>
+                       
+                            <li>
+                            <Link to="/ingredients" onClick={toggleMenu}>
+                                    Ingredients
+                                </Link>
+                            </li>
                             <li>
                                 <button
                                     className="menu-logout"

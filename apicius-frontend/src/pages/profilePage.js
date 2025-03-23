@@ -79,7 +79,7 @@ const ProfilePage = () => {
   // Tags from DB
   const fetchUserPreferences = async () => {
     try {
-      const { data } = await apiClient.get("/users/preferences"); // Destructure `data` directly
+      const { data } = await apiClient.get("/users/preferences");
   
       // Initialize selectedTags from database
       setSelectedTags({
@@ -103,8 +103,8 @@ const ProfilePage = () => {
 
         // Toggle the tag in the category
         const updatedCategoryTags = isTagSelected
-            ? currentTags.filter((t) => t !== tag) // Remove if already selected
-            : [...currentTags, tag]; // Add if not selected
+            ? currentTags.filter((t) => t !== tag)
+            : [...currentTags, tag];
 
         return { ...prev, [category]: updatedCategoryTags };
     });
@@ -117,7 +117,7 @@ const ProfilePage = () => {
     if (modalType === "profile" || modalType === "preferences" || modalType === "security") {
       setFormData((prevFormData) => ({
         ...prevFormData,
-        ...userProfile, // Ensure userProfile fields, including user_id, are transferred
+        ...userProfile,
       }));
     }
   };
@@ -211,7 +211,7 @@ const ProfilePage = () => {
       if (formData.phone_code && formData.phone_number) {
         // Extract only the numeric phone code part, excluding the country name
         const extractedPhoneCode = formData.phone_code.match(/\+\d+/)?.[0] || "";
-        updatedData.phone = `${extractedPhoneCode}${formData.phone_number}`.trim(); // Combine properly
+        updatedData.phone = `${extractedPhoneCode}${formData.phone_number}`.trim();
       }
   
       // Check if user_id exists before proceeding
@@ -239,20 +239,20 @@ const ProfilePage = () => {
     try {
       // Ensure user_id is included in the payload
       const payload = {
-        user_id: userProfile.user_id, // Ensure user ID is taken from the userProfile
+        user_id: userProfile.user_id,
         allergy: selectedTags.allergy || [],
         intolerance: selectedTags.intolerance || [],
         diets: selectedTags.diets || [],
       };
   
-      console.log("Save Preferences Payload:", payload); // Debug the payload before sending
+      console.log("Save Preferences Payload:", payload);
   
       await apiClient.post("/users/preferences", payload, {
         withCredentials: true,
       });
   
       showNotification("Preferences saved successfully");
-      closeModal(); // Close the modal on success
+      closeModal();
     } catch (error) {
       console.error("Error saving preferences:", error);
       showNotification("Failed to save preferences.");

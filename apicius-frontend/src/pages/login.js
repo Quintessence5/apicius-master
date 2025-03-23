@@ -9,7 +9,7 @@ import googleLogo from '../assets/images/google-icon.png';
 import '../styles/loginSignup.css';
 import '../App.css';
 
-function Login({ setUser }) { // Add setUser as a prop
+function Login({ setUser }) { 
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -35,7 +35,7 @@ function Login({ setUser }) { // Add setUser as a prop
             setUser({ userId, accessToken });
 
             setMessage('Login successful! Redirecting...');
-            navigate('/dashboard'); // Redirect to the dashboard
+            navigate('/dashboard');
         } catch (error) {
             console.error('Login failed:', error);
             setMessage('Login failed. Please check your credentials.');
