@@ -230,3 +230,118 @@
   input[type='number'] {
     width: 80px;
   }
+
+/* -----------------Upload----------------- */
+.excel-upload-section {
+    margin-top: -1.5rem;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+  }
+  
+  .upload-controls {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    margin: 1.9rem 0;
+  }
+  
+  .upload-controls form {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-grow: 1;
+  }
+  
+  .excel-upload-section h3{
+    margin-top: 0.1rem;
+    font-size: 1.8rem;
+    color: #777;
+  }
+  .excel-upload-section .download-btn {
+    background-color: #969b97 !important;
+    color: #ffffff !important;
+    border: 0px solid #368748 !important;
+    padding: 10px 20px !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+  }
+  
+  .excel-upload-section .download-btn:hover {
+    background-color: #368748 !important;
+    border-color: #ffffff !important;
+    color: white;
+    transform: translateY(-1px) !important;
+  }
+  
+  .excel-upload-section form .upload-btn {
+    background-color: #2566ab !important;
+    color: #ffffff !important;
+    border: 2px solid #7a9cbe !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    font-size: 0.7rem;
+    transition: all 0.3s ease !important;
+  }
+  
+  .excel-upload-section form .upload-btn:hover {
+    background-color: #6699cb !important;
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+    transform: translateY(-1px) !important;
+  }  
+  
+  input[type="file"] {
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: white;
+    flex-grow: 1;
+  }
+  
+  /* Upload Status */
+  .upload-status {
+    padding: 1rem;
+    margin-top: 1.5rem;
+    border-radius: 6px;
+    font-size: 0.95rem;
+  }
+  
+  .upload-status.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+  }
+  
+  .upload-status.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+  }
+  
+  .validation-errors {
+    margin-top: 1rem;
+  }
+  
+  .validation-errors h4 {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+  
+  .validation-errors ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+  }
+  
+  .validation-errors li {
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.25rem;
+    border-radius: 3px;
+  }

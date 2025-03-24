@@ -7,19 +7,20 @@ const router = express.Router();
 const upload = require('../config/multer');
 
 // Route to get ingredients
-router.get('/suggestions', getIngredientSuggestions);
+router.get('/template', ingredientController.generateTemplate);
+
 router.get('/all', ingredientController.getAllIngredients);
 router.get('/:id', ingredientController.getIngredientById);
 router.post('/', ingredientController.createIngredient);
 router.put('/:id', ingredientController.updateIngredient);
 router.delete('/:id', ingredientController.deleteIngredient);
+router.get('/suggestions', getIngredientSuggestions);
+router.post('/upload', upload.single('file'), ingredientController.uploadIngredients);
+
 
 router.get('/submissions', ingredientController.getSubmissions);
 router.post('/submissions/:id/approve', ingredientController.approveSubmission);
 router.get('/prices', ingredientController.getPrices);
 router.put('/prices/:id', ingredientController.updatePrice);
-router.post('/upload', upload.single('file'), ingredientController.uploadIngredients);
-router.get('/template', ingredientController.generateTemplate);
-router.get('/', ingredientController.getAllIngredients);
 
 module.exports = router;

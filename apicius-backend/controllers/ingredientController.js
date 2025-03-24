@@ -15,6 +15,9 @@ exports.getAllIngredients = async (req, res) => {
 exports.getIngredientById = async (req, res) => {
     try {
       const { id } = req.params;
+      if (!/^\d+$/.test(id)) {
+        return res.status(400).json({ message: 'Invalid ingredient ID format' });
+      }
       const result = await pool.query('SELECT * FROM ingredients WHERE id = $1', [id]);
       
       if (result.rows.length === 0) {
@@ -138,54 +141,6 @@ exports.getSubmissions = async (req, res) => {
     }
   };
   
-  // Handle Excel upload
-  exports.uploadIngredients = async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-  
-    try {
-      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const data = xlsx.utils.sheet_to_json(sheet);
-  
-      // Validate and insert data
-      for (const row of data) {
-        await pool.query(
-          `INSERT INTO ingredients(
-            name, category, calories_per_100g, protein, lipids, carbohydrates
-          ) VALUES ($1, $2, $3, $4, $5, $6)`,
-          [row.name, row.category, row.calories, row.protein, row.lipids, row.carbs]
-        );
-      }
-  
-      res.status(200).json({ message: `${data.length} ingredients added` });
-    } catch (error) {
-      console.error('Excel upload error:', error);
-      res.status(500).json({ message: 'Failed to process file' });
-    }
-  };
-  
-  // Generate Excel template
-  exports.generateTemplate = (req, res) => {
-    const headers = ['name', 'category', 'calories', 'protein', 'lipids', 'carbs'];
-    const workbook = xlsx.utils.book_new();
-    const worksheet = xlsx.utils.aoa_to_sheet([headers]);
-    xlsx.utils.book_append_sheet(workbook, worksheet, 'Template');
-    
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    );
-    res.setHeader(
-      'Content-Disposition',
-      'attachment; filename=ingredient_template.xlsx'
-    );
-    return xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' }).then((data) => {
-      res.send(data);
-    });
-  };
-  
   // Price endpoints
   exports.getPrices = async (req, res) => {
     try {
@@ -216,3 +171,150 @@ exports.getSubmissions = async (req, res) => {
       res.status(500).json({ message: 'Update failed' });
     }
   };
+
+  const XLSX = require('xlsx');
+
+// Generate Excel template
+exports.generateTemplate = (req, res) => {
+  try {
+    const headers = [
+      'Name*',
+      'Average Weight (g)*',
+      'Category*',
+      'Calories per 100g*',
+      'Protein (g)',
+      'Lipids (g)',
+      'Carbohydrates (g)',
+      'Allergies',
+      'Dietary Restrictions',
+      'Form',
+      'Saturated Fat (g)',
+      'Trans Fat (g)',
+      'Cholesterol (g)',
+      'Sodium (g)',
+      'Fibers (g)',
+      'Sugars (g)',
+      'Added Sugars (g)',
+      'Intolerance'
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=ingredient_template.xlsx');
+    
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.end(buffer);
+    
+  } catch (error) {
+    console.error('Template generation error:', error);
+    res.status(500).json({ message: 'Failed to generate template' });
+  }
+};
+
+// Handle Excel upload
+exports.uploadIngredients = async (req, res) => {
+  try {
+    if (!req.file) throw new Error('No file uploaded');
+    
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    // Validate data
+    const errors = [];
+    const names = new Set();
+    
+    const validData = data.map((row, index) => {
+      // Required fields check
+      if (!row['Name*'] || !row['Average Weight (g)*'] || !row['Category*'] || !row['Calories per 100g*']) {
+        errors.push(`Row ${index + 2}: Missing required fields`);
+        return null;
+      }
+
+      // Unique name check
+      if (names.has(row['Name*'])) {
+        errors.push(`Row ${index + 2}: Duplicate ingredient name`);
+        return null;
+      }
+      names.add(row['Name*']);
+
+      return {
+        name: row['Name*'],
+        average_weight: row['Average Weight (g)*'],
+        category: row['Category*'],
+        calories_per_100g: row['Calories per 100g*'],
+        protein: row['Protein (g)'] || null,
+        lipids: row['Lipids (g)'] || null,
+        carbohydrates: row['Carbohydrates (g)'] || null,
+        allergies: row['Allergies'] || null,
+        dietary_restrictions: row['Dietary Restrictions'] || null,
+        form: row['Form'] || null,
+        saturated_fat: row['Saturated Fat (g)'] || null,
+        trans_fat: row['Trans Fat (g)'] || null,
+        cholesterol: row['Cholesterol (mg)'] || null,
+        sodium: row['Sodium (g)'] || null,
+        fibers: row['Fibers (g)'] || null,
+        sugars: row['Sugars (g)'] || null,
+        added_sugars: row['Added Sugars (g)'] || null,
+        intolerance: row['Intolerance'] || null
+      };
+    }).filter(Boolean);
+
+    if (errors.length > 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Validation errors',
+        errors
+      });
+    }
+
+    // Insert into database
+    const inserted = [];
+    for (const ingredient of validData) {
+      try {
+        const result = await pool.query(
+          `INSERT INTO ingredients (
+            ${Object.keys(ingredient).join(', ')}
+          ) VALUES (
+            ${Object.keys(ingredient).map((_, i) => `$${i + 1}`).join(', ')}
+          ) RETURNING *`,
+          Object.values(ingredient)
+        );
+        inserted.push(result.rows[0]);
+      } catch (error) {
+        errors.push(`Error inserting ${ingredient.name}: ${error.message}`);
+      }
+    }
+    console.log('Processing Excel file...');
+    
+    // Add this to see parsed data
+    console.log('Valid data:', validData);
+    
+    // Add this before database insertion
+    console.log('Inserting ingredients...');
+    
+    if (errors.length > 0) {
+      return res.status(207).json({ // 207 Multi-Status
+        success: true,
+        message: 'Partial success',
+        inserted: inserted.length,
+        errors
+      });
+    }
+
+    res.json({ 
+      success: true,
+      message: `${inserted.length} ingredients added successfully`,
+      inserted
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};

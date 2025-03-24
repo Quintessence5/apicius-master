@@ -22,7 +22,8 @@ app.use(cors({
     origin: 'http://localhost:3000',  
     credentials: true,  
     methods: 'GET,POST,PUT,DELETE',
-    allowedHeaders: 'Authorization, Content-Type'
+    allowedHeaders: 'Authorization, Content-Type',
+    exposedHeaders: ['Content-Disposition']
 }));
 
 app.use(bodyParser.json());
