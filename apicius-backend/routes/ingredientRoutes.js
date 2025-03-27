@@ -10,17 +10,16 @@ const upload = require('../config/multer');
 router.get('/template', ingredientController.generateTemplate);
 
 router.get('/all', ingredientController.getAllIngredients);
-router.get('/:id', ingredientController.getIngredientById);
 router.post('/', ingredientController.createIngredient);
-router.put('/:id', ingredientController.updateIngredient);
-router.delete('/:id', ingredientController.deleteIngredient);
+router.get('/prices', ingredientController.getPrices);
 router.get('/suggestions', getIngredientSuggestions);
+router.get('/submissions', ingredientController.getSubmissions);
 router.post('/upload', upload.single('file'), ingredientController.uploadIngredients);
 
-
-router.get('/submissions', ingredientController.getSubmissions);
+router.put('/:id', ingredientController.updateIngredient);
 router.post('/submissions/:id/approve', ingredientController.approveSubmission);
-router.get('/prices', ingredientController.getPrices);
-router.put('/prices/:id', ingredientController.updatePrice);
+router.get('/:id', ingredientController.getIngredientById);
+router.put('/prices/:ingredient_id', ingredientController.updatePrice);
+router.delete('/:id', ingredientController.deleteIngredient);
 
 module.exports = router;

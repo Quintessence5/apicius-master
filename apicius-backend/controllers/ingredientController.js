@@ -144,35 +144,73 @@ exports.getSubmissions = async (req, res) => {
   // Price endpoints
   exports.getPrices = async (req, res) => {
     try {
+      console.log('Executing price query...');
       const result = await pool.query(`
-        SELECT p.*, i.name as ingredient_name 
-        FROM ingredient_prices p
-        JOIN ingredients i ON p.ingredient_id = i.id
+        SELECT 
+          i.id,
+          i.name,
+          i.category,
+          COALESCE(p.price_fr, NULL) AS price_fr,
+          COALESCE(p.price_uk, NULL) AS price_uk,
+          COALESCE(p.price_us, NULL) AS price_us
+        FROM ingredients i
+        LEFT JOIN ingredient_prices p ON i.id = p.ingredient_id
+        ORDER BY i.name
       `);
+      
+      console.log('Query results:', result.rows);
+      
+      if (result.rows.length === 0) {
+        return res.status(200).json([]);
+      }
+  
       res.status(200).json(result.rows);
     } catch (error) {
-      console.error('Error fetching prices:', error);
-      res.status(500).json({ message: 'Failed to get prices' });
+      console.error('Price fetch error:', {
+        message: error.message,
+        stack: error.stack,
+        query: error.query
+      });
+      res.status(500).json({ 
+        message: 'Failed to get prices',
+        error: error.message
+      });
     }
   };
   
   exports.updatePrice = async (req, res) => {
-    const { id } = req.params;
+    const { ingredient_id } = req.params;
+    const { price_fr, price_uk, price_us } = req.body;
+  
     try {
-      const result = await pool.query(
-        `UPDATE ingredient_prices
-         SET price_fr = $1, price_uk = $2, price_us = $3
-         WHERE id = $4 RETURNING *`,
-        [req.body.price_fr, req.body.price_uk, req.body.price_us, id]
-      );
+      const result = await pool.query(`
+        INSERT INTO ingredient_prices (ingredient_id, price_fr, price_uk, price_us)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (ingredient_id) DO UPDATE SET
+          price_fr = COALESCE(EXCLUDED.price_fr, ingredient_prices.price_fr),
+          price_uk = COALESCE(EXCLUDED.price_uk, ingredient_prices.price_uk),
+          price_us = COALESCE(EXCLUDED.price_us, ingredient_prices.price_us)
+        RETURNING *
+      `, [
+        ingredient_id,
+        price_fr || null,
+        price_uk || null,
+        price_us || null
+      ]);
+  
       res.status(200).json(result.rows[0]);
     } catch (error) {
-      console.error('Error updating price:', error);
-      res.status(500).json({ message: 'Update failed' });
+      console.error('Error updating price:', {
+        error: error.message,
+        query: error.query,
+        parameters: error.parameters
+      });
+      res.status(500).json({ 
+        message: 'Price update failed',
+        detail: error.message
+      });
     }
   };
-
-  const XLSX = require('xlsx');
 
 // Generate Excel template
 exports.generateTemplate = (req, res) => {
@@ -318,3 +356,4 @@ exports.uploadIngredients = async (req, res) => {
     });
   }
 };
+

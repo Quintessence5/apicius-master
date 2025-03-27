@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
-import apiClient from "../services/apiClient"; // Remove setAccessToken import
+import apiClient from "../services/apiClient";
 import HamburgerMenu from "../components/hamburgerMenu";
 import logo from "../assets/images/apicius-icon.png";
 import "../App.css";
 
 const MasterPage = ({ children }) => {
     const navigate = useNavigate();
-    const [username, setUsername] = useState("User");
+    const [user, setUser] = useState({ username: "User", role: "user" });
 
     useEffect(() => {
         let refreshInterval = null;
@@ -37,7 +37,9 @@ const MasterPage = ({ children }) => {
                 console.log("Fetching profile...");
                 const userResponse = await apiClient.get("/users/profile");
                 console.log("Profile response:", userResponse.data);
-                setUsername(userResponse.data.username || "User");
+                setUser({
+                    username: userResponse.data.username || "User",
+                    role: userResponse.data.role || "user"});
             } catch (error) {
                 console.error("Failed to fetch initial data:", error);
                 if (error.response?.status === 401) {
@@ -76,7 +78,7 @@ const MasterPage = ({ children }) => {
                     <div className="app-title">Apicius</div>
                 </div>
                 {/* Hamburger Menu */}
-                <HamburgerMenu username={username} handleLogout={handleLogout} />
+                <HamburgerMenu user={user} handleLogout={handleLogout} />
             </header>
 
             {/* Main Content Area */}

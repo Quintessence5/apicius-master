@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/hamburgerMenu.css';
 
-const HamburgerMenu = ({ username, handleLogout }) => {
+const HamburgerMenu = ({ user, handleLogout }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const menuRef = useRef(null); // Reference for the menu
+    const menuRef = useRef(null);
 
     const toggleMenu = () => {
         setIsOpen(!isOpen);
@@ -32,7 +32,7 @@ const HamburgerMenu = ({ username, handleLogout }) => {
         <div className="hamburger-container">
             {/* Trigger Button */}
             <button className="header-btn" onClick={toggleMenu}>
-            {username} {/* Display the username */}
+                {user?.username || "User"}
             </button>
 
             {/* Menu */}
@@ -65,12 +65,14 @@ const HamburgerMenu = ({ username, handleLogout }) => {
                                     Preferences
                                 </Link>
                             </li>
-                       
-                            <li>
-                            <Link to="/ingredients" onClick={toggleMenu}>
-                                    Ingredients
-                                </Link>
-                            </li>
+                            {/* Admin-only Ingredients Link */}
+                            {user?.role === 'admin' && (
+                                <li>
+                                    <Link to="/ingredients" onClick={toggleMenu}>
+                                        Ingredients
+                                    </Link>
+                                </li>
+                            )}
                             <li>
                                 <button
                                     className="menu-logout"

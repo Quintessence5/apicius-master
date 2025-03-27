@@ -1,0 +1,57 @@
+/* Seasonality Page */
+.seasonality-container {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 60px);
+  }
+  
+  .seasonality-nav {
+    display: flex;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    border-bottom: 0px solid #e0e0e0;
+    background: transparent;
+  }
+  
+  .seasonality-nav a {
+    padding: 12px 16px;
+    text-decoration: none;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    margin: 0 4px;
+    transition: all 0.2s;
+  }
+  
+  .seasonality-nav a:hover {
+    border-bottom-color: #adb5bd;
+    background: #f5f5f5;
+  }
+  
+  .seasonality-nav a.active {
+    border-bottom-color: #007bff;
+    color: #007bff;
+    font-weight: 800;
+  }
+  
+  .seasonality-content {
+    flex: 1;
+    padding: 25px;
+    overflow: auto;
+  }
+
+  /* Add your existing seasonal-specific styles below */
+  .seasonal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 1.5rem;
+  }
+
+  .region-tag {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    margin-left: auto;
+  }

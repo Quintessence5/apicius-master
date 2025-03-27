@@ -16,6 +16,7 @@ const recipeRoutes = require('./routes/recipeRoutes');
 const ingredientRoutes = require('./routes/ingredientRoutes');
 const unitsRoutes = require('./routes/unitsRoutes');
 const countryRoutes = require('./routes/countryRoutes');
+const seasonalityRoutes = require('./routes/seasonalityRoutes');
 
 // Middleware setup
 app.use(cors({
@@ -42,6 +43,7 @@ app.use('/api/recipes', recipeRoutes);
 app.use('/api/ingredients', ingredientRoutes);
 app.use('/api/units', unitsRoutes);
 app.use('/api/country', countryRoutes);
+app.use('/seasons', seasonalityRoutes);
 
 // Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

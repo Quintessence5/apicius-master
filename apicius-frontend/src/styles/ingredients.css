@@ -345,3 +345,95 @@
     margin-bottom: 0.25rem;
     border-radius: 3px;
   }
+
+  /* -----------------Upload----------------- */
+/* Prices Table */
+.prices-container {
+    padding: 20px;
+    overflow-x: auto;
+  }
+  
+  .prices-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 800px;
+  }
+  
+  .prices-table th,
+  .prices-table td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    text-align: left;
+  }
+  
+  .prices-table th {
+    background-color: #f5f5f5;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  
+  .prices-table input {
+    width: 120px;
+    padding: 6px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .prices-table .save-btn {
+    padding: 6px 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  
+  .prices-table .save-btn:hover {
+    background-color: #45a049;
+  }
+  
+  /* Keep first two columns sticky */
+  .prices-table td:first-child,
+  .prices-table th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: white;
+  }
+  
+  .prices-table td:nth-child(2),
+  .prices-table th:nth-child(2) {
+    position: sticky;
+    left: 6rem; /* Adjust based on first column width */
+    z-index: 2;
+    background: white;
+  }
+
+ /* -----------------Sort----------------- */
+ .sortable {
+    cursor: pointer;
+    position: relative;
+    padding-right: 20px !important;
+  }
+  
+  .sortable::after {
+    content: '';
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 4px solid transparent;
+  }
+  
+  .sortable.asc::after {
+    border-bottom-color: #666;
+    margin-top: -2px;
+  }
+  
+  .sortable.desc::after {
+    border-top-color: #666;
+    margin-top: 2px;
+  }

@@ -11,13 +11,14 @@ import AddRecipe from './pages/addRecipe';
 import AllRecipes from './pages/allRecipes';
 import RecipeDetailed from './pages/recipeDetailed';
 import IngredientsPage from './pages/ingredientPage';
+import SeasonalPage from './pages/seasonalityPage';
 import TimerPage from './pages/timer';
 import Profile from './pages/profilePage';
 import apiClient from './services/apiClient';
 
 const App = () => {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true); // Add loading state
+    const [loading, setLoading] = useState(true); 
 
     // Check for tokens on app load
     useEffect(() => {
@@ -30,7 +31,6 @@ const App = () => {
             console.log('User ID:', userId);
 
             if (accessToken && userId) {
-                // Immediately set the user state from localStorage
                 setUser({ userId, accessToken });
 
                 try {
@@ -51,10 +51,10 @@ const App = () => {
                 }
             } else {
                 console.log('No access token or user ID found in localStorage.');
-                setUser(null); // Ensure user state is cleared if no tokens are found
+                setUser(null);
             }
 
-            setLoading(false); // Set loading to false after authentication check
+            setLoading(false);
         };
 
         checkAuth();
@@ -111,7 +111,8 @@ const App = () => {
                     <Route path="/add-recipe" element={<ProtectedRoute user={user} loading={loading}> <AddRecipe /> </ProtectedRoute>} />
                     <Route path="/all-recipes" element={<ProtectedRoute user={user} loading={loading}> <AllRecipes /> </ProtectedRoute>} />
                     <Route path="/recipe/:id" element={<ProtectedRoute user={user} loading={loading}> <RecipeDetailed /> </ProtectedRoute>} />
-                    <Route path="/ingredients/*" element={<ProtectedRoute user={user} loading={loading}><IngredientsPage /></ProtectedRoute>  } />
+                    <Route path="/ingredients/*" element={<ProtectedRoute user={user} loading={loading} ><IngredientsPage /></ProtectedRoute>  } />
+                    <Route path="/seasons/*" element={<ProtectedRoute user={user} loading={loading} ><SeasonalPage /></ProtectedRoute>  } />
                     <Route path="/timer" element={<ProtectedRoute user={user} loading={loading}> <TimerPage /> </ProtectedRoute>} />
                 </Route>
             </Routes>
