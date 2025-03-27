@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const pool = require('./config/db');
 
 const app = express();
 const PORT = process.env.PORT || 5010;
@@ -22,14 +23,13 @@ const seasonalityRoutes = require('./routes/seasonalityRoutes');
 app.use(cors({
     origin: 'http://localhost:3000',  
     credentials: true,  
-    methods: 'GET,POST,PUT,DELETE',
-    allowedHeaders: 'Authorization, Content-Type',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     exposedHeaders: ['Content-Disposition']
 }));
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true })); 
-app.use(express.json()); 
+ 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true })); 
 
 app.use((req, res, next) => {
     console.log(`Incoming request: ${req.method} ${req.url}`);
@@ -43,7 +43,7 @@ app.use('/api/recipes', recipeRoutes);
 app.use('/api/ingredients', ingredientRoutes);
 app.use('/api/units', unitsRoutes);
 app.use('/api/country', countryRoutes);
-app.use('/seasons', seasonalityRoutes);
+app.use('/api/seasonality', seasonalityRoutes);
 
 // Serve uploaded images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -57,3 +57,12 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
+
+app.get('/debug-routes', (req, res) => {
+    const routes = [
+      { path: '/seasonality/manage', methods: ['GET', 'POST'] },
+      { path: '/seasonality/regions', methods: ['GET'] },
+      { path: '/ingredients/all', methods: ['GET'] }
+    ];
+    res.json(routes);
+  });
