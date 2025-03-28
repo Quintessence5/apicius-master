@@ -38,8 +38,15 @@ const SeasonalToday = () => {
           <ul className="seasonal-list">
             {seasonalProduce.fruits.map(item => (
               <li key={item.ingredient_id} className="seasonal-item">
-                <span>{item.name}</span>
-                <span className="region-tag">{item.region_name}</span>
+                <div className="produce-icon">
+                  {item.produce_image_url ? (
+                    <img src={item.produce_image_url} alt={item.name} />
+                  ) : (
+                    <div className="icon-placeholder"></div>
+                  )}
+                </div>
+                <span className="produce-name">{item.name}</span>
+                <span className="country-tag">{item.country}</span>
               </li>
             ))}
             {seasonalProduce.fruits.length === 0 && <li>No seasonal fruits today</li>}
@@ -51,8 +58,15 @@ const SeasonalToday = () => {
           <ul className="seasonal-list">
             {seasonalProduce.vegetables.map(item => (
               <li key={item.ingredient_id} className="seasonal-item">
-                <span>{item.name}</span>
-                <span className="region-tag">{item.region_name}</span>
+                <div className="produce-icon">
+                  {item.produce_image_url ? (
+                    <img src={item.produce_image_url} alt={item.name} />
+                  ) : (
+                    <div className="icon-placeholder"></div>
+                  )}
+                </div>
+                <span className="produce-name">{item.name}</span>
+                <span className="country-tag">{item.country}</span>
               </li>
             ))}
             {seasonalProduce.vegetables.length === 0 && <li>No seasonal vegetables today</li>}

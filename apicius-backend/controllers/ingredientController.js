@@ -1,5 +1,5 @@
 const pool = require('../config/db');
-const xlsx = require('xlsx');
+const XLSX = require('xlsx');
 
 exports.getAllIngredients = async (req, res) => {
     try {

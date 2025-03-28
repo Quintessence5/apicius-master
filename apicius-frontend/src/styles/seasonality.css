@@ -232,3 +232,170 @@
   display: flex;
   gap: 1rem;
 }
+
+
+  /* _____________________________Upload___________________________*/
+  .bulk-upload-section {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+  }
+  
+  .bulk-upload-section h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.4rem;
+    color: #444;
+  }
+  
+  .upload-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  
+  .bulk-upload-section form {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-grow: 1;
+  }
+  
+  .bulk-upload-section input[type="file"] {
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background: white;
+    flex-grow: 1;
+  }
+  
+  .bulk-upload-section .download-btn {
+    background-color: #4a5568 !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.6rem 1.2rem !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+  
+  .bulk-upload-section .download-btn:hover {
+    background-color: #2d3748 !important;
+    transform: translateY(-1px);
+  }
+  
+  .bulk-upload-section .upload-btn {
+    background-color: #4299e1 !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.6rem 1.2rem !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+  
+  .bulk-upload-section .upload-btn:hover {
+    background-color: #3182ce !important;
+    transform: translateY(-1px);
+  }
+
+
+  /* _____________________________Today___________________________*/
+  .seasonal-today {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .seasonal-today h2 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 2rem;
+    font-size: 2rem;
+  }
+  
+  .seasonal-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+  }
+  
+  .seasonal-category {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .seasonal-category h3 {
+    color: #27ae60;
+    margin-bottom: 1rem;
+    font-size: 1.4rem;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 0.5rem;
+  }
+  
+  .seasonal-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .seasonal-item {
+    display: flex;
+    align-items: center;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .seasonal-item:last-child {
+    border-bottom: none;
+  }
+  
+  .produce-icon {
+    width: 40px;
+    height: 40px;
+    margin-right: 1rem;
+    flex-shrink: 0;
+  }
+  
+  .produce-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 5px;
+  }
+  
+  .icon-placeholder {
+    width: 100%;
+    height: 100%;
+    background: #ddd;
+    border-radius: 5px;
+  }
+  
+  .produce-name {
+    flex-grow: 1;
+    font-weight: 500;
+    color: #34495e;
+  }
+  
+  .country-tag {
+    background: #ecf0f1;
+    color: #7f8c8d;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.85rem;
+    margin-left: 1rem;
+  }
+  
+  .error-message {
+    color: #e74c3c;
+    text-align: center;
+    padding: 2rem;
+  }
+  

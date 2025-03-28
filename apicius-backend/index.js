@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 5010;
 // Cookie Parser 
 app.use(cookieParser());
 
-// Import routes
+// Routes
 const userRoutes = require('./routes/userRoutes');
 const recipeRoutes = require('./routes/recipeRoutes');
 const ingredientRoutes = require('./routes/ingredientRoutes');
