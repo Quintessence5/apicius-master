@@ -1,81 +1,101 @@
 import React, { useState, useEffect } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from 'date-fns';
 import apiClient from '../../services/apiClient';
 import Modal from "../../components/modal";
 
 const SeasonalCalendar = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [selectedDate, setSelectedDate] = useState(null);
   const [seasonalData, setSeasonalData] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Get month boundaries based on currentDate
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  const firstDayOfMonth = (monthStart.getDay() + 6) % 7; // Monday start
+  const gridDays = [...Array(firstDayOfMonth).fill(null), ...daysInMonth];
 
   useEffect(() => {
-  const fetchMonthData = async () => {
-    try {
-      setIsLoading(true);
-      const response = await apiClient.get(`/api/seasonality/calendar?month=${currentDate.getMonth() + 1}&year=${currentDate.getFullYear()}`);
-      const dataMap = response.data.reduce((acc, item) => {
-        const dateKey = format(new Date(item.date), 'yyyy-MM-dd');
-        acc[dateKey] = {
-          fruits: item.fruits || [],
-          vegetables: item.vegetables || []
-        };
-        return acc;
-      }, {});
-      setSeasonalData(dataMap);
-    } catch (err) {
-      setErrorMessage('Failed to load calendar data');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const fetchMonthData = async () => {
+      try {
+        setIsLoading(true);
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+        
+        const response = await apiClient.get('/seasonality/calendar', {
+          params: { year, month }
+        });
 
-  fetchMonthData();
-}, [currentDate]);
+        // Convert date strings to Date objects and create map
+        const dataMap = response.data.reduce((acc, entry) => {
+          const dateKey = format(parseISO(entry.date), 'yyyy-MM-dd');
+          acc[dateKey] = {
+            fruits: entry.fruits || [],
+            vegetables: entry.vegetables || []
+          };
+          return acc;
+        }, {});
+        
+        setSeasonalData(dataMap);
+        setErrorMessage('');
+      } catch (err) {
+        setErrorMessage('Failed to load calendar data');
+        console.error('Calendar error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleDateClick = (date) => {
-    setSelectedDate(date);
-  };
+    fetchMonthData();
+  }, [currentDate]);
 
   const handleMonthChange = (direction) => {
-    setCurrentDate(prev => new Date(prev.setMonth(prev.getMonth() + direction)));
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(newDate.getMonth() + direction);
+      return new Date(newDate.getFullYear(), newDate.getMonth(), 1);
+    });
   };
 
   return (
     <div className="calendar-container">
-    {isLoading && <div className="loading">Loading calendar...</div>}
-    {errorMessage && <div className="error-banner">{errorMessage}</div>}
+      {isLoading && <div className="loading">Loading calendar...</div>}
+      {errorMessage && <div className="error-banner">{errorMessage}</div>}
 
-    <div className="calendar-header">
+      <div className="calendar-header">
         <button onClick={() => handleMonthChange(-1)}>&lt;</button>
         <h2>{format(currentDate, 'MMMM yyyy')}</h2>
         <button onClick={() => handleMonthChange(1)}>&gt;</button>
       </div>
 
       <div className="calendar-grid">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
           <div key={day} className="calendar-day-header">{day}</div>
         ))}
 
-        {daysInMonth.map(date => {
+        {gridDays.map((date, index) => {
+          if (!date) return <div key={`empty-${index}`} className="calendar-day empty"></div>;
+          
           const dateKey = format(date, 'yyyy-MM-dd');
           const data = seasonalData[dateKey] || { fruits: [], vegetables: [] };
-          
+          const hasProduce = data.fruits.length > 0 || data.vegetables.length > 0;
+          const isCurrentMonth = isSameMonth(date, currentDate);
+
           return (
             <div 
               key={dateKey}
-              className={`calendar-day ${isSameMonth(date, currentDate) ? '' : 'other-month'}`}
-              onClick={() => handleDateClick(date)}
+              className={`calendar-day 
+                ${isToday(date) ? 'today' : ''} 
+                ${!isCurrentMonth ? 'other-month' : ''}`}
+              onClick={() => isCurrentMonth && setSelectedDate(date)}
             >
               <div className="day-number">{format(date, 'd')}</div>
-              {(data.fruits?.length || 0) + (data.vegetables?.length || 0) > 0 && (
-                <div className="seasonal-indicator"></div>
-              )}
+              {hasProduce && <div className="seasonal-indicator" />}
             </div>
           );
         })}
@@ -84,31 +104,51 @@ const SeasonalCalendar = () => {
       <Modal
         isOpen={!!selectedDate}
         onClose={() => setSelectedDate(null)}
-        title={`Seasonal Produce for ${format(selectedDate, 'MMMM do, yyyy')}`}
+        title={selectedDate ? format(selectedDate, 'MMMM do, yyyy') : ''}
       >
         {selectedDate && (
           <div className="modal-content">
-            {seasonalData[format(selectedDate, 'yyyy-MM-dd')]?.fruits?.length > 0 ? (
-              <>
-                <h4>Fruits</h4>
-                <ul>
+            <div className="produce-section">
+              <h4 className="section-title fruits">Fruits</h4>
+              {seasonalData[format(selectedDate, 'yyyy-MM-dd')]?.fruits?.length > 0 ? (
+                <ul className="produce-list">
                   {seasonalData[format(selectedDate, 'yyyy-MM-dd')].fruits.map(fruit => (
-                    <li key={fruit.id}>{fruit.name}</li>
+                    <li key={fruit.id} className="produce-item">
+                      <div className="produce-icon">
+                        {fruit.image_url ? (
+                          <img src={fruit.image_url} alt={fruit.name} />
+                        ) : (
+                          <div className="icon-placeholder"></div>
+                        )}
+                      </div>
+                      <span className="produce-name">{fruit.name}</span>
+                      <span className="country-tag">{fruit.country}</span>
+                    </li>
                   ))}
                 </ul>
-              </>
-            ) : <p>No seasonal fruits</p>}
+              ) : <p className="no-items">No seasonal fruits</p>}
+            </div>
 
-            {seasonalData[format(selectedDate, 'yyyy-MM-dd')]?.vegetables?.length > 0 ? (
-              <>
-                <h4>Vegetables</h4>
-                <ul>
-                  {seasonalData[format(selectedDate, 'yyyy-MM-dd')].vegetables.map(veg => (
-                    <li key={veg.id}>{veg.name}</li>
+            <div className="produce-section">
+              <h4 className="section-title vegetables">Vegetables</h4>
+              {seasonalData[format(selectedDate, 'yyyy-MM-dd')]?.vegetables?.length > 0 ? (
+                <ul className="produce-list">
+                  {seasonalData[format(selectedDate, 'yyyy-MM-dd')].vegetables.map(vegetable => (
+                    <li key={vegetable.id} className="produce-item">
+                      <div className="produce-icon">
+                        {vegetable.image_url ? (
+                          <img src={vegetable.image_url} alt={vegetable.name} />
+                        ) : (
+                          <div className="icon-placeholder"></div>
+                        )}
+                      </div>
+                      <span className="produce-name">{vegetable.name}</span>
+                      <span className="country-tag">{vegetable.country}</span>
+                    </li>
                   ))}
                 </ul>
-              </>
-            ) : <p>No seasonal vegetables</p>}
+              ) : <p className="no-items">No seasonal vegetables</p>}
+            </div>
           </div>
         )}
       </Modal>

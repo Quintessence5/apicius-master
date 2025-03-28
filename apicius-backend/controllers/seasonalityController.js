@@ -37,25 +37,48 @@ exports.getSeasonalCalendar = async (req, res) => {
     const endDate = new Date(year, month, 0);
 
     const { rows } = await pool.query(`
-      SELECT
-        generate_series(
-          GREATEST(sp.season_start, $1::date),
-          LEAST(sp.season_end, $2::date),
-          '1 day'::interval
-        )::date AS date,
-        json_agg(DISTINCT i.*) FILTER (WHERE i.category = 'Fruit') AS fruits,
-        json_agg(DISTINCT i.*) FILTER (WHERE i.category = 'Vegetable') AS vegetables
-      FROM season_period sp
-      JOIN ingredients i ON sp.ingredient_id = i.id
-      WHERE sp.season_start <= $2 AND sp.season_end >= $1
-      GROUP BY date
-      ORDER BY date
+      SELECT 
+        calendar_date::date AS date,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', i.id,
+              'name', i.name,
+              'country', sr.country
+            ) 
+          ) FILTER (WHERE i.category = 'Fruit'),
+          '[]'::json
+        ) AS fruits,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', i.id,
+              'name', i.name,
+              'country', sr.country
+            ) 
+          ) FILTER (WHERE i.category = 'Vegetable'),
+          '[]'::json
+        ) AS vegetables
+      FROM generate_series($1::date, $2::date, '1 day'::interval) AS calendar_date
+      LEFT JOIN season_period sp 
+        ON calendar_date BETWEEN sp.season_start AND sp.season_end
+      LEFT JOIN ingredients i ON sp.ingredient_id = i.id
+      LEFT JOIN seasonal_region sr ON sp.region_id = sr.region_id
+      GROUP BY calendar_date
+      ORDER BY calendar_date
     `, [startDate, endDate]);
+    const transformedRows = rows.map(row => ({
+      ...row,
+      date: new Date(row.date).toISOString().split('T')[0]
+    }));    
 
     res.status(200).json(rows);
   } catch (error) {
     console.error('Calendar error:', error);
-    res.status(500).json({ message: 'Failed to load calendar data' });
+    res.status(500).json({ 
+      message: 'Failed to load calendar data',
+      error: error.message 
+    });
   }
 };
 
