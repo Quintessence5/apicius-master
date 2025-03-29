@@ -31,7 +31,6 @@ const getAllRecipes = async (req, res) => {
             LEFT JOIN ingredients i ON ri.ingredient_id = i.id
         `;
 
-        // Add WHERE clauses based on query parameters
         const conditions = [];
         const values = [];
 
@@ -106,7 +105,7 @@ const getAllRecipes = async (req, res) => {
         // Execute the query
         const recipesResult = await pool.query(query, values);
 
-        // Process the results (same as before)
+        // Process the results 
         const recipes = recipesResult.rows.reduce((acc, row) => {
             const {
                 recipe_id, title, notes, prep_time, cook_time, total_time, difficulty,
@@ -311,7 +310,7 @@ const addRecipe = async (req, res) => {
 
         if (ingredients && ingredients.length > 0) {
             for (const ingredient of ingredients) {
-                if (!ingredient.ingredientId && !ingredient.name) continue; // Skip empty entries
+                if (!ingredient.ingredientId && !ingredient.name) continue;
 
                 let ingredientId;
 

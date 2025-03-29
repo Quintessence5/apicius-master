@@ -236,9 +236,9 @@ h3 {
 }
 
 .unit-title {
-    font-size: 0.9rem;
-    color: #666;
-    font-weight: 500;
+    font-size: 1rem;
+    color: #999;
+    font-weight: 800;
 }
 
 .unit-btns-container {
@@ -257,6 +257,8 @@ h3 {
     cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
+    margin-left: -0.1rem;
+    margin-right: -0.04rem;
 }
 
 .unit-btn:not(:last-child) {
@@ -264,11 +266,13 @@ h3 {
 }
 
 .unit-btn:hover {
-    background: #e9ecef;
+    background: #ffffff;
 }
 
 .unit-btn.active {
     background: #007bff;
+    border-radius: 0px;
+    font-weight: bold;
     color: white;
 }
 

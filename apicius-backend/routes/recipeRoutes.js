@@ -12,28 +12,28 @@ router.use((req, res, next) => {
     next();
 });
 
-// Get Ingredient Suggestion (React Select)
+// Get Ingredient Suggestion
 router.get('/ingredients', getIngredientSuggestions);
 
 // Add new recipe and navigate to all recipes
 router.post('/', upload.single('image'), addRecipe);
 
-// Get Ingredient Suggestion (React Select)
+// Get Ingredient Suggestion
 router.get('/options', getDropdownOptions);
 
 // Update an existing recipe
 router.put('/:id', upload.single('image'), updateRecipe);
 
-// Route to get all recipes with ingredients and additional fields
+// All recipes with ingredients and additional fields
 router.get('/', getAllRecipes);
 
-// Route to get a single recipe by ID with ingredients
+// Single recipe by ID with ingredients
 router.get('/:id', getRecipeById);
 
 // POST route for image upload
 router.post('/upload-image', upload.single('image'), (req, res) => {
     try {
-        const filePath = req.file.path; // Path to the uploaded file
+        const filePath = req.file.path; 
         res.status(200).json({ message: 'Image uploaded successfully', path: filePath });
     } catch (error) {
         console.error('Error uploading image:', error);
@@ -41,7 +41,6 @@ router.post('/upload-image', upload.single('image'), (req, res) => {
     }
 });
 
-// Delete an existing recipe
 router.delete('/:id', deleteRecipe);
 
 

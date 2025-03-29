@@ -131,7 +131,7 @@ const RecipeDetails = () => {
     const cancelPortionChange = () => {
         setCurrentPortions(basePortions);
         setIsEditingPortions(false);
-    };
+    }; 
     
     return (
         <div className="recipe-details-page">
