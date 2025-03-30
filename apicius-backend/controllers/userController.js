@@ -82,7 +82,7 @@ exports.googleLogin = async (req, res) => {
             userId = existingUser.rows[0].id;
         }
 
-        const accessToken = generateAccessToken(userId, 'standard'); // Default role is 'standard'
+        const accessToken = generateAccessToken(userId, 'standard'); 
         const refreshToken = await generateRefreshToken(userId);
 
         res.status(200).json({ 
@@ -119,8 +119,8 @@ exports.registerUser = async (req, res) => {
         );
         const { id, role: userRole } = userResult.rows[0];
 
-        const accessToken = generateAccessToken(id, userRole); // Include role in token
-        const refreshToken = await generateRefreshToken(id); // Await the token
+        const accessToken = generateAccessToken(id, user.role);
+        const refreshToken = await generateRefreshToken(id);
 
         res.status(201).json({
             message: 'User registered successfully',

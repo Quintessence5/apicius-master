@@ -38,8 +38,9 @@ const authenticateToken = async (req, res, next) => {
             }
 
             console.log('Token verified. User ID:', decoded.userId, 'Role:', decoded.role);
-            req.userId = decoded.userId;
-            req.userRole = decoded.role;
+            req.userId = decoded.userId || decoded.userId;  
+            req.userRole = decoded.role || decoded.role; 
+            console.log('Token verified. User ID:', req.userId, 'Role:', req.userRole);
             next();
         });
     } catch (error) {

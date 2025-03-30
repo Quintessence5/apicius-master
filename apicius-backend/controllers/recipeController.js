@@ -1,4 +1,4 @@
-const pool = require('../config/db'); // Ensure this is correctly pointing to your database configuration
+const pool = require('../config/db');
 const fs = require('fs');
 const path = require('path');
 

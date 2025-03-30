@@ -39,7 +39,7 @@ const generateRefreshToken = async (userId) => {
 
 // Refresh Tokens
 exports.refreshToken = async (req, res) => {
-    const refreshToken = req.body?.refreshToken; // Get refresh token from the request body
+    const refreshToken = req.body?.refreshToken; 
 
     console.log("Incoming refresh request. Refresh Token:", refreshToken);
 
@@ -60,9 +60,13 @@ exports.refreshToken = async (req, res) => {
 
         const userId = result.rows[0].user_id;
 
+        // Get user role from database
+        const userResult = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+        const userRole = userResult.rows[0].role;
+
         // Generate new tokens
         console.log("Refreshing tokens for user:", userId);
-        const newAccessToken = generateAccessToken(userId);
+        const newAccessToken = generateAccessToken(userId, userRole);
         const newRefreshToken = await generateRefreshToken(userId);
 
         // Revoke old token

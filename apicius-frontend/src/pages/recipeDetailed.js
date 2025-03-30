@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/recipeDetailed.css';
+import StarRating from '../components/starRating';
+import CommentSection from '../components/CommentSection';
 import NoImageAvailable from '../assets/images/No_Image_Avail.jpg';
 
 const RecipeDetails = () => {
@@ -17,6 +19,7 @@ const RecipeDetails = () => {
     const [isEditingPortions, setIsEditingPortions] = useState(false);
     const [hasSolidIngredients, setHasSolidIngredients] = useState(false);
     const [hasLiquidIngredients, setHasLiquidIngredients] = useState(false);
+    const [user, setUser] = useState({ id: localStorage.getItem('userId'), role: localStorage.getItem('userRole') });
 
     useEffect(() => {
         const fetchRecipe = async () => {
@@ -153,6 +156,7 @@ const RecipeDetails = () => {
 
             {/* Recipe Information Sections */}
             <div className="recipe-info">
+            <StarRating recipeId={id} />
                 {recipe.source && <p><strong>Source:</strong> {recipe.source}</p>}
                 <p><strong>Cuisine Type:</strong> {recipe.cuisine_type}</p>
                 <p><strong>Difficulty:</strong> {recipe.difficulty}</p>
@@ -207,7 +211,7 @@ const RecipeDetails = () => {
                 </div></div>
 
                 {/* Ingredients Section */}
-                {console.log("Current Recipe Data:", recipe)} {/* 🛠️ Debugging Log */}
+                {console.log("Current Recipe Data:", recipe)} 
 
                 <h3>Ingredients</h3>
                 <ul className="ingredient-list">
@@ -297,6 +301,7 @@ const RecipeDetails = () => {
                         <tr><td>Protein</td><td>{nutritionFacts.protein.toFixed(2)} g</td><td>{((nutritionFacts.protein / 50) * 100).toFixed(2)}%</td><td>{(nutritionFacts.protein / currentPortions).toFixed(2)} g</td><td>{(((nutritionFacts.protein / currentPortions) / 50) * 100).toFixed(2)}%</td></tr>
                     </tbody>
                 </table>
+                <CommentSection  recipeId={id}  userId={user.id}  userRole={user.role} />
             </div>
         </div>
     );
