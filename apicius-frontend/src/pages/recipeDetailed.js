@@ -19,7 +19,7 @@ const RecipeDetails = () => {
     const [isEditingPortions, setIsEditingPortions] = useState(false);
     const [hasSolidIngredients, setHasSolidIngredients] = useState(false);
     const [hasLiquidIngredients, setHasLiquidIngredients] = useState(false);
-    const [user, setUser] = useState({ id: localStorage.getItem('userId'), role: localStorage.getItem('userRole') });
+    const [user] = useState({ id: localStorage.getItem('userId'), role: localStorage.getItem('userRole') });
 
     useEffect(() => {
         const fetchRecipe = async () => {

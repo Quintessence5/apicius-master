@@ -1,6 +1,6 @@
 import React from "react";
 
-const Modal = ({ isOpen, onClose, title, children, onSave, icon, text }) => {
+const Modal = ({ hideSave, isOpen, onClose, title, children, onSave, icon, text }) => {
   if (!isOpen) return null;
 
   // Close the modal if the click is outside the modal container
@@ -22,9 +22,10 @@ const Modal = ({ isOpen, onClose, title, children, onSave, icon, text }) => {
         </div>
         {text && <p className="modal-text">{text}</p>}
         <div className="modal-content">{children}</div>
-        <button className="modal-save" onClick={onSave}>
+        {!hideSave && (
+          <button className="modal-save" onClick={onSave}>
           Save
-        </button>
+        </button>)}
       </div>
     </div>
   );

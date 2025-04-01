@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useQuery } from 'react-query';
+import { Link } from 'react-router-dom';
 import Modal from "../components/modal";
 import apiClient from '../services/apiClient';
 
 import "../App.css";
 import "../styles/profilePage.css";
+import "../styles/interactions.css";
 import "../styles/modal.css";
 
 const ProfilePage = () => {
@@ -18,8 +21,34 @@ const ProfilePage = () => {
   const [notification, setNotification] = useState({ message: "", visible: false });
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [expandedSection, setExpandedSection] = useState(null);
+  const { 
+    data: userRatings,
+    isLoading: ratingsLoading,
+    error: ratingsError 
+  } = useQuery('userRatings', 
+    () => apiClient.get(`/interactions/users/${userProfile?.user_id}/ratings`)
+      .then(res => res.data),
+    { 
+      enabled: activeModal === 'contributions' && !!userProfile?.user_id,
+      onError: (error) => console.error('Ratings fetch error:', error)
+    }
+  );
+  const { 
+    data: userComments,
+    isLoading: commentsLoading,
+    error: commentsError
+  } = useQuery('userComments',
+    () => apiClient.get(`/interactions/users/${userProfile?.user_id}/comments`)
+      .then(res => res.data),
+    { 
+      enabled: activeModal === 'contributions' && !!userProfile?.user_id,
+      onError: (error) => console.error('Comments fetch error:', error)
+    }
+  );
   
-  // Function to show notification
+
+  // Notification
   const showNotification = (message) => {
     setNotification({ message, visible: true });
     setTimeout(() => {
@@ -30,6 +59,8 @@ const ProfilePage = () => {
   const fetchUserProfile = async () => {
     try {
       const { data } = await apiClient.get("/users/profile");
+      console.log('User profile data:', data);
+      console.log('User ID:', data.user_id);
       
       // Extract phone code and number separately
       const phoneData = data.phone || ""; 
@@ -164,7 +195,7 @@ const ProfilePage = () => {
           return {
           type: "Contributions",
           icon: "🧱",
-          text: "Track your reviews and manage your submitted recipes.",
+          text: "Review your ratings and comments history",
         }
 
       default:
@@ -227,7 +258,7 @@ const ProfilePage = () => {
       });
   
       showNotification("Changes saved successfully!");
-      fetchUserProfile(); // Refresh data after saving
+      fetchUserProfile(); 
       closeModal();
     } catch (error) {
       console.error("Error saving changes:", error);
@@ -257,6 +288,12 @@ const ProfilePage = () => {
       console.error("Error saving preferences:", error);
       showNotification("Failed to save preferences.");
     }
+  };
+
+  const calculateAverage = (ratings) => {
+    if (!ratings || ratings.length === 0) return 0;
+    const total = ratings.reduce((sum, r) => sum + r.rating, 0);
+    return (total / ratings.length).toFixed(1);
   };
 
   return (
@@ -309,7 +346,7 @@ const ProfilePage = () => {
             description="Reviews and recipe"
             icon="🧱"
             text="Track your reviews and manage your submitted recipes."
-            onClick={() => showNotification("Coming soon!")}
+            onClick={() => openModal("contributions")}
           />
         </div>
 
@@ -320,7 +357,8 @@ const ProfilePage = () => {
         title={activeModal ? activeModal.toUpperCase() : ""}
         icon={modalContent.icon}
         text={modalContent.text}
-        onSave={saveChanges}
+        onSave={activeModal === 'contributions' ? null : saveChanges} 
+        hideSave={activeModal === 'contributions'}
       >
         {activeModal === "security" && (
           <form onSubmit={(e) => e.preventDefault()}>
@@ -370,9 +408,9 @@ const ProfilePage = () => {
   </div>
 </div>
           </form>
-               )}
+              )}
 
-{activeModal === "profile" && (
+        {activeModal === "profile" && (
   <form onSubmit={(e) => e.preventDefault()}>
     {/* Bio */}
     <div>
@@ -504,9 +542,9 @@ const ProfilePage = () => {
       </select>
     </div>
   </form>
-)}
+              )}
 
-          {activeModal === "preferences" && (
+        {activeModal === "preferences" && (
                     <form onSubmit={(e) => e.preventDefault()} className="preferences-form">
                         {/* Allergy Section */}
                         <div>
@@ -556,7 +594,111 @@ const ProfilePage = () => {
                             </div>
                         </div>
                     </form>
-               )}
+              )}
+
+        {activeModal === "contributions" && (
+  <div className="contributions-modal">
+    {/* Loading states */}
+    {ratingsLoading || commentsLoading ? (
+        <div className="loading-message">Loading contributions...</div>
+      ) : (
+        <>
+    <div className="contributions-section">
+      <div 
+        className="section-header"
+        onClick={() => setExpandedSection(expandedSection === 'ratings' ? null : 'ratings')}
+      >
+        <h3>Ratings</h3>
+        <div className="stats">
+          <span>{userRatings?.length || 0} ratings</span>
+          {!expandedSection && (
+            <span className="average">
+              Average: {calculateAverage(userRatings)}/5
+            </span>
+          )}
+        </div>
+      </div>
+      
+      {expandedSection === 'ratings' ? (
+        <div className="expanded-list">
+          {userRatings?.slice(0, 3).map(rating => (
+            <div key={rating.id} className="contribution-item">
+              <div className="contribution-header">
+              <Link to={`/recipe/${rating.recipe_id}`} className="recipe-title">
+                {rating.recipe_title || "Unknown Recipe"}
+              </Link>
+              <time className="contribution-date">{new Date(rating.created_at).toLocaleDateString()}</time>
+              </div>
+              <div className="rating-stars">
+                {Array.from({ length: rating.rating }).map((_, i) => (
+                  <span key={i} className="star active">★</span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="summary">
+                {userRatings?.slice(0, 2).map(r => (
+                  <div key={r.id} className="rating-summary">
+                    {r.rating} stars - {r.recipe_title?.substring(0, 20)}
+                  </div>
+                ))}
+              </div>
+      )}
+
+    <div className="contributions-section">
+      <div 
+        className="section-header"
+        onClick={() => setExpandedSection(expandedSection === 'comments' ? null : 'comments')}
+      >
+        <h3>Comments</h3>
+        <div className="stats">
+          <span>{userComments?.length || 0} comments</span>
+        </div>
+      </div>
+      
+      {expandedSection === 'comments' ? (
+        <div className="expanded-list" onClick={() => setExpandedSection(expandedSection === 'comments' ? null : 'comments')}>
+          {userComments?.slice(0, 3).map(comment => (
+            <div key={comment.id} className="contribution-item">
+              <div className="contribution-header">
+              <Link to={`/recipe/${comment.recipe_id}`} className="recipe-title">
+                {comment.recipe_title || "Unknown Recipe"}
+              </Link>
+              <time className="contribution-date">{new Date(comment.created_at).toLocaleDateString()}</time>
+              </div>
+              <p className="comment-preview">{comment.comment}</p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="summary">
+          {userComments?.slice(0, 2).map(c => (
+            <div key={c.id} className="comment-summary">
+              {c.comment.substring(0, 50)}...
+            </div>
+          ))}
+        </div>
+      )}
+    </div></div>
+        </>
+      )}
+
+      {/* Error messages */}
+      {ratingsError && (
+        <div className="error-message">
+          Error loading ratings: {ratingsError.message}
+        </div>
+      )}
+      {commentsError && (
+        <div className="error-message">
+          Error loading comments: {commentsError.message}
+        </div>
+      )}
+    </div>
+  )}
+
                       </Modal>
                     {notification.visible && (
                         <div className="notification-container">

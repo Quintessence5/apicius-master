@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const apiClient = axios.create({
     baseURL: 'http://localhost:5010/api',
+    withCredentials: true,
+    headers: {Authorization: `Bearer ${localStorage.getItem('accessToken')}`}
 });
 
 // Flag to prevent infinite refresh loops

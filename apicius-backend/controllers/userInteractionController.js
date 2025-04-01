@@ -38,6 +38,28 @@ const getRecipeRating = async (req, res) => {
     }
   };
 
+  const getUserRatings = async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT r.*, re.title as recipe_title 
+         FROM ratings r
+         LEFT JOIN recipes re ON r.recipe_id = re.id
+         WHERE r.user_id = $1
+         ORDER BY r.created_at DESC`,
+        [req.params.userId]
+      );
+      // Add authorization check
+      const userId = parseInt(req.params.userId, 10);
+      if (userId !== req.userId && req.userRole !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized access' });
+      }
+
+      res.status(200).json(result.rows);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch user ratings' });
+    }
+  };
+  
 // Comment Functions
 const postComment = async (req, res) => {
   const { recipeId } = req.params;
@@ -105,10 +127,29 @@ const deleteComment = async (req, res) => {
     }
   };
 
+  const getUserComments = async (req, res) => {
+    try {
+      const result = await pool.query(
+        `SELECT c.*, re.title as recipe_title 
+         FROM comments c
+         LEFT JOIN recipes re ON c.recipe_id = re.id
+         WHERE c.user_id = $1
+         ORDER BY c.created_at DESC`,
+        [req.params.userId] 
+      );
+      res.status(200).json(result.rows);
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch user comments' });
+    }
+  };
+  
+
 module.exports = {
   rateRecipe,
   getRecipeRating,
   postComment,
   getComments,
-  deleteComment
+  deleteComment,
+  getUserComments,
+  getUserRatings
 };

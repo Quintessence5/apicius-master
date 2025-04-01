@@ -125,7 +125,7 @@
 
 .modal-content-row {
   display: grid;
-  grid-template-columns: 25% 1fr; /* 25% for label, remaining for input */
+  grid-template-columns: 25% 1fr; 
   gap: 1rem; /* Space between label and input */
   align-items: center;
   margin-bottom: 1rem; /* Space between rows */
@@ -136,18 +136,19 @@
   height: 30px;
   color: #333 !important;
   padding: 0 0 0 2%;
-  border: 1px solid #e0e0e0; /* Define border style */
-  border-radius: 4px; /* Rounded corners */
-  font-size: 14px; /* Control font size */
+  border: 1px solid #e0e0e0; 
+  border-radius: 4px; 
+  font-size: 14px; 
 }
+
 
 .modal-phonez {
   width: 20%;
   height: 2rem;
   padding: 0 0 2% 2%;
-  border: 1px solid #e0e0e0; /* Define border style */
-  border-radius: 4px; /* Rounded corners */
-  font-size: 14px; /* Control font size */
+  border: 1px solid #e0e0e0; 
+  border-radius: 4px; 
+  font-size: 14px; 
   margin-right: 25%;
 }
 .modal-phonecode {

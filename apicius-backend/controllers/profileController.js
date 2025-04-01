@@ -116,9 +116,8 @@ exports.updateUserProfile = async (req, res) => {
         bio,
     } = req.body;
 
-    // Ensure `user_id` is provided
     if (!user_id) {
-        console.log("Missing user_id"); // Debug missing user_id
+        console.log("Missing user_id"); 
         return res.status(400).json({ message: "User ID is required" });
     }
 

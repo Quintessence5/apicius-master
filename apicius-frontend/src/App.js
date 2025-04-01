@@ -15,6 +15,9 @@ import SeasonalPage from './pages/seasonalityPage';
 import TimerPage from './pages/timer';
 import Profile from './pages/profilePage';
 import apiClient from './services/apiClient';
+import { QueryClient, QueryClientProvider } from 'react-query';
+
+const queryClient = new QueryClient();
 
 const App = () => {
     const [user, setUser] = useState(null);
@@ -98,6 +101,7 @@ const App = () => {
     }
 
     return (
+        <QueryClientProvider client={queryClient}>
         <Router>
             <Routes>
                 <Route path="/register" element={<Register />} />
@@ -116,7 +120,7 @@ const App = () => {
                     <Route path="/timer" element={<ProtectedRoute user={user} loading={loading}> <TimerPage /> </ProtectedRoute>} />
                 </Route>
             </Routes>
-        </Router>
+        </Router></QueryClientProvider>
     );
 };
 
