@@ -269,7 +269,6 @@ const getRecipeById = async (req, res) => {
 const addRecipe = async (req, res) => {
     console.log("DEBUG: addRecipe function is running...");
     try {
-        // Extract the uploaded file path, if available
         const uploadedFile = req.file;
         const imagePath = uploadedFile ? uploadedFile.path : null;
 
@@ -402,7 +401,6 @@ const updateRecipe = async (req, res) => {
 
         console.log("✅ Recipe details updated successfully!");
 
-        // --- Rename uploaded file if needed ---
         if (uploadedFile) {
             const newFileName = `${id}-${title.replace(/\s+/g, '_')}${path.extname(uploadedFile.originalname)}`;
             const newPath = path.join(__dirname, '..', 'uploads', newFileName);

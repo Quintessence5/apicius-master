@@ -243,7 +243,7 @@ h3 {
 
 .unit-btns-container {
     border: 2px solid #ddd;
-    border-radius: 14px;
+    border-radius: 1rem;
     display: inline-flex;
     background: #f8f9fa;
     overflow: hidden;
@@ -266,7 +266,8 @@ h3 {
 }
 
 .unit-btn:hover {
-    background: #ffffff;
+    background: #ffffffc2;
+    border-radius: 0rem;
 }
 
 .unit-btn.active {

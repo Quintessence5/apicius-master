@@ -6,6 +6,7 @@ const StarRating = ({ recipeId }) => {
   const [userRating, setUserRating] = useState(0);
   const [averageRating, setAverageRating] = useState(0);
   const [totalRatings, setTotalRatings] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
 
   useEffect(() => {
     const fetchRating = async () => {
@@ -46,11 +47,13 @@ const StarRating = ({ recipeId }) => {
 
   return (
     <div className="rating-container">
-      <div className="stars">
+      <div className="recipes-stars">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}
-            className={`star ${star <= (userRating || averageRating) ? 'active' : ''}`}
+            className={`recipes-star ${star <= (hoveredRating || userRating || averageRating) ? 'active' : ''}`}
+            onMouseEnter={() => setHoveredRating(star)}
+            onMouseLeave={() => setHoveredRating(0)}
             onClick={() => handleRating(star)}
             aria-label={`Rate ${star} stars`}
           >
@@ -59,7 +62,7 @@ const StarRating = ({ recipeId }) => {
         ))}
       </div>
         <div className="rating-info">
-        ({(Number(averageRating)).toFixed(1)}/5 from {totalRatings} ratings)
+        {(Number(averageRating)).toFixed(1)}/5 from {totalRatings} ratings
         </div>
     </div>
   );

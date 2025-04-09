@@ -437,3 +437,28 @@
     border-top-color: #666;
     margin-top: 2px;
   }
+
+  /* -----------------Image Upload----------------- */
+.ingredient-image-container {
+  padding: 20px;
+}
+
+.upload-button {
+  background: #4CAF50;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.upload-button:hover {
+  background: #45a049;
+}
+
+.ingredient-thumbnail {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+}

@@ -4,6 +4,7 @@ import AllIngredients from '../components/ingredients/AllIngredients';
 import AddIngredient from '../components/ingredients/AddIngredient';
 import IngredientSubmissions from '../components/ingredients/IngredientSubmissions';
 import IngredientPrices from '../components/ingredients/IngredientPrices';
+import IngredientImage from '../components/ingredients/IngredientImage';
 import '../styles/ingredients.css';
 
 const IngredientsPage = () => {
@@ -19,6 +20,9 @@ const IngredientsPage = () => {
           Ingredient Prices </NavLink>
         <NavLink to="/ingredients/submissions" className={({ isActive }) => isActive ? 'active' : ''} >
           Submissions </NavLink>
+        <NavLink to="/ingredients/images" className={({ isActive }) => isActive ? 'active' : ''}>
+          Ingredient Images
+        </NavLink>
       </div>
       
       <div className="ingredients-content">
@@ -27,6 +31,7 @@ const IngredientsPage = () => {
           <Route path="add" element={<AddIngredient />} />
           <Route path="submissions" element={<IngredientSubmissions />} />
           <Route path="prices" element={<IngredientPrices />} />
+          <Route path="images" element={<IngredientImage />} />
         </Routes>
       </div>
     </div>

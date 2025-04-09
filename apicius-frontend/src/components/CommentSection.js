@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import '../styles/interactions.css';
-import defaultAvatar from '../assets/images/default-avatar.jpg';
+import defaultAvatar from '../assets/images/default-avatar.png';
 
 const CommentSection = ({ recipeId, userId, userRole }) => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [error, setError] = useState('');
-
+  
   // Fetch comments when component mounts
   useEffect(() => {
     const fetchComments = async () => {

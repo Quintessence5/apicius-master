@@ -357,3 +357,24 @@ exports.uploadIngredients = async (req, res) => {
   }
 };
 
+exports.uploadImage = async (req, res) => {
+  const { id } = req.params;
+  
+  if (!req.file) {
+    return res.status(400).json({ message: 'No image file provided' });
+  }
+
+  try {
+    const imagePath = `/Users/keat/Dev/Apps/apicius-master/apicius-frontend/src/assets/produce-icons/${req.file.filename}`;
+    
+    const result = await pool.query(
+      'UPDATE ingredients SET image_path = $1 WHERE id = $2 RETURNING *',
+      [imagePath, id]
+    );
+
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error('Image upload error:', error);
+    res.status(500).json({ message: 'Failed to upload image' });
+  }
+};

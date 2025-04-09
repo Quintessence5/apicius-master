@@ -596,108 +596,122 @@ const ProfilePage = () => {
                     </form>
               )}
 
-        {activeModal === "contributions" && (
+{activeModal === "contributions" && (
   <div className="contributions-modal">
-    {/* Loading states */}
     {ratingsLoading || commentsLoading ? (
-        <div className="loading-message">Loading contributions...</div>
-      ) : (
-        <>
-    <div className="contributions-section">
-      <div 
-        className="section-header"
-        onClick={() => setExpandedSection(expandedSection === 'ratings' ? null : 'ratings')}
-      >
-        <h3>Ratings</h3>
-        <div className="stats">
-          <span>{userRatings?.length || 0} ratings</span>
-          {!expandedSection && (
-            <span className="average">
-              Average: {calculateAverage(userRatings)}/5
-            </span>
+      <div className="loading-message">Loading contributions...</div>
+    ) : (
+      <>
+        {/* Ratings Section */}
+        <div className="contributions-section">
+          <div 
+            className="section-header"
+            onClick={() => setExpandedSection(expandedSection === 'ratings' ? null : 'ratings')}
+          >
+            <h3>Ratings</h3>
+            <div className="stats">
+              <span>{userRatings?.length || 0} ratings</span>
+              {!expandedSection && (
+                <span className="average">
+                  Average: {calculateAverage(userRatings)}/5
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {expandedSection === 'ratings' ? (
+            <div className="expanded-list">
+              {userRatings?.slice(0, 3).map(rating => (
+                <div key={rating.id} className="contribution-item">
+                  <div className="contribution-header">
+                    <Link to={`/recipe/${rating.recipe_id}`} className="expanded-recipe-title">
+                      {rating.recipe_title || "Unknown Recipe"}
+                    </Link>
+                    <time className="contribution-date">
+                      {new Date(rating.created_at).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </time>
+                  </div>
+                  <div className="rating-stars">
+                    {Array.from({ length: rating.rating }).map((_, i) => (
+                      <span key={i} className="star active">★</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="summary">
+              {userRatings?.slice(0, 2).map(r => (
+                <div key={r.id} className="rating-summary">
+                  {r.rating} stars - {r.recipe_title?.substring(0, 20)}
+                </div>
+              ))}
+            </div>
           )}
         </div>
-      </div>
-      
-      {expandedSection === 'ratings' ? (
-        <div className="expanded-list">
-          {userRatings?.slice(0, 3).map(rating => (
-            <div key={rating.id} className="contribution-item">
-              <div className="contribution-header">
-              <Link to={`/recipe/${rating.recipe_id}`} className="recipe-title">
-                {rating.recipe_title || "Unknown Recipe"}
-              </Link>
-              <time className="contribution-date">{new Date(rating.created_at).toLocaleDateString()}</time>
-              </div>
-              <div className="rating-stars">
-                {Array.from({ length: rating.rating }).map((_, i) => (
-                  <span key={i} className="star active">★</span>
-                ))}
-              </div>
+
+        {/* Comments Section */}
+        <div className="contributions-section">
+          <div 
+            className="section-header"
+            onClick={() => setExpandedSection(expandedSection === 'comments' ? null : 'comments')}
+          >
+            <h3>Comments</h3>
+            <div className="stats">
+              <span>{userComments?.length || 0} comments</span>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="summary">
-                {userRatings?.slice(0, 2).map(r => (
-                  <div key={r.id} className="rating-summary">
-                    {r.rating} stars - {r.recipe_title?.substring(0, 20)}
+          </div>
+          
+          {expandedSection === 'comments' ? (
+            <div className="expanded-list">
+              {userComments?.slice(0, 3).map(comment => (
+                <div key={comment.id} className="contribution-item">
+                  <div className="contribution-header">
+                    <Link to={`/recipe/${comment.recipe_id}`} className="expanded-recipe-title">
+                      {comment.recipe_title || "Unknown Recipe"}
+                    </Link>
+                    <time className="contribution-date">
+                      {new Date(comment.created_at).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      })}
+                    </time>
                   </div>
-                ))}
-              </div>
-      )}
-
-    <div className="contributions-section">
-      <div 
-        className="section-header"
-        onClick={() => setExpandedSection(expandedSection === 'comments' ? null : 'comments')}
-      >
-        <h3>Comments</h3>
-        <div className="stats">
-          <span>{userComments?.length || 0} comments</span>
+                  <p className="comment-preview">{comment.comment}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="summary">
+              {userComments?.slice(0, 2).map(c => (
+                <div key={c.id} className="comment-summary">
+                  {c.comment.substring(0, 50)}...
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+      </>
+    )}
+
+    {/* Error messages - Moved outside the fragment but inside modal */}
+    {ratingsError && (
+      <div className="error-message">
+        Error loading ratings: {ratingsError.message}
       </div>
-      
-      {expandedSection === 'comments' ? (
-        <div className="expanded-list" onClick={() => setExpandedSection(expandedSection === 'comments' ? null : 'comments')}>
-          {userComments?.slice(0, 3).map(comment => (
-            <div key={comment.id} className="contribution-item">
-              <div className="contribution-header">
-              <Link to={`/recipe/${comment.recipe_id}`} className="recipe-title">
-                {comment.recipe_title || "Unknown Recipe"}
-              </Link>
-              <time className="contribution-date">{new Date(comment.created_at).toLocaleDateString()}</time>
-              </div>
-              <p className="comment-preview">{comment.comment}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="summary">
-          {userComments?.slice(0, 2).map(c => (
-            <div key={c.id} className="comment-summary">
-              {c.comment.substring(0, 50)}...
-            </div>
-          ))}
-        </div>
-      )}
-    </div></div>
-        </>
-      )}
-
-      {/* Error messages */}
-      {ratingsError && (
-        <div className="error-message">
-          Error loading ratings: {ratingsError.message}
-        </div>
-      )}
-      {commentsError && (
-        <div className="error-message">
-          Error loading comments: {commentsError.message}
-        </div>
-      )}
-    </div>
-  )}
+    )}
+    {commentsError && (
+      <div className="error-message">
+        Error loading comments: {commentsError.message}
+      </div>
+    )}
+  </div>
+)}
 
                       </Modal>
                     {notification.visible && (

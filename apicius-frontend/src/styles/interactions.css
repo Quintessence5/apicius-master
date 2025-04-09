@@ -1,43 +1,49 @@
 /* _______________________Rating_______________________ */
 .rating-container {
-    margin: 20px 0;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 8px;
-  }
-  
-  .stars {
     display: flex;
-    gap: 5px;
+    align-items: center;
+    gap: 1.5rem;margin: 20px 0;
+    padding: 0px;
+    background: #ffffff;
+    border-radius: 8px;
+    margin-top: -0.5rem;
+    margin-bottom: 2rem;
   }
   
-  .star {
+  .recipes-stars {
+    display: flex;
+    gap: -0.5rem;
+  }
+  
+  .recipes-star {
     background: none;
     border: none;
-    font-size: 2rem;
+    font-size: 1.5rem;
     cursor: pointer;
     color: #ddd;
     transition: color 0.2s;
-    padding: 0 3px;
+    padding: 0 0;
   }
   
-  .star.active {
+  .recipes-star.active {
     color: #ffd700;
+
   }
   
-  .star:hover {
-    color: #ffd700;
+  .recipes-star:hover {
+    color: #fbba37;
+    border-color: #ffd700;
+    background: transparent;
   }
   
   .rating-info {
-    margin-top: 8px;
+    margin-top: 0px;
     font-size: 0.9rem;
-    color: #999;
+    color: #bfbfbf;
   }
 
 
   /* _______________________Comments_______________________ */
-/* Comment Section */
 .comment-section {
     margin: 2rem 0;
     padding: 1.5rem;
@@ -174,11 +180,22 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
+.contributions-section {
+  margin-bottom: 2rem;
+} 
+
+.contribution-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
 .section-header {
   cursor: pointer;
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   padding: 0.6rem 1.2rem;
   background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
   border-radius: 12px;
@@ -195,32 +212,38 @@
   border: 1px solid #f5f5f7;
 }
 
-.recipe-title {
+.expanded-recipe-title {
+  flex: 1;
   font-weight: 590;
-  font-size: 15px;
+  font-size: 1rem;
   color: #1d1d1f;
-  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .contribution-date {
   color: #86868b;
-  font-size: 13px;
+  font-size: 0.8rem;
   font-weight: 400;
   flex-shrink: 0;
-  margin-left: 15px;
+  margin-right: 1rem;
+  margin-top: -0.1rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .rating-stars {
   display: flex;
   gap: 3px;
-  margin-top: 8px;
+  margin-top: -8px;
 }
 
 .comment-text {
   color: #1d1d1f;
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.47;
-  padding-right: 15px;
+  padding-left: 1rem;
 }
 
 
@@ -257,11 +280,14 @@
   overflow-y: auto;
   margin-top: 0.5rem;
   padding: 0rem 0.5rem;
+  display: grid;
+  gap: 12px;
+  overflow-y: auto;
 }
 
 /* Contribution Items */
 .contribution-item {
-  padding: 1rem;
+  padding: 1rem 2rem;
   background: #fff;
   border-radius: 12px;
   margin-bottom: 0.5rem;
@@ -277,16 +303,16 @@
 /* Recipe Title Links */
 .contribution-item a {
   color: #0066cc;
-  font-weight: 500;
+  font-weight: bold;
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 01rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .contribution-item a::before {
-  content: "•";
+  content: " ";
   color: #86868b;
   font-size: 1.4em;
   line-height: 0;
@@ -300,20 +326,21 @@
 .stars {
   display: flex;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0rem;
   margin: 0.8rem 0;
 }
 
 .star {
   color: #f5a623;
-  font-size: 1.1rem;
+  font-size: 1rem;
   transition: all 0.2s ease;
 }
 
 /* Comment Previews */
 .comment-preview {
   color: #515154;
-  line-height: 1.5;
+  padding: 0 0.4rem;
+  line-height: 1;
   font-size: 0.95rem;
   margin: 0.8rem 0;
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
@@ -331,6 +358,7 @@ time {
 .summary {
   display: grid;
   gap: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 .rating-summary,

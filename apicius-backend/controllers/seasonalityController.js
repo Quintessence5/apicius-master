@@ -12,6 +12,7 @@ exports.getSeasonalToday = async (req, res) => {
         i.id AS ingredient_id,
         i.name,
         i.category,
+        i.image_path,
         sr.country,  
         sp.season_start,
         sp.season_end,
@@ -44,6 +45,7 @@ exports.getSeasonalCalendar = async (req, res) => {
             json_build_object(
               'id', i.id,
               'name', i.name,
+              'image path', i.image_path,
               'country', sr.country
             ) 
           ) FILTER (WHERE i.category = 'Fruit'),
@@ -54,6 +56,7 @@ exports.getSeasonalCalendar = async (req, res) => {
             json_build_object(
               'id', i.id,
               'name', i.name,
+              'image path', i.image_path,
               'country', sr.country
             ) 
           ) FILTER (WHERE i.category = 'Vegetable'),
@@ -91,6 +94,7 @@ exports.getSeasonalManagement = async (req, res) => {
         sp.id,
         sp.ingredient_id,
         i.name AS ingredient_name,
+        i.image_path,
         sp.region_id,
         sr.region_name,
         sp.season_start,

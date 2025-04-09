@@ -7,14 +7,15 @@
 /* Side Menu */
 .side-menu {
     position: absolute;
-    top: calc(100% + 12px); /* Position below the button with a small gap */
-    right: calc(0% + 14px); /* Align to the right edge of the toggle button */
+    align-items: center;
+    top: calc(100% + 0.7rem);
+    right: calc(0% + 0.2rem); 
     background-color: #fff;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    border-radius: 15px;
-    border: 1px solid #333;
-    border-color: #999;
-    padding: 1rem 1rem;
+    border-radius: 1rem;
+    border: 1px solid #dbd9d9;
+    padding: 1rem 0.4rem;
+    padding-right: 0.8rem;
     width: 12.5rem; /* Set a fixed width for the menu */
     z-index: 1000;
 }
@@ -35,13 +36,14 @@
     color: #333;
     font-size: 1rem;
     display: block;
-    padding: 10px 20px;
+    padding: 10px 1rem;
     transition: background-color 0.2s ease-in-out;
 }
 
 .menu-links a:hover, .menu-logout:hover {
-    border-radius: 10px;
+    border-radius: 0.4rem;
     background-color: #fff7e4;
+    margin-left: 0.4rem;
 }
 
 /* Logout Button Styling */

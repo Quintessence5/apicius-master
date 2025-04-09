@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const seasonalityController = require('../controllers/seasonalityController');
-const upload = require('../config/multer');
+const { uploadExcel } = require('../config/multer');
 
 router.get('/template', seasonalityController.generateSeasonalityTemplate);
 
@@ -19,7 +19,7 @@ router.route('/manage')
   .get(seasonalityController.getSeasonalManagement)
   .post(seasonalityController.createSeasonalEntry);
 
-router.post('/upload', upload.single('file'), seasonalityController.uploadSeasonality);
+  router.post('/upload', uploadExcel.single('file'), seasonalityController.uploadSeasonality);
 
 
 router.route('/manage/:id')

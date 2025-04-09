@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../../services/apiClient';
+import unavailableImage from '../../assets/produce-icons/unavailable-produce.png';
+
 
 const SeasonalToday = () => {
   const [seasonalProduce, setSeasonalProduce] = useState({ fruits: [], vegetables: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const path = { basename: (fullPath) => fullPath.split('/').pop()};
 
   useEffect(() => {
     const fetchSeasonalToday = async () => {
@@ -39,11 +42,19 @@ const SeasonalToday = () => {
             {seasonalProduce.fruits.map(item => (
               <li key={item.ingredient_id} className="seasonal-item">
                 <div className="produce-icon">
-                  {item.produce_image_url ? (
-                    <img src={item.produce_image_url} alt={item.name} />
-                  ) : (
-                    <div className="icon-placeholder"></div>
-                  )}
+                  <img 
+                    src={
+                      item.image_path 
+                        ? require(`../../assets/produce-icons/${path.basename(item.image_path)}`)
+                        : unavailableImage
+                    }
+                    alt={item.name}
+                    onError={(e) => {
+                      if (e.target.src !== unavailableImage) {
+                        e.target.src = unavailableImage;
+                      }
+                    }}
+                  />
                 </div>
                 <span className="produce-name">{item.name}</span>
                 <span className="country-tag">{item.country}</span>
@@ -59,11 +70,19 @@ const SeasonalToday = () => {
             {seasonalProduce.vegetables.map(item => (
               <li key={item.ingredient_id} className="seasonal-item">
                 <div className="produce-icon">
-                  {item.produce_image_url ? (
-                    <img src={item.produce_image_url} alt={item.name} />
-                  ) : (
-                    <div className="icon-placeholder"></div>
-                  )}
+                  <img 
+                    src={
+                      item.image_path 
+                        ? require(`../../assets/produce-icons/${path.basename(item.image_path)}`)
+                        : unavailableImage
+                    }
+                    alt={item.name}
+                    onError={(e) => {
+                      if (e.target.src !== unavailableImage) {
+                        e.target.src = unavailableImage;
+                      }
+                    }}
+                  />
                 </div>
                 <span className="produce-name">{item.name}</span>
                 <span className="country-tag">{item.country}</span>
