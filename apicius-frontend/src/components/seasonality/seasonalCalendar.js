@@ -34,7 +34,7 @@ const SeasonalCalendar = () => {
         });
 
         const dataMap = response.data.reduce((acc, entry) => {
-          const dateKey = format(parseISO(entry.date), 'yyyy-MM-dd');
+          const dateKey = format(new Date(entry.date), 'yyyy-MM-dd');
           acc[dateKey] = {
             fruits: entry.fruits || [],
             vegetables: entry.vegetables || []
@@ -70,8 +70,8 @@ const SeasonalCalendar = () => {
           <div className="produce-icon">
             <img 
               src={
-                item.image_path 
-                  ? require(`../../assets/produce-icons/${path.basename(item.image_path)}`)
+                item['image path']
+                  ? require(`../../assets/produce-icons/${path.basename(item['image path'])}`)
                   : unavailableImage
               }
               alt={item.name}
@@ -88,7 +88,7 @@ const SeasonalCalendar = () => {
       ))}
     </ul>
   );
-
+  
   return (
     <div className="calendar-container">
       {isLoading && <div className="loading">Loading calendar...</div>}

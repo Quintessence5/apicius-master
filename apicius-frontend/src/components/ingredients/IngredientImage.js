@@ -6,6 +6,8 @@ const IngredientImage = () => {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [sortBy, setSortBy] = useState('id');
+  const [sortOrder, setSortOrder] = useState('asc');
   const path = { basename: (fullPath) => fullPath.split('/').pop()};
 
   const fetchIngredients = async () => {
@@ -24,7 +26,28 @@ const IngredientImage = () => {
     fetchIngredients();
   }, []);
 
-  // Handle image upload
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedIngredients = [...ingredients].sort((a, b) => {
+    const modifier = sortOrder === 'asc' ? 1 : -1;
+    
+    if (sortBy === 'id') {
+      return (a.id - b.id) * modifier;
+    }
+    
+    const aValue = a[sortBy]?.toString().toLowerCase() || '';
+    const bValue = b[sortBy]?.toString().toLowerCase() || '';
+    
+    return aValue.localeCompare(bValue) * modifier;
+  });
+
   const handleImageUpload = async (ingredientId, file) => {
     const formData = new FormData();
     formData.append('image', file);
@@ -36,7 +59,6 @@ const IngredientImage = () => {
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
 
-      // Update local state with new image path
       setIngredients(prev => prev.map(ing => 
         ing.id === ingredientId ? { ...ing, image_path: response.data.image_path } : ing
       ));
@@ -53,17 +75,33 @@ const IngredientImage = () => {
     <div className="ingredient-image-container">
       <h2>Ingredient Images</h2>
       
-      <table className="ingredients-table">
-        <thead>
+      <table className="ingredients-image-table">
+      <thead>
           <tr>
-            <th>Actions</th>
-            <th>Name</th>
-            <th>Category</th>
+          <th>Actions</th>
+            <th 
+              className={`sortable ${sortBy === 'id' ? sortOrder : ''}`}
+              onClick={() => handleSort('id')}
+            >
+              ID
+            </th>
+            <th 
+              className={`sortable ${sortBy === 'name' ? sortOrder : ''}`}
+              onClick={() => handleSort('name')}
+            >
+              Name
+            </th>
+            <th 
+              className={`sortable ${sortBy === 'category' ? sortOrder : ''}`}
+              onClick={() => handleSort('category')}
+            >
+              Category
+            </th>
             <th>Image</th>
           </tr>
         </thead>
         <tbody>
-          {ingredients.map(ingredient => (
+          {sortedIngredients.map(ingredient => (
             <tr key={ingredient.id}>
               <td>
                 <input
@@ -73,10 +111,11 @@ const IngredientImage = () => {
                   style={{ display: 'none' }}
                   onChange={(e) => handleImageUpload(ingredient.id, e.target.files[0])}
                 />
-                <label htmlFor={`file-upload-${ingredient.id}`} className="upload-button">
+                <label htmlFor={`file-upload-${ingredient.id}`} className="upload-image-button">
                   Upload Image
                 </label>
               </td>
+              <td>{ingredient.id}</td>
               <td>{ingredient.name}</td>
               <td>{ingredient.category}</td>
               <td>
@@ -94,7 +133,7 @@ const IngredientImage = () => {
       }
     }}
   />
-</td>
+</td> 
             </tr>
           ))}
         </tbody>

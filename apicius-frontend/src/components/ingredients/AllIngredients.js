@@ -89,7 +89,7 @@ const AllIngredients = () => {
     }
   };
 
-  // Render loading/error states
+  // Render loading
   if (loading) return <div>Loading ingredients...</div>;
   if (error) return <div className="error-message">{error}</div>;
 

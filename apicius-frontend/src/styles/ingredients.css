@@ -346,7 +346,7 @@
     border-radius: 3px;
   }
 
-  /* -----------------Table----------------- */
+  /* -----------------Table----------------- */ 
 /* Prices Table */
 .prices-container {
     padding: 20px;
@@ -440,14 +440,17 @@
 
   /* -----------------Image Upload----------------- */
 .ingredient-image-container {
-  padding: 20px;
+  padding: 0 2rem;
+  margin: 0 auto;
 }
 
-.upload-button {
+.upload-image-button {
   background: #4CAF50;
   color: white;
-  padding: 6px 12px;
+  padding: 0.4rem 0.8rem;
   border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.9rem;
   cursor: pointer;
   transition: background 0.3s;
 }
@@ -462,3 +465,65 @@
   object-fit: cover;
   border-radius: 4px;
 }
+
+.ingredients-image-table {
+  width: 100%;
+  border-collapse: collapse;
+  justify-items: center;
+}
+
+.ingredients-image-table th,
+.ingredients-image-table td {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+  min-width: 120px;
+}
+
+.ingredients-image-table th:nth-child(2),
+.ingredients-image-table td:nth-child(2) {
+  width: 2rem;
+  text-align: center;
+}
+
+.ingredients-image-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.ingredients-image-table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.ingredients-table th:first-child,
+.ingredients-table td:first-child {
+position: sticky;
+left: 0;
+z-index: 1;
+box-shadow: 2px 0 3px -1px rgba(0,0,0,0.1);
+}
+
+.ingredients-image-table th:nth-child(2),
+.ingredients-image-table td:nth-child(2) {
+position: sticky;
+left: 6rem;
+z-index: 1;
+background: white;
+box-shadow: 2px 0 3px -1px rgba(0,0,0,0.1);
+}
+
+.ingredients-image-table th:first-child {
+left: 0;
+z-index: 1;
+width: 20%;
+}
+
+.ingredients-image-table td:first-child {
+z-index: 1;
+text-align: center;
+}
+
+.ingredients-image-table td:last-child {
+  z-index: 1;
+  text-align: center;
+  }

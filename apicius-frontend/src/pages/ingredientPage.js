@@ -18,20 +18,19 @@ const IngredientsPage = () => {
           Add Ingredients </NavLink>
         <NavLink to="/ingredients/prices" className={({ isActive }) => isActive ? 'active' : ''} >
           Ingredient Prices </NavLink>
+        <NavLink to="/ingredients/images" className={({ isActive }) => isActive ? 'active' : ''}>
+          Ingredient Images </NavLink>
         <NavLink to="/ingredients/submissions" className={({ isActive }) => isActive ? 'active' : ''} >
           Submissions </NavLink>
-        <NavLink to="/ingredients/images" className={({ isActive }) => isActive ? 'active' : ''}>
-          Ingredient Images
-        </NavLink>
       </div>
       
       <div className="ingredients-content">
         <Routes>
           <Route index element={<AllIngredients />} />
           <Route path="add" element={<AddIngredient />} />
-          <Route path="submissions" element={<IngredientSubmissions />} />
           <Route path="prices" element={<IngredientPrices />} />
           <Route path="images" element={<IngredientImage />} />
+          <Route path="submissions" element={<IngredientSubmissions />} />
         </Routes>
       </div>
     </div>
