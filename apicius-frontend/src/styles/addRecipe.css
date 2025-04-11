@@ -175,7 +175,7 @@
 }
 
 .source-container input[type="text"] {
-  width: 100%;
+  width: 80%;
   padding: 10px;
   font-size: 1rem;
   border: 1px solid #ccc;
@@ -211,11 +211,10 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  width: 80%;
 }
 
 .portions-row label {
-  font-size: 1rem;
+  font-size: 0.8rem;
 }
 
 .portions-row input {
@@ -224,6 +223,7 @@
   border: 1px solid #ccc;
   border-radius: 5px;
   height: 1.35rem;
+  width: 100%;
 }
 
 /* Label styling */

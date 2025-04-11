@@ -70,7 +70,12 @@ const HamburgerMenu = ({ user, handleLogout }) => {
                                     Seasonality
                                 </Link>
                             </li>
-                            {/* Admin-only Ingredients Link */}
+                            <li>
+                              <Link to="/cart" onClick={toggleMenu}>
+                                Shopping Cart
+                              </Link>
+                            </li>
+                            {/* Admin-only */}
                             {user?.role === 'admin' && (
                                 <li>
                                     <Link to="/ingredients" onClick={toggleMenu}>

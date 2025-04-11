@@ -14,6 +14,7 @@ import IngredientsPage from './pages/ingredientPage';
 import SeasonalPage from './pages/seasonalityPage';
 import TimerPage from './pages/timer';
 import Profile from './pages/profilePage';
+import CartPage from './components/cart';
 import apiClient from './services/apiClient';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
@@ -118,6 +119,7 @@ const App = () => {
                     <Route path="/ingredients/*" element={<ProtectedRoute user={user} loading={loading} ><IngredientsPage /></ProtectedRoute>  } />
                     <Route path="/seasons/*" element={<ProtectedRoute user={user} loading={loading} ><SeasonalPage /></ProtectedRoute>  } />
                     <Route path="/timer" element={<ProtectedRoute user={user} loading={loading}> <TimerPage /> </ProtectedRoute>} />
+                    <Route path="/cart" element={<ProtectedRoute user={user} loading={loading}> <CartPage /> </ProtectedRoute>} />
                 </Route>
             </Routes>
         </Router></QueryClientProvider>
