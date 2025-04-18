@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from 'date-fns';
 import apiClient from '../../services/apiClient';
 import Modal from "../../components/modal";
 import unavailableImage from '../../assets/produce-icons/unavailable-produce.png';

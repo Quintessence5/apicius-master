@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../services/apiClient'; // Add this import
+import apiClient from '../services/apiClient';
 import '../styles/cart.css';
 
 const Cart = () => {
@@ -11,7 +11,7 @@ const Cart = () => {
   useEffect(() => {
     const fetchCart = async () => {
       try {
-        const response = await apiClient.get('/cart'); // Use apiClient instead of fetch
+        const response = await apiClient.get('/cart');
         setCartData(response.data);
       } catch (error) {
         console.error('Cart fetch error:', error);
@@ -28,7 +28,6 @@ const Cart = () => {
     try {
       await apiClient.post('/cart/clear');
       setCartData({ grouped: [], merged: [] });
-      navigate('/');
     } catch (error) {
       console.error('Clear cart error:', error);
     }
@@ -36,20 +35,32 @@ const Cart = () => {
 
   const handleToggleAcquired = async (ingredientId, recipeId) => {
     try {
+      // Determine current state based on view mode
+      const currentAcquired = viewMode === 'grouped'
+        ? cartData.grouped
+            .find(r => r.recipe_id === recipeId)
+            ?.ingredients?.find(i => i.ingredient_id === ingredientId)?.acquired
+        : cartData.merged
+            .find(i => i.ingredient_id === ingredientId)?.acquired;
+  
+      // Send proper recipeId (null for merged view)
       await apiClient.patch('/cart/acquired', {
         ingredientId,
-        recipeId,
-        acquired: !cartData.merged.find(i => i.ingredient_id === ingredientId)?.acquired
+        recipeId: viewMode === 'merged' ? null : recipeId,
+        acquired: !currentAcquired
       });
-      
-      setCartData(prev => ({
-        ...prev,
-        merged: prev.merged.map(item => 
-          item.ingredient_id === ingredientId 
-            ? { ...item, acquired: !item.acquired } 
-            : item
-        )
-      }));
+  
+      // Force complete refresh from server
+      const response = await apiClient.get('/cart');
+      setCartData({
+        grouped: response.data.grouped,
+        merged: response.data.merged.map(ing => ({
+          ...ing,
+          // Ensure proper boolean type
+          acquired: !!ing.acquired
+        }))
+      });
+  
     } catch (error) {
       console.error('Toggle error:', error);
     }
@@ -57,14 +68,28 @@ const Cart = () => {
 
   const handleRemoveIngredient = async (ingredientId, recipeId) => {
     try {
+      // Send recipeId as query parameter
       await apiClient.delete(`/cart/ingredients/${ingredientId}`, {
-        data: { recipeId }
+        params: { recipeId } // Changed from data to params
       });
-      
+  
+      // Optimistic update
       setCartData(prev => ({
-        ...prev,
-        merged: prev.merged.filter(item => item.ingredient_id !== ingredientId)
+        grouped: prev.grouped.map(recipe => ({
+          ...recipe,
+          ingredients: recipe.ingredients.filter(ing => 
+            !(ing.ingredient_id === ingredientId && 
+            (recipeId === undefined || recipe.recipe_id === recipeId))
+          )
+        })).filter(recipe => recipe.ingredients.length > 0),
+        merged: prev.merged.filter(ing => 
+          !(ing.ingredient_id === ingredientId && recipeId === undefined)
+        )
       }));
+  
+      // Server sync
+      const response = await apiClient.get('/cart');
+      setCartData(response.data);
     } catch (error) {
       console.error('Remove error:', error);
     }
@@ -81,37 +106,34 @@ const Cart = () => {
       <div className="cart-header">
         <h2>Shopping Cart</h2>
         <div className="view-toggle">
-          <button
-            onClick={() => setViewMode('grouped')}
-            className={viewMode === 'grouped' ? 'active' : ''}
-          >
+          <button className={viewMode === 'grouped' ? 'active' : ''} onClick={() => setViewMode('grouped')}>
             Group by Recipe
           </button>
-          <button
-            onClick={() => setViewMode('merged')}
-            className={viewMode === 'merged' ? 'active' : ''}
-          >
+          <button className={viewMode === 'merged' ? 'active' : ''} onClick={() => setViewMode('merged')}>
             Merge Ingredients
           </button>
         </div>
       </div>
 
-      {viewMode === 'grouped' ? (
+      {cartData.grouped.length === 0 ? (
+        <div className="empty-cart-message">
+          <h3>Your cart is empty</h3>
+          <p>Add recipes from your collection to get started!</p>
+        </div>
+      ) : viewMode === 'grouped' ? (
         <div className="grouped-view">
           {cartData.grouped.map(recipe => (
             <div key={recipe.recipe_id} className="recipe-group">
               <h3 className="recipe-title">{recipe.recipe_title}</h3>
               <ul className="ingredient-list">
-                {recipe.ingredients.map(ingredient => (
-                  <li 
-                    key={`${recipe.recipe_id}-${ingredient.ingredient_id}`}
-                    className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''}`}
-                  >
+              {recipe.ingredients.sort((a, b) => a.acquired - b.acquired).map(ingredient => (
+                <li 
+                  key={`${recipe.recipe_id}-${ingredient.ingredient_id}`}
+                  className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''}`}>
                     <div className="ingredient-content">
                       <label className="checkbox-container">
                         <input
                           type="checkbox"
-                          className="checkbox-input"
                           checked={ingredient.acquired || false}
                           onChange={() => handleToggleAcquired(ingredient.ingredient_id, recipe.recipe_id)}
                         />
@@ -123,8 +145,7 @@ const Cart = () => {
                     </div>
                     <button
                       className="remove-btn"
-                      onClick={() => handleRemoveIngredient(ingredient.ingredient_id, recipe.recipe_id)}
-                    >
+                      onClick={() => handleRemoveIngredient(ingredient.ingredient_id, recipe.recipe_id)}>
                       ×
                     </button>
                   </li>
@@ -137,30 +158,26 @@ const Cart = () => {
         <div className="merged-view">
           <ul className="ingredient-list">
             {sortedMerged.map(ingredient => (
-              <li 
-                key={ingredient.ingredient_id}
-                className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''}`}
-              >
+              <li key={ingredient.ingredient_id} 
+                  className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''}`}>
                 <div className="ingredient-content">
                   <label className="checkbox-container">
-                    <input
-                      type="checkbox"
-                      className="checkbox-input"
-                      checked={ingredient.acquired || false}
-                      onChange={() => handleToggleAcquired(ingredient.ingredient_id, null)}
-                    />
+                  <input
+                    type="checkbox"
+                    checked={ingredient.acquired || false}
+                    onChange={() => handleToggleAcquired(ingredient.ingredient_id, null)}
+                  />
                   </label>
                   <div className="ingredient-details">
-                    <span className="quantity-unit">
-                      {ingredient.total_quantity}{ingredient.unit}
-                    </span>
+                  <span className="quantity-unit">
+                    {ingredient.acquired ? 0 : ingredient.total_quantity}{ingredient.unit}
+                  </span>
                     <span className="ingredient-name">{ingredient.ingredient_name}</span>
                   </div>
                 </div>
                 <button
                   className="remove-btn"
-                  onClick={() => handleRemoveIngredient(ingredient.ingredient_id, null)}
-                >
+                  onClick={() => handleRemoveIngredient(ingredient.ingredient_id, null)}>
                   ×
                 </button>
               </li>
@@ -169,11 +186,13 @@ const Cart = () => {
         </div>
       )}
 
-      <div className="cart-actions">
-        <button onClick={handleClearCart} className="clear-cart-btn">
-          Clear Cart
-        </button>
-      </div>
+      {cartData.grouped.length > 0 && (
+        <div className="cart-actions">
+          <button onClick={handleClearCart} className="clear-cart-btn">
+            Clear Cart
+          </button>
+        </div>
+      )}
     </div>
   );
 };

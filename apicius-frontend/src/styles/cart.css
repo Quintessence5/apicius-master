@@ -1,3 +1,4 @@
+/* _________________________Cart Container_________________________ */
 .cart-container {
     max-width: 800px;
     margin: 2rem auto;
@@ -26,7 +27,7 @@
     color: white;
   }
   
-  /* Ingredient List Styles */
+  /* _________________________Ingredient List Styles_________________________ */
   .ingredient-list {
     list-style: none;
     padding: 0;
@@ -88,13 +89,22 @@
   /* Acquired State */
   .ingredient-item.acquired {
     opacity: 0.6;
-    order: 1; /* Move to bottom */
+    order: 1;
   }
   
   .ingredient-item.acquired .ingredient-name {
     text-decoration: line-through;
     color: #95a5a6;
   }
+
+  .ingredient-item {
+    transition: all 0.3s ease;
+  }
+  
+  .ingredient-item.acquired {
+    background-color: #f8f9fa;
+    opacity: 0.7;
+  }  
   
   /* Remove Button */
   .remove-btn {
@@ -124,7 +134,7 @@
     background-color: #c0392b;
   }
   
-  /* Clear Cart Button */
+  /* _________________________Clear Cart Button_________________________ */
   .clear-cart-btn {
     background-color: #dc3545;
     color: white;
@@ -140,7 +150,7 @@
     background-color: #c82333;
   }
   
-  /* Recipe Group Styles */
+  /* _________________________Recipe Group Styles_________________________ */
   .recipe-group {
     margin-bottom: 2rem;
     padding: 1.5rem;
@@ -154,4 +164,23 @@
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid #007bff;
+  }
+
+  /* _________________________Empty cart_________________________*/
+  .empty-cart-message {
+    text-align: center;
+    padding: 4rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 2rem;
+  }
+  
+  .empty-cart-message h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+  }
+  
+  .empty-cart-message p {
+    color: #7f8c8d;
+    font-size: 1.1rem;
   }
