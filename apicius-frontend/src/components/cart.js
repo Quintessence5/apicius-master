@@ -5,15 +5,18 @@ import '../styles/cart.css';
 
 const Cart = () => {
   const [cartData, setCartData] = useState({ grouped: [], merged: [] });
-  const [viewMode, setViewMode] = useState('grouped');
+  const [viewMode, setViewMode] = useState('merged');
+  const [showDeleted, setShowDeleted] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCart = async () => {
-      try {
-        const response = await apiClient.get('/cart');
-        setCartData(response.data);
-      } catch (error) {
+        try {
+          const response = await apiClient.get('/cart', {
+            params: { _: new Date().getTime() }
+          });
+          setCartData(response.data);
+        } catch (error) {
         console.error('Cart fetch error:', error);
         if (error.response?.status === 401) {
           navigate('/login');
@@ -68,12 +71,10 @@ const Cart = () => {
 
   const handleRemoveIngredient = async (ingredientId, recipeId) => {
     try {
-      // Send recipeId as query parameter
       await apiClient.delete(`/cart/ingredients/${ingredientId}`, {
-        params: { recipeId } // Changed from data to params
+        params: { recipeId } 
       });
   
-      // Optimistic update
       setCartData(prev => ({
         grouped: prev.grouped.map(recipe => ({
           ...recipe,
@@ -87,7 +88,6 @@ const Cart = () => {
         )
       }));
   
-      // Server sync
       const response = await apiClient.get('/cart');
       setCartData(response.data);
     } catch (error) {
@@ -95,7 +95,18 @@ const Cart = () => {
     }
   };
 
-  // Sort merged ingredients with acquired at bottom
+  const handleRestoreIngredient = async (ingredientId) => {
+    try {
+      await apiClient.patch(`/cart/ingredients/${ingredientId}/restore`);
+      
+      // Refresh cart data
+      const response = await apiClient.get('/cart');
+      setCartData(response.data);
+    } catch (error) {
+      console.error('Restore error:', error);
+    }
+  };
+
   const sortedMerged = [...cartData.merged].sort((a, b) => 
     a.acquired === b.acquired ? 0 : a.acquired ? 1 : -1
   );
@@ -106,12 +117,13 @@ const Cart = () => {
       <div className="cart-header">
         <h2>Shopping Cart</h2>
         <div className="view-toggle">
+        <button className={viewMode === 'merged' ? 'active' : ''} onClick={() => setViewMode('merged')}>
+            Merge Ingredients
+          </button>
           <button className={viewMode === 'grouped' ? 'active' : ''} onClick={() => setViewMode('grouped')}>
             Group by Recipe
           </button>
-          <button className={viewMode === 'merged' ? 'active' : ''} onClick={() => setViewMode('merged')}>
-            Merge Ingredients
-          </button>
+          
         </div>
       </div>
 
@@ -157,7 +169,9 @@ const Cart = () => {
       ) : (
         <div className="merged-view">
           <ul className="ingredient-list">
-            {sortedMerged.map(ingredient => (
+          {sortedMerged
+      .filter(ing => !ing.deleted)
+      .map(ingredient => (
               <li key={ingredient.ingredient_id} 
                   className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''}`}>
                 <div className="ingredient-content">
@@ -170,8 +184,9 @@ const Cart = () => {
                   </label>
                   <div className="ingredient-details">
                   <span className="quantity-unit">
-                    {ingredient.acquired ? 0 : ingredient.total_quantity}{ingredient.unit}
+                    {ingredient.total_quantity > 0 ? `${ingredient.total_quantity}${ingredient.unit}` : ' '}
                   </span>
+
                     <span className="ingredient-name">{ingredient.ingredient_name}</span>
                   </div>
                 </div>
@@ -182,6 +197,24 @@ const Cart = () => {
                 </button>
               </li>
             ))}
+            {showDeleted && sortedMerged
+      .filter(ing => ing.deleted)
+      .map(ingredient => (
+        <li key={`deleted-${ingredient.ingredient_id}`} 
+            className="ingredient-item deleted">
+          <div className="ingredient-content">
+            <span className="quantity-unit">
+              {ingredient.total_quantity}{ingredient.unit}
+            </span>
+            <span className="ingredient-name">{ingredient.ingredient_name}</span>
+          </div>
+          <button
+            className="restore-btn"
+            onClick={() => handleRestoreIngredient(ingredient.ingredient_id)}>
+            ✔️
+          </button>
+        </li>
+      ))}
           </ul>
         </div>
       )}
@@ -191,6 +224,12 @@ const Cart = () => {
           <button onClick={handleClearCart} className="clear-cart-btn">
             Clear Cart
           </button>
+          <button 
+              className={`show-deleted-btn ${showDeleted ? 'active' : ''}`}
+              onClick={() => setShowDeleted(!showDeleted)}
+            >
+              Show Deleted
+            </button>
         </div>
       )}
     </div>

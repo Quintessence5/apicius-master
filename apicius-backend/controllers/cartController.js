@@ -39,7 +39,6 @@ const addToCart = async (req, res) => {
 // __________-------------Get Cart Contents-------------__________
 const getCart = async (req, res) => {
     try {
-      // 1. Get user's cart
       const cartResult = await pool.query(
         'SELECT recipe_id FROM cart_new WHERE user_id = $1',
         [req.userId]
@@ -82,33 +81,25 @@ const getCart = async (req, res) => {
 `;
 
 const mergedQuery = `
-  SELECT 
-    ri.ingredient_id,
-    i.name AS ingredient_name,
-    SUM(ri.quantity) FILTER (
-      WHERE NOT EXISTS (
-        SELECT 1 
-        FROM cart_ingredients ci 
-        WHERE ci.user_id = $2 
-          AND ci.recipe_id = r.id 
-          AND ci.ingredient_id = ri.ingredient_id 
-          AND ci.deleted = true
-      )
-    ) AS total_quantity,
-    ri.unit,
-    BOOL_AND(ci.acquired) AS acquired
-  FROM unnest($1::INT[]) AS rid(recipe_id)
-  JOIN recipes r ON r.id = rid.recipe_id
-  JOIN recipe_ingredients ri ON ri.recipe_id = r.id
-  JOIN ingredients i ON i.id = ri.ingredient_id
-  LEFT JOIN cart_ingredients ci 
-    ON ci.user_id = $2 
-    AND ci.recipe_id = r.id 
-    AND ci.ingredient_id = ri.ingredient_id
-    AND ci.deleted = false
-  GROUP BY ri.ingredient_id, i.name, ri.unit
-`;
-  
+      SELECT 
+        ri.ingredient_id,
+        i.name AS ingredient_name,
+        SUM(CASE WHEN ci.acquired THEN 0 ELSE ri.quantity END) AS total_quantity,
+        ri.unit,
+        BOOL_AND(ci.acquired) AS acquired,
+        BOOL_OR(ci.deleted) AS deleted
+      FROM unnest($1::INT[]) AS rid(recipe_id)
+      JOIN recipes r ON r.id = rid.recipe_id
+      JOIN recipe_ingredients ri ON ri.recipe_id = r.id
+      JOIN ingredients i ON i.id = ri.ingredient_id
+      LEFT JOIN cart_ingredients ci 
+        ON ci.user_id = $2 
+        AND ci.recipe_id = r.id 
+        AND ci.ingredient_id = ri.ingredient_id
+      WHERE COALESCE(ci.deleted, false) = false
+      GROUP BY ri.ingredient_id, i.name, ri.unit
+    `;
+
       const [grouped, merged] = await Promise.all([
         pool.query(groupedQuery, [recipeIds, req.userId]),
         pool.query(mergedQuery, [recipeIds, req.userId])
@@ -132,7 +123,7 @@ const mergedQuery = `
 const deleteIngredient = async (req, res) => {
     try {
       const { id: ingredientId } = req.params;
-      const { recipeId } = req.query; // Get from query params instead of body
+      const { recipeId } = req.query;
   
       if (!ingredientId || isNaN(ingredientId)) {
         return res.status(400).json({ message: 'Invalid ingredient ID' });
@@ -162,6 +153,10 @@ const deleteIngredient = async (req, res) => {
           FROM cart_ingredients ci
           WHERE ci.user_id = $1
             AND ci.deleted = false
+          UNION
+          SELECT unnest(recipe_id) 
+          FROM cart_new 
+          WHERE user_id = $1
         )
         WHERE user_id = $1
       `, [req.userId]);
@@ -181,12 +176,31 @@ const deleteIngredient = async (req, res) => {
     }
   };
 
+  
+// __________-------------Remove Recipe-------------__________
+    const restoreIngredient = async (req, res) => {
+    try {
+      const { ingredientId } = req.params;
+      
+      await pool.query(`
+        UPDATE cart_ingredients
+        SET deleted = false
+        WHERE user_id = $1 
+          AND ingredient_id = $2
+      `, [req.userId, ingredientId]);
+  
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Restore error:', error);
+      res.status(500).json({ message: 'Error restoring ingredient' });
+    }
+  };
+
 // __________-------------Remove Recipe-------------__________
 const removeFromCart = async (req, res) => {
   try {
     const { recipeId } = req.body;
     
-    // Remove from cart_new
     await pool.query(`
       UPDATE cart_new
       SET recipe_id = ARRAY_REMOVE(recipe_id, $1)
@@ -238,7 +252,6 @@ const toggleAcquired = async (req, res) => {
         return res.status(400).json({ message: 'Invalid request parameters' });
       }
   
-      // Determine if we're toggling all recipe instances
       const toggleAll = !recipeId;
   
       let query;
@@ -270,4 +283,4 @@ const toggleAcquired = async (req, res) => {
     }
   };
 
-module.exports = { addToCart, getCart, removeFromCart, clearCart, deleteIngredient, toggleAcquired };
+module.exports = { restoreIngredient, addToCart, getCart, removeFromCart, clearCart, deleteIngredient, toggleAcquired };

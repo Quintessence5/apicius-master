@@ -11,5 +11,6 @@ router.post('/clear', authenticateToken, cartController.clearCart);
 router.patch('/acquired', authenticateToken, cartController.toggleAcquired);
 
 router.delete('/ingredients/:id', authenticateToken, cartController.deleteIngredient);
+router.patch('/ingredients/:id/restore', authenticateToken, cartController.restoreIngredient);
 
 module.exports = router;

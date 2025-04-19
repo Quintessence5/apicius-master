@@ -184,3 +184,35 @@
     color: #7f8c8d;
     font-size: 1.1rem;
   }
+
+  /* Deleted items styling */
+.ingredient-item.deleted {
+    opacity: 0.6;
+    background-color: #f8f9fa;
+  }
+  
+  .ingredient-item.deleted .ingredient-name {
+    text-decoration: line-through;
+  }
+  
+  /* Restore button */
+  .restore-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-left: 10px;
+    cursor: pointer;
+  }
+  
+  /* Show Deleted button */
+  .show-deleted-btn {
+    background-color: #6c757d;
+    color: white;
+    margin-left: 1rem;
+  }
+  
+  .show-deleted-btn.active {
+    background-color: #5a6268;
+  }
