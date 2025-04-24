@@ -39,6 +39,8 @@ const addToCart = async (req, res) => {
 // __________-------------Get Cart Contents-------------__________
 const getCart = async (req, res) => {
     try {
+      const showDeleted = req.query.showDeleted === 'true';
+    
       const cartResult = await pool.query(
         'SELECT recipe_id FROM cart_new WHERE user_id = $1',
         [req.userId]
@@ -50,44 +52,17 @@ const getCart = async (req, res) => {
       const recipeIds = cartResult.rows[0].recipe_id;
   
       const groupedQuery = `
-  SELECT 
-    r.id AS recipe_id,
-    r.title AS recipe_title,
-    JSONB_AGG(JSONB_BUILD_OBJECT(
-      'ingredient_id', ri.ingredient_id,
-      'name', i.name,
-      'quantity', ri.quantity,
-      'unit', ri.unit,
-      'acquired', COALESCE(ci.acquired, false)
-    )) AS ingredients
-  FROM unnest($1::INT[]) AS rid(recipe_id)
-  JOIN recipes r ON r.id = rid.recipe_id
-  JOIN recipe_ingredients ri ON ri.recipe_id = r.id
-  JOIN ingredients i ON i.id = ri.ingredient_id
-  LEFT JOIN cart_ingredients ci 
-    ON ci.user_id = $2 
-    AND ci.recipe_id = r.id 
-    AND ci.ingredient_id = ri.ingredient_id
-    AND ci.deleted = false
-  WHERE NOT EXISTS (
-    SELECT 1 
-    FROM cart_ingredients ci2 
-    WHERE ci2.user_id = $2 
-      AND ci2.recipe_id = r.id 
-      AND ci2.ingredient_id = ri.ingredient_id 
-      AND ci2.deleted = true
-  )
-  GROUP BY r.id, r.title
-`;
-
-const mergedQuery = `
       SELECT 
-        ri.ingredient_id,
-        i.name AS ingredient_name,
-        SUM(CASE WHEN ci.acquired THEN 0 ELSE ri.quantity END) AS total_quantity,
-        ri.unit,
-        BOOL_AND(ci.acquired) AS acquired,
-        BOOL_OR(ci.deleted) AS deleted
+        r.id AS recipe_id,
+        r.title AS recipe_title,
+        JSONB_AGG(JSONB_BUILD_OBJECT(
+          'ingredient_id', ri.ingredient_id,
+          'name', i.name,
+          'quantity', ri.quantity,
+          'unit', ri.unit,
+          'acquired', COALESCE(ci.acquired, false),
+          'deleted', COALESCE(ci.deleted, false)
+        )) AS ingredients
       FROM unnest($1::INT[]) AS rid(recipe_id)
       JOIN recipes r ON r.id = rid.recipe_id
       JOIN recipe_ingredients ri ON ri.recipe_id = r.id
@@ -96,9 +71,32 @@ const mergedQuery = `
         ON ci.user_id = $2 
         AND ci.recipe_id = r.id 
         AND ci.ingredient_id = ri.ingredient_id
-      WHERE COALESCE(ci.deleted, false) = false
-      GROUP BY ri.ingredient_id, i.name, ri.unit
+      GROUP BY r.id, r.title
     `;
+
+
+    const mergedQuery = `
+    SELECT 
+      ri.ingredient_id,
+      i.name AS ingredient_name,
+      SUM(
+        CASE 
+          WHEN ci.deleted THEN 0  -- Exclude deleted items
+          ELSE COALESCE(ri.quantity, 0)
+        END
+      ) AS total_quantity,
+      ri.unit,
+      BOOL_AND(ci.deleted) AS deleted  -- TRUE only if ALL instances are deleted
+    FROM unnest($1::INT[]) AS rid(recipe_id)
+    JOIN recipes r ON r.id = rid.recipe_id
+    JOIN recipe_ingredients ri ON ri.recipe_id = r.id
+    JOIN ingredients i ON i.id = ri.ingredient_id
+    LEFT JOIN cart_ingredients ci 
+      ON ci.user_id = $2 
+      AND ci.recipe_id = r.id 
+      AND ci.ingredient_id = ri.ingredient_id
+    GROUP BY ri.ingredient_id, i.name, ri.unit
+  `;
 
       const [grouped, merged] = await Promise.all([
         pool.query(groupedQuery, [recipeIds, req.userId]),
@@ -176,25 +174,90 @@ const deleteIngredient = async (req, res) => {
     }
   };
 
-  
-// __________-------------Remove Recipe-------------__________
-    const restoreIngredient = async (req, res) => {
-    try {
-      const { ingredientId } = req.params;
-      
-      await pool.query(`
-        UPDATE cart_ingredients
-        SET deleted = false
-        WHERE user_id = $1 
-          AND ingredient_id = $2
-      `, [req.userId, ingredientId]);
-  
-      res.json({ success: true });
-    } catch (error) {
-      console.error('Restore error:', error);
-      res.status(500).json({ message: 'Error restoring ingredient' });
+// __________-------------Restore deleted Ingredient-------------__________
+const restoreIngredient = async (req, res) => {
+  try {
+    // Validate and parse ingredient ID
+    const ingredientId = parseInt(req.params.id, 10);
+    if (isNaN(ingredientId)) {
+      return res.status(400).json({ 
+        message: 'Invalid ingredient ID - must be a numeric value' 
+      });
     }
-  };
+
+    // Validate and parse optional recipe ID
+    let recipeId;
+    if (req.query.recipeId) {
+      recipeId = parseInt(req.query.recipeId, 10);
+      if (isNaN(recipeId)) {
+        return res.status(400).json({ 
+          message: 'Invalid recipe ID - must be numeric' 
+        });
+      }
+    }
+
+    await pool.query('BEGIN');
+
+    // Build conditional query
+    let query = `
+      UPDATE cart_ingredients
+      SET deleted = false
+      WHERE user_id = $1
+        AND ingredient_id = $2
+        AND deleted = true
+    `;
+    const params = [req.userId, ingredientId];
+
+    if (recipeId) {
+      query += ' AND recipe_id = $3';
+      params.push(recipeId);
+    }
+
+    const result = await pool.query(query, params);
+
+    if (result.rowCount === 0) {
+      await pool.query('ROLLBACK');
+      return res.status(404).json({
+        message: 'No deletable ingredients found',
+        details: {
+          ingredientId,
+          recipeId: recipeId || 'any',
+          userId: req.userId
+        }
+      });
+    }
+
+    // Rebuild cart_new recipes array
+    await pool.query(`
+      UPDATE cart_new
+      SET recipe_id = ARRAY(
+        SELECT DISTINCT recipe_id
+        FROM cart_ingredients
+        WHERE user_id = $1
+          AND deleted = false
+      )
+      WHERE user_id = $1
+    `, [req.userId]);
+
+    await pool.query('COMMIT');
+
+    res.json({
+      success: true,
+      restoredCount: result.rowCount,
+      ingredientId,
+      recipeId: recipeId || 'all'
+    });
+
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Restore error:', error);
+    res.status(500).json({ 
+      message: 'Restoration failed',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
 
 // __________-------------Remove Recipe-------------__________
 const removeFromCart = async (req, res) => {

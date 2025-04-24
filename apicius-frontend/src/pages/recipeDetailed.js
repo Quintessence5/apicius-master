@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import apiClient from '../services/apiClient';
 import axios from 'axios';
 import '../styles/recipeDetailed.css';
 import StarRating from '../components/starRating';
@@ -64,6 +65,21 @@ const RecipeDetails = () => {
         };
         fetchUnits();
     }, []);
+
+    const handleAddToCart = async () => {
+        try {
+          await apiClient.post('/cart/add', { recipeId: id });
+          alert('Recipe added to cart successfully!');
+          // Optional: You could add a more sophisticated notification here
+        } catch (error) {
+          console.error('Add to cart error:', error);
+          if (error.response?.status === 401) {
+            navigate('/login');
+          } else {
+            alert('Failed to add recipe to cart. Please try again.');
+          }
+        }
+      };
 
     const getConvertedQuantity = (ingredient) => {
         console.log('Current Ingredient:', ingredient);
@@ -149,9 +165,11 @@ const RecipeDetails = () => {
                 <div className="recipe-title-container">
                     <h1 className="recipe-titlezz">{recipe.title}</h1>
                     <p className="recipe-subtitle">{recipe.meal_type} | {recipe.course_type}</p>
+                    <div className="recipe-actions">
                     <button className="timer-btn" onClick={handleTimer}>Timer</button>
                     <button className="edit-recipe-btn" onClick={handleEdit}>Edit</button>
-                </div>
+                    <button className="add-to-cart-btn" onClick={handleAddToCart}> Add to Cart  </button>
+                    </div></div>
             </div>
 
             {/* Recipe Information Sections */}

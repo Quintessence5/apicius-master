@@ -11,12 +11,15 @@ const Cart = () => {
 
   useEffect(() => {
     const fetchCart = async () => {
-        try {
-          const response = await apiClient.get('/cart', {
-            params: { _: new Date().getTime() }
-          });
-          setCartData(response.data);
-        } catch (error) {
+      try {
+        const response = await apiClient.get('/cart', {
+          params: { 
+            _: new Date().getTime(),
+            showDeleted: showDeleted 
+          }
+        });
+        setCartData(response.data);
+      } catch (error) {
         console.error('Cart fetch error:', error);
         if (error.response?.status === 401) {
           navigate('/login');
@@ -25,7 +28,7 @@ const Cart = () => {
     };
     
     fetchCart();
-  }, [navigate]);
+  }, [navigate, showDeleted]);
 
   const handleClearCart = async () => {
     try {
@@ -97,13 +100,33 @@ const Cart = () => {
 
   const handleRestoreIngredient = async (ingredientId) => {
     try {
-      await apiClient.patch(`/cart/ingredients/${ingredientId}/restore`);
-      
-      // Refresh cart data
-      const response = await apiClient.get('/cart');
-      setCartData(response.data);
+      const response = await apiClient.patch(
+        `/cart/ingredients/${ingredientId}/restore`,
+        {}, // Empty body
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+  
+      if (response.data.success) {
+        // Refresh both views
+        const [groupedRes, mergedRes] = await Promise.all([
+          apiClient.get('/cart?view=grouped'),
+          apiClient.get('/cart?view=merged')
+        ]);
+        
+        setCartData({
+          grouped: groupedRes.data.grouped,
+          merged: mergedRes.data.merged
+        });
+      }
     } catch (error) {
       console.error('Restore error:', error);
+      if (error.response?.status === 401) {
+        navigate('/login');
+      }
     }
   };
 
@@ -128,20 +151,26 @@ const Cart = () => {
       </div>
 
       {cartData.grouped.length === 0 ? (
-        <div className="empty-cart-message">
-          <h3>Your cart is empty</h3>
-          <p>Add recipes from your collection to get started!</p>
-        </div>
-      ) : viewMode === 'grouped' ? (
-        <div className="grouped-view">
-          {cartData.grouped.map(recipe => (
-            <div key={recipe.recipe_id} className="recipe-group">
-              <h3 className="recipe-title">{recipe.recipe_title}</h3>
-              <ul className="ingredient-list">
-              {recipe.ingredients.sort((a, b) => a.acquired - b.acquired).map(ingredient => (
-                <li 
-                  key={`${recipe.recipe_id}-${ingredient.ingredient_id}`}
-                  className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''}`}>
+  <div className="empty-cart-message">
+    <h3>Your cart is empty</h3>
+    <p>Add recipes from your collection to get started!</p>
+  </div>
+) : (
+  <>
+    {viewMode === 'grouped' ? (
+      <div className="grouped-view">
+        {cartData.grouped.map(recipe => (
+          <div key={recipe.recipe_id} className="recipe-group">
+            <h3 className="recipe-title">{recipe.recipe_title}</h3>
+            <ul className="ingredient-list">
+              {recipe.ingredients
+                .filter(ing => showDeleted || !ing.deleted)
+                .sort((a, b) => a.acquired - b.acquired)
+                .map(ingredient => (
+                  <li 
+                    key={`${recipe.recipe_id}-${ingredient.ingredient_id}`}
+                    className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''} ${ingredient.deleted ? 'deleted' : ''}`}
+                  >
                     <div className="ingredient-content">
                       <label className="checkbox-container">
                         <input
@@ -155,69 +184,91 @@ const Cart = () => {
                       </span>
                       <span className="ingredient-name">{ingredient.name}</span>
                     </div>
-                    <button
-                      className="remove-btn"
-                      onClick={() => handleRemoveIngredient(ingredient.ingredient_id, recipe.recipe_id)}>
-                      ×
-                    </button>
+                    <div className="ingredient-actions">
+                      {!ingredient.deleted ? (
+                        <button
+                          className="remove-btn"
+                          onClick={() => handleRemoveIngredient(ingredient.ingredient_id, recipe.recipe_id)}
+                        >
+                          ×
+                        </button>
+                      ) : (
+                        <button
+                          className="restore-btn"
+                          onClick={() => handleRestoreIngredient(ingredient.ingredient_id)}
+                        >
+                          ✔️
+                        </button>
+                      )}
+                    </div>
                   </li>
                 ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="merged-view">
-          <ul className="ingredient-list">
+            </ul>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="merged-view">
+        <ul className="ingredient-list">
           {sortedMerged
-      .filter(ing => !ing.deleted)
-      .map(ingredient => (
-              <li key={ingredient.ingredient_id} 
-                  className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''}`}>
+            .filter(ing => !ing.deleted)
+            .map(ingredient => (
+              <li 
+                key={ingredient.ingredient_id} 
+                className={`ingredient-item ${ingredient.acquired ? 'acquired' : ''}`}
+              >
                 <div className="ingredient-content">
                   <label className="checkbox-container">
-                  <input
-                    type="checkbox"
-                    checked={ingredient.acquired || false}
-                    onChange={() => handleToggleAcquired(ingredient.ingredient_id, null)}
-                  />
+                    <input
+                      type="checkbox"
+                      checked={ingredient.acquired || false}
+                      onChange={() => handleToggleAcquired(ingredient.ingredient_id, null)}
+                    />
                   </label>
                   <div className="ingredient-details">
-                  <span className="quantity-unit">
-                    {ingredient.total_quantity > 0 ? `${ingredient.total_quantity}${ingredient.unit}` : ' '}
-                  </span>
-
+                    <span className="quantity-unit">
+                      {ingredient.total_quantity > 0 
+                        ? `${ingredient.total_quantity}${ingredient.unit}`
+                        : ' '}
+                    </span>
                     <span className="ingredient-name">{ingredient.ingredient_name}</span>
                   </div>
                 </div>
                 <button
                   className="remove-btn"
-                  onClick={() => handleRemoveIngredient(ingredient.ingredient_id, null)}>
+                  onClick={() => handleRemoveIngredient(ingredient.ingredient_id, null)}
+                >
                   ×
                 </button>
               </li>
             ))}
-            {showDeleted && sortedMerged
-      .filter(ing => ing.deleted)
-      .map(ingredient => (
-        <li key={`deleted-${ingredient.ingredient_id}`} 
-            className="ingredient-item deleted">
-          <div className="ingredient-content">
-            <span className="quantity-unit">
-              {ingredient.total_quantity}{ingredient.unit}
-            </span>
-            <span className="ingredient-name">{ingredient.ingredient_name}</span>
-          </div>
-          <button
-            className="restore-btn"
-            onClick={() => handleRestoreIngredient(ingredient.ingredient_id)}>
-            ✔️
-          </button>
-        </li>
-      ))}
-          </ul>
-        </div>
-      )}
+          
+          {showDeleted && sortedMerged
+            .filter(ing => ing.deleted)
+            .map(ingredient => (
+              <li 
+                key={`deleted-${ingredient.ingredient_id}`} 
+                className="ingredient-item deleted"
+              >
+                <div className="ingredient-content">
+                  <span className="quantity-unit">
+                    {ingredient.total_quantity}{ingredient.unit}
+                  </span>
+                  <span className="ingredient-name">{ingredient.ingredient_name}</span>
+                </div>
+                <button
+                  className="restore-btn"
+                  onClick={() => handleRestoreIngredient(ingredient.ingredient_id)}
+                >
+                  ✔️
+                </button>
+              </li>
+            ))}
+        </ul>
+      </div>
+    )}
+  </>
+)}
 
       {cartData.grouped.length > 0 && (
         <div className="cart-actions">
