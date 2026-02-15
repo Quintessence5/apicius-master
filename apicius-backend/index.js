@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 5010;
 app.use(cookieParser());
 
 // Routes
+const transcriptRoutes = require('./routes/transcriptRoutes');
 const userRoutes = require('./routes/userRoutes');
 const recipeRoutes = require('./routes/recipeRoutes');
 const ingredientRoutes = require('./routes/ingredientRoutes');
@@ -20,7 +21,6 @@ const countryRoutes = require('./routes/countryRoutes');
 const seasonalityRoutes = require('./routes/seasonalityRoutes');
 const userInteractionRoutes = require('./routes/userInteractionRoutes');
 const cartRoutes = require('./routes/cartRoutes');
-const transcriptRoutes = require('./routes/transcriptRoutes');
 
 // Middleware setup
 app.use(cors({

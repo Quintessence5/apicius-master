@@ -22,7 +22,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
         setSuccess('');
 
         try {
-            const response = await axios.post('/api/transcripts/extract-youtube', {
+            const response = await axios.post('http://localhost:5010/api/transcripts/extract-youtube', {
                 videoUrl
             });
 
@@ -48,7 +48,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
         try {
             console.log(`🔄 Converting ${source} transcript to recipe...`);
 
-            const response = await axios.post('/api/transcripts/convert-to-recipe', {
+            const response = await axios.post('http://localhost:5010/api/transcripts/convert-to-recipe', {
                 transcript: transcriptText || transcript,
                 videoUrl: sourceUrl || videoUrl,
                 source: source || activeTab
@@ -74,7 +74,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     // __________-------------Map Ingredients to Database-------------__________
     const handleMapIngredients = async (ingredients) => {
         try {
-            const response = await axios.post('/api/transcripts/map-ingredients', {
+            const response = await axios.post('http://localhost:5010/api/transcripts/map-ingredients', {
                 ingredients
             });
 

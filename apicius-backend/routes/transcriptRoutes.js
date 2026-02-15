@@ -19,7 +19,7 @@ router.use((req, res, next) => {
 // Extract YouTube transcript
 router.post('/extract-youtube', extractYouTubeTranscript);
 
-// Convert transcript to recipe using Groq LLM
+// Convert transcript to recipe with LLM
 router.post('/convert-to-recipe', convertTranscriptToRecipe);
 
 // Map extracted ingredients to database

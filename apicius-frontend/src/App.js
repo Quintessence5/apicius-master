@@ -17,6 +17,7 @@ import Profile from './pages/profilePage';
 import CartPage from './components/cart';
 import apiClient from './services/apiClient';
 import { QueryClient, QueryClientProvider } from 'react-query';
+import TranscriptPage from './pages/transcriptPage';
 
 const queryClient = new QueryClient();
 
@@ -114,6 +115,7 @@ const App = () => {
                     <Route path="/dashboard" element={<ProtectedRoute user={user} loading={loading}> <Dashboard /> </ProtectedRoute>} />
                     <Route path="/profile" element={<ProtectedRoute user={user} loading={loading}> <Profile /> </ProtectedRoute>} />
                     <Route path="/add-recipe" element={<ProtectedRoute user={user} loading={loading}> <AddRecipe /> </ProtectedRoute>} />
+                    <Route path="/transcript" element={<ProtectedRoute user={user} loading={loading}><TranscriptPage /></ProtectedRoute>} />
                     <Route path="/all-recipes" element={<ProtectedRoute user={user} loading={loading}> <AllRecipes /> </ProtectedRoute>} />
                     <Route path="/recipe/:id" element={<ProtectedRoute user={user} loading={loading}> <RecipeDetailed /> </ProtectedRoute>} />
                     <Route path="/ingredients/*" element={<ProtectedRoute user={user} loading={loading} ><IngredientsPage /></ProtectedRoute>  } />
