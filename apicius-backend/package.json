@@ -34,7 +34,8 @@
     "react-select": "^5.8.3",
     "react-world-flags": "^1.6.0",
     "xlsx": "^0.18.5",
-    "youtube-transcript": "^1.2.1"
+    "youtube-transcript": "^1.2.1",
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
     "jest": "^29.7.0",

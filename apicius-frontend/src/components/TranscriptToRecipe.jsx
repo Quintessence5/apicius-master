@@ -27,10 +27,12 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
             });
 
             if (response.data.success) {
-                setTranscript(response.data.transcript);
-                setSuccess('YouTube transcript extracted! Proceeding to recipe conversion...');
-                setTimeout(() => handleConvertToRecipe(response.data.transcript, 'youtube', videoUrl), 1500);
-            }
+    setTranscript(response.data.transcript);
+    setSuccess(`✅ ${response.data.method === 'audio-download-and-transcribe' 
+        ? 'YouTube audio downloaded and transcribed!' 
+        : 'YouTube transcript extracted!'} Proceeding to recipe conversion...`);
+    setTimeout(() => handleConvertToRecipe(response.data.transcript, 'youtube', videoUrl), 1500);
+}
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to extract YouTube transcript');
             console.error('YouTube extraction error:', err);
