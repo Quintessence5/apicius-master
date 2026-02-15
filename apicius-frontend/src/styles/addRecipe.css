@@ -117,7 +117,7 @@
 }
 
 .difficulty-row > div {
-  max-width: 40%;
+  max-width: 50%;
 }
 
 .difficulty label {
@@ -325,9 +325,11 @@
   display: flex;
   gap: 1rem;
   margin-top: 0.5rem;
+  width: 100%;
 }
 
 .time-row input {
+  flex: 1;
   width: 100%;
   padding: 0.7rem;
   font-size: 1rem;
@@ -342,7 +344,7 @@
 }
 
 .notes-container textarea {
-    width: 99%;
+    width: 98.5%;
     font-family: Arial, sans-serif;
     resize: vertical;
     border: 1px solid #ccc;

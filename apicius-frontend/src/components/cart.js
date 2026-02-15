@@ -57,15 +57,11 @@ const Cart = () => {
       });
   
       // Force complete refresh from server
-      const response = await apiClient.get('/cart');
-      setCartData({
-        grouped: response.data.grouped,
-        merged: response.data.merged.map(ing => ({
-          ...ing,
-          // Ensure proper boolean type
-          acquired: !!ing.acquired
-        }))
+      const response = await apiClient.get('/cart', {
+        params: { showDeleted }
       });
+      
+      setCartData(response.data);
   
     } catch (error) {
       console.error('Toggle error:', error);

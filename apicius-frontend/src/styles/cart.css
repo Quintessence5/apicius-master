@@ -121,8 +121,7 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    position: absolute;
-    right: 1rem;
+    margin-right: 0.5rem;
   }
   
   .ingredient-item:hover .remove-btn {
@@ -165,6 +164,7 @@
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid #007bff;
+    margin-top: -0.5rem;
   }
 
   /* _________________________Empty cart_________________________*/

@@ -76,27 +76,29 @@ const getCart = async (req, res) => {
 
 
     const mergedQuery = `
-    SELECT 
-      ri.ingredient_id,
-      i.name AS ingredient_name,
-      SUM(
-        CASE 
-          WHEN ci.deleted THEN 0  -- Exclude deleted items
-          ELSE COALESCE(ri.quantity, 0)
-        END
-      ) AS total_quantity,
-      ri.unit,
-      BOOL_AND(ci.deleted) AS deleted  -- TRUE only if ALL instances are deleted
-    FROM unnest($1::INT[]) AS rid(recipe_id)
-    JOIN recipes r ON r.id = rid.recipe_id
-    JOIN recipe_ingredients ri ON ri.recipe_id = r.id
-    JOIN ingredients i ON i.id = ri.ingredient_id
-    LEFT JOIN cart_ingredients ci 
-      ON ci.user_id = $2 
-      AND ci.recipe_id = r.id 
-      AND ci.ingredient_id = ri.ingredient_id
-    GROUP BY ri.ingredient_id, i.name, ri.unit
-  `;
+SELECT 
+  ri.ingredient_id,
+  i.name AS ingredient_name,
+  SUM(
+    CASE 
+      WHEN ci.deleted THEN 0  -- Exclude deleted items
+      WHEN ci.acquired THEN 0  -- NEW: Also exclude acquired items
+      ELSE COALESCE(ri.quantity, 0)
+    END
+  ) AS total_quantity,
+  ri.unit,
+  BOOL_AND(ci.deleted) AS deleted,
+  BOOL_AND(ci.acquired) AS acquired  -- NEW: Add acquired status
+FROM unnest($1::INT[]) AS rid(recipe_id)
+JOIN recipes r ON r.id = rid.recipe_id
+JOIN recipe_ingredients ri ON ri.recipe_id = r.id
+JOIN ingredients i ON i.id = ri.ingredient_id
+LEFT JOIN cart_ingredients ci 
+  ON ci.user_id = $2 
+  AND ci.recipe_id = r.id 
+  AND ci.ingredient_id = ri.ingredient_id
+GROUP BY ri.ingredient_id, i.name, ri.unit
+`;
 
       const [grouped, merged] = await Promise.all([
         pool.query(groupedQuery, [recipeIds, req.userId]),

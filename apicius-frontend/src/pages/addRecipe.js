@@ -3,6 +3,8 @@ import AsyncSelect from 'react-select/async';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import "../styles/addRecipe.css";
+import TranscriptToRecipe from '../components/TranscriptToRecipe';
+import "../styles/transcriptToRecipe.css"
 
 const AddRecipe = () => {
     const location = useLocation();
@@ -420,6 +422,22 @@ const handleImageUpload = async () => {
             <div className="add-recipe-container">
         
             <div className="header-row">
+
+              <TranscriptToRecipe onRecipeGenerated={(recipe) => {
+    setRecipe({
+        ...recipe,
+        steps: recipe.steps || []
+    });
+    setIngredients(recipe.ingredients.map(ing => ({
+        ingredientId: '',
+        ingredientName: ing.name,
+        quantity: ing.quantity,
+        unit: ing.unit,
+        form: 'unknown',
+        locked: false
+    })));
+}} />
+
     <input
         type="text"
         id="titleInput"

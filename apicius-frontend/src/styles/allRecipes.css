@@ -263,6 +263,47 @@
     
   }
 
+  /* Add to Cart Button*/
+  .recipe-card-header {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    padding: 0 40px;
+    margin-bottom: 15px;
+  }
+
+  .recipe-card:hover .add-to-cart-card-btn {
+    opacity: 1;
+    visibility: visible;
+  }
+
+.add-to-cart-card-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 2;
+}
+
+.add-to-cart-card-btn:hover {
+  background-color: #218838;
+}
+  
+  .recipe-card {
+    position: relative;
+    /* existing styles */
+  }
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .recipe-card {

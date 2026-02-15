@@ -157,7 +157,7 @@ const RegisterForm = () => {
 
                     {/* Date of Birth */}
                     <div className="datepicker-container">
-                        <ReactDatePicker
+                        <ReactDatePicker 
                             selected={birthdate}
                             onChange={(date) => setBirthdate(date)}
                             placeholderText=" "

@@ -174,7 +174,7 @@
     color: #777;
     appearance: none;
     text-align: left;
-    padding-left: 0.8rem;
+    padding-left: 0.9rem;
     }
 
 /* Style for the input phone number field */
@@ -205,11 +205,11 @@
 .phone-field label.phone-code-label.float {
     position: absolute; /* Absolute to control placement */
     top: -0.625rem; /* Float the label above */
-    left: 0.9rem; /* Align label properly */
+    left: 1.5rem; /* Align label properly */
     transform: translateY(0); /* Center vertically */
     z-index: 0;
     background-color: #fff; /* White background for label */
-    font-size: 0.9rem; /* Smaller font for floating label */
+    font-size: 0.9rem; /* Floating label */
     color: #007bff; /* Highlighted label color */
     padding: 0 4px; /* Add padding to avoid overlap */
 }
@@ -226,7 +226,6 @@
     white-space: nowrap; /* Prevent text wrapping */
     overflow: hidden; /* Hide overflowing text */
     text-overflow: ellipsis; /* Add ellipsis for overflowing text */
-    font-size: 0.9rem; /* Fixed font size for consistent appearance */
 }
 
 /* Floating effect for phone number label */
@@ -234,10 +233,9 @@
 .phone-field label.phone-number-label.float {
     position: absolute; /* Absolute to control placement */
     top: -2px; /* Float the label above */
-    left: 10rem; /* Align label properly */
+    font-size: 0.9rem;
     transform: translateY(-50%); /* Center vertically */
     background-color: #fff; /* White background for label */
-    font-size: 1rem; /* Smaller font for floating label */
     color: #007bff; /* Highlighted label color (customizable) */
     padding: 0 0.5rem; /* Add padding to avoid overlap */
 }

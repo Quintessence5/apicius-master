@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import MultiSelectDropdown from '../components/MultiSelectDropdown';
+import apiClient from '../services/apiClient';
 
 import '../styles/allRecipes.css';
 import NoImageAvailable from '../assets/images/No_Image_Avail.jpg';
@@ -60,6 +61,21 @@ const AllRecipes = () => {
         console.log("Fetching recipes..."); // Debugging log
         fetchRecipes();
     }, [fetchRecipes]);
+
+    const handleAddToCart = async (recipeId, e) => {
+        e.stopPropagation(); // Prevent card click navigation
+        try {
+          await apiClient.post('/cart/add', { recipeId });
+          alert('Recipe added to cart successfully!');
+        } catch (error) {
+          console.error('Add to cart error:', error);
+          if (error.response?.status === 401) {
+            navigate('/login');
+          } else {
+            alert('Failed to add recipe to cart. Please try again.');
+          }
+        }
+      };
 
     if (loading) return <p>Loading recipes...</p>;
 
@@ -136,7 +152,9 @@ const AllRecipes = () => {
             ) : (
                 recipes.map((recipe) => (
                     <div key={recipe.recipe_id} className="recipe-card" onClick={() => navigate(`/recipe/${recipe.recipe_id}`)}>
-                        <div className="recipe-title">{recipe.title}</div>
+                        <div className="recipe-card-header">
+                        <div className="recipe-title">{recipe.title}
+                    <button className="add-to-cart-btn" onClick={handleAddToCart}> Add to Cart  </button></div></div>
                         <div className="recipe-content">
                             <div className="recipe-left-column">
                                 <div className="recipe-image">
