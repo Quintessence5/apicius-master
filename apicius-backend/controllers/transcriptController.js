@@ -2,6 +2,33 @@ const pool = require('../config/db');
 const { transcriptToRecipeService } = require('../services/transcriptService');
 const { logConversion } = require('../services/conversionLogger');
 
+// Helper function to extract video ID from various YouTube URL formats
+const extractVideoId = (url) => {
+    if (!url || typeof url !== 'string') return null;
+
+    // Match various YouTube URL formats:
+    // - https://www.youtube.com/watch?v=VIDEO_ID
+    // - https://youtu.be/VIDEO_ID
+    // - https://www.youtube.com/shorts/VIDEO_ID
+    // - https://youtube.com/watch?v=VIDEO_ID
+    // - youtube.com/watch?v=VIDEO_ID
+
+    const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,  // Regular video
+        /youtube\.com\/shorts\/([^&\n?#]+)/,  // YouTube Shorts
+        /youtu\.be\/([^&\n?#]+)/,  // Short URL
+    ];
+
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) {
+            return match[1];
+        }
+    }
+
+    return null;
+};
+
 // __________-------------Extract YouTube Transcript-------------__________
 const extractYouTubeTranscript = async (req, res) => {
     try {
@@ -14,19 +41,30 @@ const extractYouTubeTranscript = async (req, res) => {
         console.log("🎬 Extracting YouTube transcript from:", videoUrl);
 
         // Extract Video ID from URL
-        const videoIdMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-        if (!videoIdMatch) {
-            return res.status(400).json({ message: "Invalid YouTube URL format. Use: https://www.youtube.com/watch?v=xxxxx" });
+        const videoId = extractVideoId(videoUrl);
+        
+        if (!videoId) {
+            console.error("❌ Invalid YouTube URL format:", videoUrl);
+            return res.status(400).json({ 
+                message: "Invalid YouTube URL format. Supported formats:\n- https://www.youtube.com/watch?v=VIDEO_ID\n- https://youtu.be/VIDEO_ID\n- https://www.youtube.com/shorts/VIDEO_ID",
+                receivedUrl: videoUrl
+            });
         }
 
-        const videoId = videoIdMatch[1];
         console.log("✅ Video ID extracted:", videoId);
 
         try {
+            // Import and use youtube-transcript
             const { YoutubeTranscript } = await import('youtube-transcript');
+            
+            console.log("📥 Fetching transcript for video ID:", videoId);
             const transcript = await YoutubeTranscript.fetchTranscript({
                 videoId: videoId,
             });
+
+            if (!transcript || transcript.length === 0) {
+                throw new Error("No transcript found for this video");
+            }
 
             const fullTranscript = transcript.map(item => item.text).join(' ');
 
@@ -57,9 +95,20 @@ const extractYouTubeTranscript = async (req, res) => {
                 error_message: transcriptError.message,
             });
 
+            // Provide helpful error message
+            let errorMessage = "Could not extract transcript.";
+            if (transcriptError.message.includes("No transcript")) {
+                errorMessage = "This video doesn't have captions/subtitles available.";
+            } else if (transcriptError.message.includes("Not found")) {
+                errorMessage = "Video not found. Check the URL and try again.";
+            } else if (transcriptError.message.includes("private")) {
+                errorMessage = "This video is private or restricted.";
+            }
+
             return res.status(400).json({
-                message: "Could not extract transcript. The video may not have subtitles available.",
-                error: transcriptError.message
+                message: errorMessage,
+                error: transcriptError.message,
+                videoId: videoId
             });
         }
 
