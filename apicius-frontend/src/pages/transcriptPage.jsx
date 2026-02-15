@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import TranscriptToRecipe from '../components/TranscriptToRecipe';
-import '../styles/transcriptPage.css';
+import "../styles/transcriptToRecipe.css"
 
 const TranscriptPage = () => {
     const navigate = useNavigate();

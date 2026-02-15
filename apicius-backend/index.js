@@ -68,7 +68,12 @@ app.get('/debug-routes', (req, res) => {
     const routes = [
       { path: '/seasonality/manage', methods: ['GET', 'POST'] },
       { path: '/seasonality/regions', methods: ['GET'] },
-      { path: '/ingredients/all', methods: ['GET'] }
+      { path: '/ingredients/all', methods: ['GET'] },
+      { path: '/transcripts/extract-youtube', methods: ['POST'] },
+      { path: '/transcripts/convert-to-recipe', methods: ['POST'] },
+      { path: '/transcripts/map-ingredients', methods: ['POST'] },
+      { path: '/transcripts/history', methods: ['GET'] },
+      { path: '/transcripts/history/:id', methods: ['GET'] }
     ];
     res.json(routes);
   });

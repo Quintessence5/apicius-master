@@ -11,13 +11,16 @@ const extractYouTubeTranscript = async (req, res) => {
             return res.status(400).json({ message: "Video URL is required" });
         }
 
+        console.log("🎬 Extracting YouTube transcript from:", videoUrl);
+
         // Extract Video ID from URL
         const videoIdMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
         if (!videoIdMatch) {
-            return res.status(400).json({ message: "Invalid YouTube URL format" });
+            return res.status(400).json({ message: "Invalid YouTube URL format. Use: https://www.youtube.com/watch?v=xxxxx" });
         }
 
         const videoId = videoIdMatch[1];
+        console.log("✅ Video ID extracted:", videoId);
 
         try {
             const { YoutubeTranscript } = await import('youtube-transcript');
@@ -26,6 +29,8 @@ const extractYouTubeTranscript = async (req, res) => {
             });
 
             const fullTranscript = transcript.map(item => item.text).join(' ');
+
+            console.log("✅ Transcript extracted successfully. Length:", fullTranscript.length);
 
             // Log successful extraction
             await logConversion({
@@ -39,11 +44,11 @@ const extractYouTubeTranscript = async (req, res) => {
                 success: true,
                 transcript: fullTranscript,
                 videoId: videoId,
-                message: "YouTube transcript extracted successfully"
+                message: "✅ YouTube transcript extracted successfully"
             });
 
         } catch (transcriptError) {
-            console.error("Error extracting transcript:", transcriptError.message);
+            console.error("❌ Error extracting transcript:", transcriptError.message);
             
             await logConversion({
                 source_type: 'youtube',
@@ -59,7 +64,7 @@ const extractYouTubeTranscript = async (req, res) => {
         }
 
     } catch (error) {
-        console.error("Error in extractYouTubeTranscript:", error);
+        console.error("❌ Error in extractYouTubeTranscript:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -87,6 +92,8 @@ const convertTranscriptToRecipe = async (req, res) => {
                 throw new Error("LLM failed to generate recipe data");
             }
 
+            console.log("✅ Recipe generated successfully");
+
             // Log successful conversion
             await logConversion({
                 source_type: source,
@@ -100,11 +107,11 @@ const convertTranscriptToRecipe = async (req, res) => {
             res.json({
                 success: true,
                 recipe: recipeData,
-                message: "Recipe generated successfully"
+                message: "✅ Recipe generated successfully"
             });
 
         } catch (llmError) {
-            console.error("LLM Error:", llmError.message);
+            console.error("❌ LLM Error:", llmError.message);
 
             await logConversion({
                 source_type: source,
@@ -122,7 +129,7 @@ const convertTranscriptToRecipe = async (req, res) => {
         }
 
     } catch (error) {
-        console.error("Error in convertTranscriptToRecipe:", error);
+        console.error("❌ Error in convertTranscriptToRecipe:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -165,7 +172,7 @@ const mapIngredientsToDatabase = async (req, res) => {
                     });
                 }
             } catch (err) {
-                console.error(`Error mapping ingredient "${ingredient.name}":`, err);
+                console.error(`❌ Error mapping ingredient "${ingredient.name}":`, err);
                 unmappedIngredients.push({
                     ...ingredient,
                     mapped: false,
@@ -187,7 +194,7 @@ const mapIngredientsToDatabase = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error in mapIngredientsToDatabase:", error);
+        console.error("❌ Error in mapIngredientsToDatabase:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -219,7 +226,7 @@ const getConversionHistory = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error fetching conversion history:", error);
+        console.error("❌ Error fetching conversion history:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -248,7 +255,7 @@ const getConversionDetails = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Error fetching conversion details:", error);
+        console.error("❌ Error fetching conversion details:", error);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
