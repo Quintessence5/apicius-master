@@ -25,28 +25,14 @@ const matchIngredientsWithDatabase = async (ingredients) => {
         const unmatched = [];
         
         for (const ingredient of ingredients) {
-            const result = await pool.query(
-                `SELECT id, name, form FROM ingredients WHERE LOWER(name) = LOWER($1) LIMIT 1`,
-                [ingredient.name]
-            );
+            const result = await matchSingleIngredient(ingredient);
             
-            if (result.rows.length > 0) {
-                matched.push({
-                    ...ingredient,
-                    dbId: result.rows[0].id,
-                    dbName: result.rows[0].name,
-                    found: true,
-                    icon: '✅'
-                });
-                console.log(`   ✅ "${ingredient.name}" found in database`);
+            if (result.found) {
+                matched.push(result);
+                console.log(`   ✅ "${ingredient.name}" → "${result.dbName}"`);
             } else {
-                unmatched.push({
-                    ...ingredient,
-                    dbId: null,
-                    found: false,
-                    icon: '⚠️'
-                });
-                console.log(`   ⚠️ "${ingredient.name}" NOT found in database`);
+                unmatched.push(result);
+                console.log(`   ⚠️ "${ingredient.name}" (will be created)`);
             }
         }
         
@@ -63,6 +49,151 @@ const matchIngredientsWithDatabase = async (ingredients) => {
         console.error("❌ Error matching ingredients:", error);
         throw error;
     }
+};
+
+// __________-------------Smart Ingredient Matching Function-------------__________
+const matchSingleIngredient = async (ingredient) => {
+    try {
+        const searchName = ingredient.name.toLowerCase().trim();
+        
+        // Strategy 1: Exact case-insensitive match
+        console.log(`   🔍 Searching for: "${searchName}"`);
+        
+        let result = await pool.query(
+            `SELECT id, name FROM ingredients WHERE LOWER(TRIM(name)) = $1 LIMIT 1`,
+            [searchName]
+        );
+        
+        if (result.rows.length > 0) {
+            return {
+                ...ingredient,
+                dbId: result.rows[0].id,
+                dbName: result.rows[0].name,
+                found: true,
+                icon: '✅',
+                matchType: 'exact'
+            };
+        }
+        
+        // Strategy 2: Partial/substring match (e.g., "eggs" matches "egg")
+        console.log(`   🔍 Trying substring match...`);
+        
+        result = await pool.query(
+            `SELECT id, name FROM ingredients 
+             WHERE LOWER(name) LIKE $1 OR LOWER($2) LIKE '%' || LOWER(name) || '%'
+             ORDER BY LENGTH(name) ASC
+             LIMIT 1`,
+            [`%${searchName}%`, searchName]
+        );
+        
+        if (result.rows.length > 0) {
+            return {
+                ...ingredient,
+                dbId: result.rows[0].id,
+                dbName: result.rows[0].name,
+                found: true,
+                icon: '✅',
+                matchType: 'partial'
+            };
+        }
+        
+        // Strategy 3: Fuzzy matching (remove common suffixes/prefixes)
+        console.log(`   🔍 Trying fuzzy match...`);
+        
+        const cleanedName = cleanIngredientForMatching(searchName);
+        
+        result = await pool.query(
+            `SELECT id, name FROM ingredients 
+             WHERE LOWER(name) LIKE $1 OR LOWER(name) LIKE $2
+             ORDER BY LENGTH(name) ASC
+             LIMIT 1`,
+            [`%${cleanedName}%`, `${cleanedName}%`]
+        );
+        
+        if (result.rows.length > 0) {
+            return {
+                ...ingredient,
+                dbId: result.rows[0].id,
+                dbName: result.rows[0].name,
+                found: true,
+                icon: '✅',
+                matchType: 'fuzzy'
+            };
+        }
+        
+        // Strategy 4: Similar ingredients (like "flour type 55" for "flour")
+        console.log(`   🔍 Trying similar ingredient match...`);
+        
+        result = await pool.query(
+            `SELECT id, name FROM ingredients 
+             WHERE LOWER(name) LIKE $1
+             ORDER BY 
+               CASE 
+                 WHEN LOWER(name) = $2 THEN 0
+                 WHEN LOWER(name) LIKE $3 THEN 1
+                 WHEN LOWER(name) LIKE $4 THEN 2
+                 ELSE 3
+               END,
+               LENGTH(name) ASC
+             LIMIT 1`,
+            [
+                `${searchName}%`,  // Starts with search name
+                searchName,         // Exact match
+                `${searchName}%`,   // Starts with search name (for "flour" -> "flour type 55")
+                `%${searchName}%`   // Contains search name
+            ]
+        );
+        
+        if (result.rows.length > 0) {
+            return {
+                ...ingredient,
+                dbId: result.rows[0].id,
+                dbName: result.rows[0].name,
+                found: true,
+                icon: '✅',
+                matchType: 'similar'
+            };
+        }
+        
+        // No match found - will be created
+        return {
+            ...ingredient,
+            dbId: null,
+            dbName: null,
+            found: false,
+            icon: '⚠️',
+            matchType: 'none'
+        };
+        
+    } catch (error) {
+        console.error(`❌ Error matching ingredient "${ingredient.name}":`, error);
+        
+        // Return unmatched on error (don't fail the whole process)
+        return {
+            ...ingredient,
+            dbId: null,
+            dbName: null,
+            found: false,
+            icon: '⚠️',
+            matchType: 'error'
+        };
+    }
+};
+
+// __________-------------Clean ingredient name for fuzzy matching-------------__________
+const cleanIngredientForMatching = (name) => {
+    return name
+        .toLowerCase()
+        .trim()
+        // Remove plurals
+        .replace(/s$/, '')
+        // Remove common descriptors
+        .replace(/\s*(type|variety|kind|grade|quality|premium|standard|raw|fresh|dried|cooked|roasted|ground)\s*/gi, '')
+        // Remove numbers and types (like "type 55")
+        .replace(/\s*\d+\s*/g, '')
+        // Remove extra spaces
+        .replace(/\s+/g, ' ')
+        .trim();
 };
 
 // __________-------------Main Endpoint: Extract Recipe from Video-------------__________
@@ -165,9 +296,26 @@ const extractRecipeFromVideo = async (req, res) => {
             });
         }
 
-        // Match ingredients with database
+        // Match ingredients with database (NON-BLOCKING - always succeeds)
         console.log("\n📼 Step 6: Matching ingredients with database...");
-        const ingredientMatches = await matchIngredientsWithDatabase(finalRecipe.ingredients);
+        let ingredientMatches;
+        try {
+            ingredientMatches = await matchIngredientsWithDatabase(finalRecipe.ingredients);
+        } catch (matchError) {
+            console.warn("⚠️ Ingredient matching error (continuing anyway):", matchError.message);
+            // Don't fail here - create a basic match response
+            ingredientMatches = {
+                all: finalRecipe.ingredients.map(ing => ({
+                    ...ing,
+                    dbId: null,
+                    found: false,
+                    icon: '⚠️'
+                })),
+                matched: [],
+                unmatched: finalRecipe.ingredients,
+                matchPercentage: 0
+            };
+        }
 
         // Log conversion
         console.log("\n📼 Step 7: Logging conversion to database...");
@@ -186,6 +334,7 @@ const extractRecipeFromVideo = async (req, res) => {
 
         console.log("\n🎬 ========== EXTRACTION COMPLETE ==========\n");
 
+        // ALWAYS RESPOND WITH SUCCESS - let user proceed to review page
         res.json({
             success: true,
             conversionId,
