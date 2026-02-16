@@ -1,9 +1,12 @@
 const pool = require('../config/db');
+const fs = require('fs');
+const path = require('path');
 const {
     getYouTubeDescription,
     extractIngredientsFromText,
     analyzeDescriptionContent,
-    generateRecipeWithLLM
+    generateRecipeWithLLM,
+    normalizeUnit
 } = require('../services/videoToRecipeService');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
@@ -13,7 +16,56 @@ const extractVideoId = (url) => {
     return match ? match[1] : null;
 };
 
-// __________-------------Main Endpoint: Resilient Recipe Extraction-------------__________
+// __________-------------Match ingredients with database-------------__________
+const matchIngredientsWithDatabase = async (ingredients) => {
+    try {
+        console.log(`\n🔗 Matching ${ingredients.length} ingredients with database...`);
+        
+        const matched = [];
+        const unmatched = [];
+        
+        for (const ingredient of ingredients) {
+            const result = await pool.query(
+                `SELECT id, name, form FROM ingredients WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+                [ingredient.name]
+            );
+            
+            if (result.rows.length > 0) {
+                matched.push({
+                    ...ingredient,
+                    dbId: result.rows[0].id,
+                    dbName: result.rows[0].name,
+                    found: true,
+                    icon: '✅'
+                });
+                console.log(`   ✅ "${ingredient.name}" found in database`);
+            } else {
+                unmatched.push({
+                    ...ingredient,
+                    dbId: null,
+                    found: false,
+                    icon: '⚠️'
+                });
+                console.log(`   ⚠️ "${ingredient.name}" NOT found in database`);
+            }
+        }
+        
+        console.log(`\n📊 Match Summary: ${matched.length} matched, ${unmatched.length} unmatched`);
+        
+        return {
+            all: [...matched, ...unmatched],
+            matched,
+            unmatched,
+            matchPercentage: Math.round((matched.length / ingredients.length) * 100)
+        };
+        
+    } catch (error) {
+        console.error("❌ Error matching ingredients:", error);
+        throw error;
+    }
+};
+
+// __________-------------Main Endpoint: Extract Recipe from Video-------------__________
 const extractRecipeFromVideo = async (req, res) => {
     const startTime = Date.now();
     let conversionId = null;
@@ -34,7 +86,7 @@ const extractRecipeFromVideo = async (req, res) => {
         }
         console.log(`✅ Valid URL. Video ID: ${videoId}`);
 
-        // Step 2: Fetch YouTube metadata
+        // Fetch metadata
         console.log("\n📼 Step 2: Fetching YouTube metadata...");
         let youtubeMetadata;
         try {
@@ -59,32 +111,20 @@ const extractRecipeFromVideo = async (req, res) => {
             });
         }
 
-        // Step 3: Analyze what data we have
+        // Analyze content
         console.log("\n📼 Step 3: Analyzing description content...");
         const analysis = analyzeDescriptionContent(youtubeMetadata.description);
         console.log(`   - Has ingredients: ${analysis.hasIngredients}`);
         console.log(`   - Has steps: ${analysis.hasSteps}`);
-        console.log(`   - Ingredient units found: ${analysis.ingredientCount}`);
         console.log(`   - Total lines: ${analysis.lineCount}`);
 
-        // Step 4: Extract ingredients from text
+        // Extract ingredients
         console.log("\n📼 Step 4: Extracting ingredients from description...");
         const extractedIngredients = extractIngredientsFromText(youtubeMetadata.description);
         console.log(`✅ Extracted ${extractedIngredients.length} ingredients`);
-        if (extractedIngredients.length > 0) {
-            extractedIngredients.slice(0, 3).forEach(ing => {
-                console.log(`   - ${ing.quantity} ${ing.unit} ${ing.name} (${ing.section})`);
-            });
-            if (extractedIngredients.length > 3) {
-                console.log(`   ... and ${extractedIngredients.length - 3} more`);
-            }
-        }
 
-        // Step 5: Use LLM to generate complete recipe
+        // Generate recipe with LLM
         console.log("\n📼 Step 5: Generating complete recipe with Groq LLM...");
-        console.log("   - Using all available data (title, description, extracted ingredients)");
-        console.log("   - LLM will infer missing steps using expert baking knowledge");
-        
         let finalRecipe;
         try {
             finalRecipe = await generateRecipeWithLLM(
@@ -94,12 +134,10 @@ const extractRecipeFromVideo = async (req, res) => {
                 extractedIngredients
             );
             
-            console.log(`\n✅ RECIPE GENERATED SUCCESSFULLY!`);
+            console.log(`\n✅ RECIPE GENERATED!`);
             console.log(`   Title: "${finalRecipe.title}"`);
             console.log(`   Ingredients: ${finalRecipe.ingredients.length}`);
             console.log(`   Steps: ${finalRecipe.steps.length}`);
-            console.log(`   Baking temp: ${finalRecipe.baking_temperature}°F`);
-            console.log(`   Baking time: ${finalRecipe.baking_time} minutes`);
             
         } catch (groqError) {
             console.error("\n❌ LLM Error:", groqError.message);
@@ -127,8 +165,12 @@ const extractRecipeFromVideo = async (req, res) => {
             });
         }
 
-        // Step 6: Log success
-        console.log("\n📼 Step 6: Logging conversion to database...");
+        // Match ingredients with database
+        console.log("\n📼 Step 6: Matching ingredients with database...");
+        const ingredientMatches = await matchIngredientsWithDatabase(finalRecipe.ingredients);
+
+        // Log conversion
+        console.log("\n📼 Step 7: Logging conversion to database...");
         conversionId = await logConversion({
             user_id: userId,
             source_type: 'youtube',
@@ -148,12 +190,11 @@ const extractRecipeFromVideo = async (req, res) => {
             success: true,
             conversionId,
             recipe: finalRecipe,
+            ingredientMatches: ingredientMatches,
             videoTitle: youtubeMetadata.title,
             channelTitle: youtubeMetadata.channelTitle,
-            ingredientCount: finalRecipe.ingredients.length,
-            stepCount: finalRecipe.steps.length,
             processingTime: Date.now() - startTime,
-            message: "✅ Recipe successfully extracted from video!"
+            message: "✅ Recipe extracted successfully!"
         });
 
     } catch (error) {
@@ -197,7 +238,6 @@ const saveRecipeFromVideo = async (req, res) => {
             source
         } = generatedRecipe;
 
-        // Validate
         if (!title || !Array.isArray(steps) || steps.length === 0) {
             return res.status(400).json({ success: false, message: "Title and steps are required" });
         }
@@ -235,6 +275,7 @@ const saveRecipeFromVideo = async (req, res) => {
         console.log(`✅ Recipe inserted with ID: ${recipeId}`);
 
         // Insert ingredients
+        let savedCount = 0;
         if (ingredients && ingredients.length > 0) {
             console.log(`🔗 Linking ${ingredients.length} ingredients...`);
             for (const ingredient of ingredients) {
@@ -248,23 +289,27 @@ const saveRecipeFromVideo = async (req, res) => {
 
                 if (existingResult.rows.length > 0) {
                     ingredientId = existingResult.rows[0].id;
+                    console.log(`   ✅ Linked existing: "${ingredient.name}"`);
                 } else {
                     const newIngredientResult = await pool.query(
                         `INSERT INTO ingredients (name) VALUES ($1) RETURNING id`,
                         [ingredient.name]
                     );
                     ingredientId = newIngredientResult.rows[0].id;
+                    console.log(`   ✨ Created new: "${ingredient.name}"`);
                 }
 
                 if (ingredientId) {
+                    const normalizedUnit = normalizeUnit(ingredient.unit) || ingredient.unit;
                     await pool.query(
                         `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
                         VALUES ($1, $2, $3, $4)`,
-                        [recipeId, ingredientId, ingredient.quantity || null, ingredient.unit || null]
+                        [recipeId, ingredientId, ingredient.quantity || null, normalizedUnit]
                     );
+                    savedCount++;
                 }
             }
-            console.log(`✅ All ingredients linked`);
+            console.log(`✅ Linked ${savedCount} ingredients`);
         }
 
         // Update conversion status
@@ -282,13 +327,13 @@ const saveRecipeFromVideo = async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: "Recipe saved successfully!",
+            message: "✅ Recipe saved successfully!",
             recipeId,
             conversionId,
             recipe: {
                 id: recipeId,
                 title,
-                ingredientCount: ingredients ? ingredients.length : 0,
+                ingredientCount: savedCount,
                 stepCount: steps.length
             }
         });
@@ -302,5 +347,6 @@ const saveRecipeFromVideo = async (req, res) => {
 module.exports = {
     extractRecipeFromVideo,
     saveRecipeFromVideo,
+    matchIngredientsWithDatabase,
     extractVideoId
 };

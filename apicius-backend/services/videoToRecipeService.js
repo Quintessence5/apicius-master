@@ -1,5 +1,101 @@
 const axios = require('axios');
 
+// Standardized units mapping
+const VALID_UNITS = {
+    // Weight
+    'g': { name: 'Gram', abbreviation: 'g', type: 'weight' },
+    'kg': { name: 'Kilogram', abbreviation: 'kg', type: 'weight' },
+    'mg': { name: 'Milligram', abbreviation: 'mg', type: 'weight' },
+    'oz': { name: 'Ounce', abbreviation: 'oz', type: 'weight' },
+    'lb': { name: 'Pound', abbreviation: 'lb', type: 'weight' },
+    't': { name: 'Ton', abbreviation: 't', type: 'weight' },
+    
+    // Volume
+    'ml': { name: 'Milliliter', abbreviation: 'ml', type: 'volume' },
+    'l': { name: 'Liter', abbreviation: 'l', type: 'volume' },
+    'tsp': { name: 'Teaspoon', abbreviation: 'tsp', type: 'volume' },
+    'tbsp': { name: 'Tablespoon', abbreviation: 'tbsp', type: 'volume' },
+    'fl oz': { name: 'Fluid Ounce', abbreviation: 'fl oz', type: 'volume' },
+    'pt': { name: 'Pint', abbreviation: 'pt', type: 'volume' },
+    'qt': { name: 'Quart', abbreviation: 'qt', type: 'volume' },
+    'gal': { name: 'Gallon', abbreviation: 'gal', type: 'volume' },
+    
+    // Quantity
+    'pc': { name: 'Piece', abbreviation: 'pc', type: 'quantity' },
+    'doz': { name: 'Dozen', abbreviation: 'doz', type: 'quantity' },
+    'pinch': { name: 'Pinch', abbreviation: 'pinch', type: 'quantity' },
+    'dash': { name: 'Dash', abbreviation: 'dash', type: 'quantity' },
+    'cup': { name: 'Cup', abbreviation: 'cup', type: 'quantity' }
+};
+
+// Normalize unit to standard abbreviation
+const normalizeUnit = (unit) => {
+    if (!unit) return null;
+    
+    const cleanUnit = unit.toLowerCase().trim();
+    
+    // Direct match
+    if (VALID_UNITS[cleanUnit]) return cleanUnit;
+    
+    // Common aliases
+    const aliases = {
+        'cups': 'cup',
+        'gram': 'g',
+        'grams': 'g',
+        'kilogram': 'kg',
+        'kilograms': 'kg',
+        'ounce': 'oz',
+        'ounces': 'oz',
+        'pound': 'lb',
+        'pounds': 'lb',
+        'milliliter': 'ml',
+        'milliliters': 'ml',
+        'liter': 'l',
+        'liters': 'l',
+        'teaspoon': 'tsp',
+        'teaspoons': 'tsp',
+        'tablespoon': 'tbsp',
+        'tablespoons': 'tbsp',
+        'fluidounce': 'fl oz',
+        'fluidounces': 'fl oz',
+        'pint': 'pt',
+        'pints': 'pt',
+        'quart': 'qt',
+        'quarts': 'qt',
+        'gallon': 'gal',
+        'gallons': 'gal',
+        'piece': 'pc',
+        'pieces': 'pc',
+        'dozen': 'doz',
+        'mg': 'mg'
+    };
+    
+    if (aliases[cleanUnit]) return aliases[cleanUnit];
+    
+    return null;
+};
+
+// Clean ingredient name (remove adjectives and descriptions)
+const cleanIngredientName = (name) => {
+    if (!name) return '';
+    
+    const cleaned = name
+        .toLowerCase()
+        .trim()
+        // Remove common descriptive phrases
+        .replace(/\s*\(.*?\)\s*/g, '') // Remove parentheses content
+        .replace(/\s*\[.*?\]\s*/g, '') // Remove brackets content
+        .replace(/\s+(large|medium|small|fresh|dried|ground|minced|chopped|diced|sliced|grated|melted|room temperature|cold|warm)\s*/gi, '')
+        .replace(/\s+(unsweetened|sweetened|all-purpose|whole wheat|neutral|cooking|light|extra virgin)\s*/gi, '')
+        .replace(/\s+about\s*/gi, '')
+        .replace(/\s+or\s+.+$/gi, '') // Remove "or alternative" suggestions
+        .replace(/\s+–.+$/gi, '') // Remove dashes and descriptions
+        .replace(/\s+[–\-].+$/gi, '')
+        .trim();
+    
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
 // __________-------------Get YouTube Video Description via Official API-------------__________
 const getYouTubeDescription = async (videoUrl) => {
     try {
@@ -45,7 +141,7 @@ const getYouTubeDescription = async (videoUrl) => {
     }
 };
 
-// __________-------------Extract ingredients from raw description text (simple parsing)-------------__________
+// __________-------------Extract ingredients from text with unit normalization-------------__________
 const extractIngredientsFromText = (text) => {
     if (!text) return [];
     
@@ -53,56 +149,47 @@ const extractIngredientsFromText = (text) => {
     const lines = text.split('\n').filter(line => line.trim().length > 0);
     
     let currentSection = 'Main';
-    let inIngredientsSection = false;
     
     for (const line of lines) {
         const trimmed = line.trim();
         
-        // Detect section headers (✔, ✓, words like "Batter", "Ganache", "Frosting", etc.)
+        // Detect section headers
         const sectionMatch = trimmed.match(/^[✔✓]?\s*([A-Za-z\s]+)$/i);
         if (sectionMatch && /batter|ganache|frosting|glaze|sauce|filling|topping|dough|crust|base/i.test(trimmed)) {
             currentSection = trimmed.replace(/^[✔✓]\s*/, '').trim();
-            inIngredientsSection = true;
             continue;
         }
         
-        // Skip if line is clearly a step/instruction
+        // Skip instructions
         if (/^(\d+\.|step|instruction|direction|procedure|preheat|mix|bake|cool|serve)/i.test(trimmed)) {
-            inIngredientsSection = false;
             continue;
         }
         
         // Try to parse as ingredient line
-        // Patterns: "2 cups flour", "1/2 tsp vanilla", "1 tbsp butter", etc.
         const ingredientPatterns = [
-            /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+)\s+([a-zA-Z]+)\s+(.+?)(?:\s*\[|\s*\(|$)/,  // "2 cups flour [120g]"
-            /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+)\s+([a-zA-Z]+)\s+(.+)/,  // "2 cups flour"
-            /^[-•✓✔]?\s*(.+?)\s+\((\d+\.?\d*|\d+\/\d+)\s+([a-zA-Z]+)\)/,  // "eggs (2 large)"
+            /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+)\s+([a-zA-Z\s]+?)\s+(.+?)(?:\s*\[|\s*\(|$)/,
+            /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+)\s+([a-zA-Z\s]+?)\s+(.+)/,
         ];
         
         for (const pattern of ingredientPatterns) {
             const match = trimmed.match(pattern);
             if (match) {
-                let quantity, unit, name;
+                const quantity = match[1];
+                const rawUnit = match[2].trim();
+                const rawName = match[3].replace(/\s*[\[\(].*[\]\)]/, '').trim();
                 
-                if (pattern === ingredientPatterns[0] || pattern === ingredientPatterns[1]) {
-                    quantity = match[1];
-                    unit = match[2];
-                    name = match[3].replace(/\s*[\[\(].*[\]\)]/, '').trim();
-                } else {
-                    name = match[1];
-                    quantity = match[2];
-                    unit = match[3];
-                }
+                const normalizedUnit = normalizeUnit(rawUnit);
+                const cleanName = cleanIngredientName(rawName);
                 
-                if (name.length > 0 && name.length < 200) {
+                if (cleanName.length > 0 && cleanName.length < 200) {
                     ingredients.push({
-                        name: name,
+                        name: cleanName,
                         quantity: quantity || null,
-                        unit: unit || null,
-                        section: currentSection
+                        unit: normalizedUnit || rawUnit,
+                        section: currentSection,
+                        rawUnit: rawUnit,
+                        matched: !!normalizedUnit // Flag if unit was matched to standard
                     });
-                    inIngredientsSection = true;
                     break;
                 }
             }
@@ -112,21 +199,18 @@ const extractIngredientsFromText = (text) => {
     return ingredients;
 };
 
-// __________-------------Count meaningful content in description-------------__________
+// __________-------------Analyze description content-------------__________
 const analyzeDescriptionContent = (description) => {
     if (!description) return { hasIngredients: false, hasSteps: false, isEmpty: true };
     
     const text = description.toLowerCase();
     const lines = description.split('\n').filter(l => l.trim().length > 0);
     
-    // Check for ingredients
     const ingredientUnits = /(cup|cups|tbsp|tsp|tablespoon|teaspoon|gram|grams|g|ml|milliliter|oz|pound|lb|pinch|dash)\b/gi;
     const unitMatches = (description.match(ingredientUnits) || []).length;
     const quantityMatches = (description.match(/\b\d+\.?\d*\s*(\/\s*\d+)?\b/g) || []).length;
     
     const hasIngredients = unitMatches >= 3 && quantityMatches >= 5;
-    
-    // Check for steps/instructions
     const stepKeywords = /(step|instruction|direction|procedure|preheat|mix|whisk|combine|bake|cook|heat|cool|serve|spread|pour|add|place)/gi;
     const hasSteps = stepKeywords.test(text);
     
@@ -139,7 +223,7 @@ const analyzeDescriptionContent = (description) => {
     };
 };
 
-// __________-------------Main LLM call: Generate complete recipe from all available data-------------__________
+// __________-------------Generate complete recipe with LLM (with unit constraints)-------------__________
 const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients) => {
     try {
         console.log("📤 Sending all data to Groq for recipe generation...");
@@ -148,38 +232,42 @@ const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extr
             throw new Error("GROQ_API_KEY not set in environment");
         }
         
-        // Build a detailed system prompt that handles partial data
         const systemPrompt = `You are an expert professional baker and recipe editor.
 
 Your job is to create a complete, structured recipe from whatever information is provided about a cooking video.
 
+CRITICAL UNIT CONSTRAINT:
+You MUST use ONLY these units for ingredients. NO OTHER UNITS ALLOWED:
+Weight: g, kg, mg, oz, lb, t
+Volume: ml, l, tsp, tbsp, fl oz, pt, qt, gal
+Quantity: pc, doz, pinch, dash, cup
+
+CRITICAL NAME CONSTRAINT:
+Ingredient names MUST be:
+- Basic, simple names WITHOUT adjectives or descriptions
+- Example: "flour" not "all-purpose flour" or "wheat flour"
+- Example: "sugar" not "granulated sugar"
+- Example: "milk" not "fresh whole milk"
+- Example: "butter" not "unsalted room temperature butter"
+
+THIS IS ESSENTIAL FOR DATABASE MATCHING!
+
 INPUT DATA YOU MAY RECEIVE:
-- Video title (e.g., "Moist Chocolate Cake with Chocolate Ganache")
+- Video title
 - Channel name
-- Description text (may contain ingredients, steps, temperatures, or all of the above)
-- Extracted ingredients from the description
+- Description text (may contain ingredients, steps, or both)
+- Pre-extracted ingredients from description
 
 YOUR JOB:
-1. Use ALL the information provided from the description
-2. If ingredients are present, parse them carefully and group by component (e.g., "Cake Batter", "Ganache")
-3. If steps are NOT in the description, use your expert knowledge of standard baking practices to generate realistic, detailed steps
-4. Infer oven temperature, baking times, and servings from context (standard for this type of recipe)
-5. Make everything feel authentic and professional
+1. Use ALL information provided
+2. Parse ingredients carefully with BASIC NAMES and STANDARD UNITS ONLY
+3. If steps are missing, generate realistic steps from expert knowledge
+4. Infer oven temperature, baking times, servings from context
+5. Group ingredients by component (e.g., "Cake Batter", "Ganache")
 
-OUTPUT: Return ONLY a valid, parseable JSON object (no markdown, no explanation text outside JSON).
+OUTPUT: Return ONLY valid JSON (no markdown, no explanation).
 
-IMPORTANT RULES:
-- Ingredients MUST be grouped by section when there are multiple components
-- Each ingredient MUST have: name, quantity, unit, section
-- Steps MUST be numbered and logically ordered
-- If temperature is mentioned, include it (in Fahrenheit preferred)
-- Difficulty should be: "Very Easy", "Easy", "Medium", "Hard", "Very Hard"
-- Course type: "Appetizer", "Main Course", "Dessert", "Snack", "Beverage"
-- Meal type: "Breakfast", "Lunch", "Dinner", "Snack"
-- Use null for unknown numeric values
-- Be generous and complete - this is a REAL recipe being saved
-
-JSON STRUCTURE (you MUST return EXACTLY this):
+JSON STRUCTURE:
 {
   "title": "Recipe Name",
   "description": "Professional short description",
@@ -188,57 +276,54 @@ JSON STRUCTURE (you MUST return EXACTLY this):
   "cook_time": 30,
   "total_time": 45,
   "baking_temperature": 350,
-  "baking_time": 30,
+  "baking_time": 25,
   "difficulty": "Medium",
   "course_type": "Dessert",
   "meal_type": "Dinner",
   "cuisine_type": null,
   "ingredients": [
     {
-      "name": "ingredient name",
+      "name": "flour",
+      "quantity": "2",
+      "unit": "cup",
+      "section": "Cake Batter"
+    },
+    {
+      "name": "sugar",
       "quantity": "1",
       "unit": "cup",
-      "section": "Section Name"
+      "section": "Cake Batter"
     }
   ],
-  "steps": [
-    "Detailed step 1...",
-    "Detailed step 2...",
-    "..."
-  ],
+  "steps": ["Step 1...", "Step 2...", "..."],
   "notes": null,
   "tags": []
-}`;
+}
 
-        // Build user message with all available data
+REMEMBER: Simple ingredient names, standard units only!`;
+
         let userMessage = `Video Title: "${videoTitle || 'Unknown'}"\n`;
         userMessage += `Channel: ${channelTitle || 'Unknown'}\n\n`;
-        userMessage += `Description/Transcript:\n${description || '(No description provided)'}\n\n`;
+        userMessage += `Description:\n${description || '(No description provided)'}\n\n`;
         
         if (extractedIngredients && extractedIngredients.length > 0) {
-            userMessage += `Pre-extracted ingredients from the description:\n`;
+            userMessage += `Pre-extracted ingredients (already cleaned and standardized):\n`;
             extractedIngredients.forEach(ing => {
-                userMessage += `- ${ing.quantity || '?'} ${ing.unit || '?'} ${ing.name} (${ing.section})\n`;
+                userMessage += `- ${ing.quantity || '?'} ${ing.unit} ${ing.name} (${ing.section})\n`;
             });
         }
         
-        userMessage += `\nUsing ALL the above information, generate a complete, professional recipe JSON.`;
+        userMessage += `\nGenerate a complete, professional recipe JSON with BASIC ingredient names and STANDARD units ONLY.`;
 
         const response = await axios.post(
             'https://api.groq.com/openai/v1/chat/completions',
             {
                 model: "llama-3.3-70b-versatile",
                 messages: [
-                    {
-                        role: "system",
-                        content: systemPrompt
-                    },
-                    {
-                        role: "user",
-                        content: userMessage
-                    }
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userMessage }
                 ],
-                temperature: 0.6,  // Slightly higher for more creativity when filling gaps
+                temperature: 0.5,
                 max_tokens: 3000,
                 response_format: { type: "json_object" }
             },
@@ -258,7 +343,6 @@ JSON STRUCTURE (you MUST return EXACTLY this):
         const responseText = response.data.choices[0].message.content;
         console.log("📥 Raw LLM Response received, parsing JSON...");
         
-        // Parse JSON response
         let recipeData;
         try {
             recipeData = JSON.parse(responseText);
@@ -281,7 +365,7 @@ JSON STRUCTURE (you MUST return EXACTLY this):
     }
 };
 
-// __________-------------Sanitize recipe data-------------__________
+// __________-------------Sanitize and validate recipe-------------__________
 const sanitizeRecipe = (data) => {
     try {
         return {
@@ -302,7 +386,7 @@ const sanitizeRecipe = (data) => {
                     .map(ing => ({
                         name: String(ing.name || '').substring(0, 255),
                         quantity: ing.quantity ? String(ing.quantity) : null,
-                        unit: ing.unit ? String(ing.unit).substring(0, 50) : null,
+                        unit: normalizeUnit(String(ing.unit)) || String(ing.unit).substring(0, 50),
                         section: ing.section ? String(ing.section).substring(0, 100) : "Main"
                     }))
                     .filter(ing => ing.name.length > 0)
@@ -327,5 +411,8 @@ module.exports = {
     extractIngredientsFromText,
     analyzeDescriptionContent,
     generateRecipeWithLLM,
-    sanitizeRecipe
+    sanitizeRecipe,
+    normalizeUnit,
+    cleanIngredientName,
+    VALID_UNITS
 };
