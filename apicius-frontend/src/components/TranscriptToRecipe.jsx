@@ -11,8 +11,13 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [generatedRecipe, setGeneratedRecipe] = useState(null);
-    const [step, setStep] = useState('input'); // input, converting, mapping, ready
+    const [step, setStep] = useState('input'); // input, extracting, converting, mapping, ready
     const [ingredientMapping, setIngredientMapping] = useState(null);
+    const [progress, setProgress] = useState(0);
+    const [statusMessage, setStatusMessage] = useState('');
+    const [conversionId, setConversionId] = useState(null);
+
+    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5010/api';
 
     // __________-------------Extract YouTube Transcript-------------__________
     const handleExtractYouTube = async (e) => {
@@ -20,24 +25,36 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
         setLoading(true);
         setError('');
         setSuccess('');
+        setProgress(20);
+        setStatusMessage('🎬 Downloading video...');
+        setStep('extracting');
 
         try {
-            const response = await axios.post('http://localhost:5010/api/transcripts/extract-youtube', {
+            console.log("📼 Extracting YouTube transcript...");
+
+            const response = await axios.post(`${API_BASE_URL}/transcripts/extract-youtube`, {
                 videoUrl
             });
 
             if (response.data.success) {
-    setTranscript(response.data.transcript);
-    setSuccess(`✅ ${response.data.method === 'audio-download-and-transcribe' 
-        ? 'YouTube audio downloaded and transcribed!' 
-        : 'YouTube transcript extracted!'} Proceeding to recipe conversion...`);
-    setTimeout(() => handleConvertToRecipe(response.data.transcript, 'youtube', videoUrl), 1500);
-}
+                setTranscript(response.data.transcript);
+                setConversionId(response.data.conversionId);
+                setProgress(60);
+                setStatusMessage('📝 Transcribing...');
+                setSuccess(`✅ ${response.data.method === 'audio-download-and-transcribe' 
+                    ? 'Video transcribed!' 
+                    : 'Transcript extracted!'}`);
+                
+                // Auto-proceed to recipe conversion
+                setTimeout(() => handleConvertToRecipe(response.data.transcript, 'youtube', videoUrl), 1000);
+            }
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to extract YouTube transcript');
+            setStep('input');
             console.error('YouTube extraction error:', err);
         } finally {
             setLoading(false);
+            setProgress(0);
         }
     };
 
@@ -45,12 +62,14 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     const handleConvertToRecipe = async (transcriptText, source, sourceUrl = null) => {
         setLoading(true);
         setError('');
+        setProgress(70);
+        setStatusMessage('🤖 Generating recipe...');
         setStep('converting');
 
         try {
             console.log(`🔄 Converting ${source} transcript to recipe...`);
 
-            const response = await axios.post('http://localhost:5010/api/transcripts/convert-to-recipe', {
+            const response = await axios.post(`${API_BASE_URL}/transcripts/convert-to-recipe`, {
                 transcript: transcriptText || transcript,
                 videoUrl: sourceUrl || videoUrl,
                 source: source || activeTab
@@ -58,11 +77,17 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
 
             if (response.data.success && response.data.recipe) {
                 setGeneratedRecipe(response.data.recipe);
-                setSuccess('Recipe generated successfully!');
+                setConversionId(response.data.conversionId);
+                setSuccess('✅ Recipe generated successfully!');
+                setProgress(85);
+                setStatusMessage('🔗 Mapping ingredients...');
                 setStep('mapping');
                 
                 // Proceed to ingredient mapping
                 await handleMapIngredients(response.data.recipe.ingredients);
+                
+                setProgress(100);
+                setStep('ready');
             }
         } catch (err) {
             setError(err.response?.data?.message || 'Failed to convert transcript to recipe');
@@ -70,23 +95,24 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
             console.error('Conversion error:', err);
         } finally {
             setLoading(false);
+            setProgress(0);
         }
     };
 
     // __________-------------Map Ingredients to Database-------------__________
     const handleMapIngredients = async (ingredients) => {
         try {
-            const response = await axios.post('http://localhost:5010/api/transcripts/map-ingredients', {
+            const response = await axios.post(`${API_BASE_URL}/transcripts/map-ingredients`, {
                 ingredients
             });
 
             setIngredientMapping(response.data);
-            setStep('ready');
-            setSuccess(`✅ Mapping complete: ${response.data.mappingStats.mapped}/${response.data.mappingStats.total} ingredients found in database`);
+            setSuccess(`✅ ${response.data.mappingStats.mapped}/${response.data.mappingStats.total} ingredients found`);
+            
+            console.log("Mapping stats:", response.data.mappingStats);
         } catch (err) {
             console.error('Mapping error:', err);
-            setError('Could not map all ingredients, but you can add them manually');
-            setStep('ready');
+            setError('Could not map all ingredients, but you can add them manually later');
         }
     };
 
@@ -103,58 +129,50 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     // __________-------------Auto-fill Recipe Form with Generated Data-------------__________
     const handleAutoFillRecipe = () => {
         if (generatedRecipe && onRecipeGenerated) {
-            // Pass the recipe data to parent component (AddRecipe.jsx)
             onRecipeGenerated({
                 ...generatedRecipe,
-                ingredients: ingredientMapping?.mappedIngredients || generatedRecipe.ingredients
+                mappedIngredients: ingredientMapping?.mappedIngredients || [],
+                unmappedIngredients: ingredientMapping?.unmappedIngredients || [],
+                conversionId
             });
-            setSuccess('Recipe form auto-filled! Review and save.');
         }
     };
 
     // __________-------------Reset Form-------------__________
     const handleReset = () => {
+        setActiveTab('youtube');
         setVideoUrl('');
         setManualTranscript('');
         setTranscript('');
-        setGeneratedRecipe(null);
-        setIngredientMapping(null);
         setError('');
         setSuccess('');
+        setGeneratedRecipe(null);
         setStep('input');
+        setIngredientMapping(null);
+        setConversionId(null);
+        setProgress(0);
+        setStatusMessage('');
     };
 
     return (
         <div className="transcript-to-recipe-container">
-            <h2>🎥 Convert Video to Recipe</h2>
-            
-            {/* Tabs for different sources */}
+            <h2>🎥 Video to Recipe Converter</h2>
+
+            {/* Tabs */}
             {step === 'input' && (
                 <div className="transcript-tabs">
-                    <button
-                        className={`tab-btn ${activeTab === 'youtube' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('youtube')}
-                    >
-                        📺 YouTube
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'tiktok' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('tiktok')}
-                    >
-                        🎵 TikTok
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'instagram' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('instagram')}
-                    >
-                        📷 Instagram
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'manual' ? 'active' : ''}`}
-                        onClick={() => setActiveTab('manual')}
-                    >
-                        ✍️ Manual
-                    </button>
+                    {['youtube', 'tiktok', 'instagram', 'manual'].map(tab => (
+                        <button
+                            key={tab}
+                            className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+                            onClick={() => setActiveTab(tab)}
+                        >
+                            {tab === 'youtube' && '▶️ YouTube'}
+                            {tab === 'tiktok' && '🎵 TikTok'}
+                            {tab === 'instagram' && '📷 Instagram'}
+                            {tab === 'manual' && '✍️ Manual'}
+                        </button>
+                    ))}
                 </div>
             )}
 
@@ -167,23 +185,23 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                 <form onSubmit={handleExtractYouTube} className="transcript-form">
                     <input
                         type="url"
-                        placeholder="Paste YouTube URL (e.g., https://www.youtube.com/watch?v=...)"
+                        placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}
                         required
                         disabled={loading}
                     />
                     <button type="submit" disabled={loading} className="transcript-submit-btn">
-                        {loading ? '🔄 Extracting...' : '📥 Extract Transcript'}
+                        {loading ? '🔄 Extracting...' : '▶️ Extract & Convert'}
                     </button>
                 </form>
             )}
 
-            {/* TikTok & Instagram Tabs - Manual Paste */}
+            {/* TikTok / Instagram Tabs (Manual Transcript Input) */}
             {(activeTab === 'tiktok' || activeTab === 'instagram') && step === 'input' && (
                 <form onSubmit={handleManualTranscriptSubmit} className="transcript-form">
                     <textarea
-                        placeholder={`Paste ${activeTab === 'tiktok' ? 'TikTok' : 'Instagram'} video transcript here...`}
+                        placeholder={`Paste ${activeTab} video transcript here...\nTip: Use browser tools or copy from video captions`}
                         value={manualTranscript}
                         onChange={(e) => setManualTranscript(e.target.value)}
                         required
@@ -196,16 +214,16 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                 </form>
             )}
 
-            {/* Manual Transcript Input */}
+            {/* Manual Input Tab */}
             {activeTab === 'manual' && step === 'input' && (
                 <form onSubmit={handleManualTranscriptSubmit} className="transcript-form">
                     <textarea
-                        placeholder="Paste any recipe transcript or text here..."
+                        placeholder="Paste any cooking transcript or recipe text here..."
                         value={manualTranscript}
                         onChange={(e) => setManualTranscript(e.target.value)}
                         required
                         disabled={loading}
-                        rows="6"
+                        rows="8"
                     />
                     <button type="submit" disabled={loading} className="transcript-submit-btn">
                         {loading ? '🔄 Converting...' : '🍳 Convert to Recipe'}
@@ -213,102 +231,105 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                 </form>
             )}
 
-            {/* Converting Progress */}
-            {loading && step === 'converting' && (
+            {/* Progress Indicator */}
+            {loading && (step === 'extracting' || step === 'converting' || step === 'mapping') && (
                 <div className="transcript-loading">
                     <div className="spinner"></div>
-                    <p>🤖 AI is generating your recipe... (This may take 10-30 seconds)</p>
+                    <p>{statusMessage}</p>
+                    <div className="progress-bar">
+                        <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+                    </div>
+                    <p className="progress-text">{progress}%</p>
                 </div>
             )}
 
-            {/* Recipe Review & Mapping */}
+            {/* Recipe Preview */}
             {step === 'ready' && generatedRecipe && (
                 <div className="recipe-preview">
                     <div className="recipe-header">
-                        <h3>{generatedRecipe.title}</h3>
-                        <div className="recipe-meta">
-                            <span>👥 {generatedRecipe.servings} servings</span>
-                            <span>⏱️ {generatedRecipe.prep_time}min prep + {generatedRecipe.cook_time}min cook</span>
-                            <span>📊 {generatedRecipe.difficulty}</span>
-                        </div>
+                        <h3>🍳 {generatedRecipe.title}</h3>
+                        {generatedRecipe.description && <p>{generatedRecipe.description}</p>}
                     </div>
 
-                    {/* Ingredients with Mapping Status */}
-                    {ingredientMapping && (
-                        <div className="ingredients-mapping">
-                            <h4>Ingredients ({ingredientMapping.mappingStats.mappingPercentage}% matched)</h4>
-                            
-                            {/* Mapped Ingredients */}
-                            {ingredientMapping.mappedIngredients.length > 0 && (
-                                <div className="mapped-section">
-                                    <h5>✅ Found in Database</h5>
-                                    <ul>
-                                        {ingredientMapping.mappedIngredients.map((ing, idx) => (
-                                            <li key={idx} className="mapped-ingredient">
-                                                {ing.quantity} {ing.unit} {ing.ingredientName}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
+                    <div className="recipe-meta">
+                        {generatedRecipe.servings && <span>👥 {generatedRecipe.servings} servings</span>}
+                        {generatedRecipe.prep_time && <span>⏱️ Prep: {generatedRecipe.prep_time} min</span>}
+                        {generatedRecipe.cook_time && <span>🔥 Cook: {generatedRecipe.cook_time} min</span>}
+                        {generatedRecipe.difficulty && <span>📊 {generatedRecipe.difficulty}</span>}
+                    </div>
 
-                            {/* Unmapped Ingredients */}
-                            {ingredientMapping.unmappedIngredients.length > 0 && (
-                                <div className="unmapped-section">
-                                    <h5>⚠️ Not Found (Can Add Manually)</h5>
-                                    <ul>
-                                        {ingredientMapping.unmappedIngredients.map((ing, idx) => (
-                                            <li key={idx} className="unmapped-ingredient">
-                                                {ing.quantity} {ing.unit} {ing.name}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
+                    {/* Ingredients */}
+                    {generatedRecipe.ingredients && generatedRecipe.ingredients.length > 0 && (
+                        <div className="ingredients-mapping">
+                            <h4>📝 Ingredients</h4>
+                            
+                            {ingredientMapping && (
+                                <>
+                                    {ingredientMapping.mappedIngredients.length > 0 && (
+                                        <div className="mapped-section">
+                                            <h5>✅ Found in Database ({ingredientMapping.mappedIngredients.length})</h5>
+                                            <ul>
+                                                {ingredientMapping.mappedIngredients.map((ing, idx) => (
+                                                    <li key={idx} className="mapped-ingredient">
+                                                        <strong>{ing.quantity || 'to taste'} {ing.unit || ''}</strong> {ing.ingredientName}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    
+                                    {ingredientMapping.unmappedIngredients.length > 0 && (
+                                        <div className="unmapped-section">
+                                            <h5>⚠️ Not Found in Database ({ingredientMapping.unmappedIngredients.length})</h5>
+                                            <ul>
+                                                {ingredientMapping.unmappedIngredients.map((ing, idx) => (
+                                                    <li key={idx} className="unmapped-ingredient">
+                                                        <strong>{ing.quantity || 'to taste'} {ing.unit || ''}</strong> {ing.name}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
 
                     {/* Steps */}
-                    <div className="recipe-steps">
-                        <h4>Steps</h4>
-                        <ol>
-                            {generatedRecipe.steps.map((step, idx) => (
-                                <li key={idx}>{step}</li>
-                            ))}
-                        </ol>
-                    </div>
+                    {generatedRecipe.steps && generatedRecipe.steps.length > 0 && (
+                        <div className="recipe-steps">
+                            <h4>👩‍🍳 Instructions</h4>
+                            <ol>
+                                {generatedRecipe.steps.map((step, idx) => (
+                                    <li key={idx}>{step}</li>
+                                ))}
+                            </ol>
+                        </div>
+                    )}
 
                     {/* Notes */}
                     {generatedRecipe.notes && (
                         <div className="recipe-notes">
-                            <h4>Notes</h4>
+                            <h4>💡 Notes</h4>
                             <p>{generatedRecipe.notes}</p>
                         </div>
                     )}
 
-                    {/* Action Buttons */}
+                    {/* Actions */}
                     <div className="recipe-actions">
                         <button 
-                            onClick={handleAutoFillRecipe}
+                            onClick={handleAutoFillRecipe} 
                             className="transcript-submit-btn"
                         >
-                            ✅ Use This Recipe
+                            💾 Save Recipe
                         </button>
                         <button 
-                            onClick={handleReset}
+                            onClick={handleReset} 
                             className="transcript-reset-btn"
                         >
-                            🔄 Start Over
+                            🔄 Convert Another
                         </button>
                     </div>
-                </div>
-            )}
-
-            {/* Mapping in Progress */}
-            {step === 'mapping' && (
-                <div className="transcript-loading">
-                    <div className="spinner"></div>
-                    <p>🔍 Matching ingredients to database...</p>
                 </div>
             )}
         </div>
