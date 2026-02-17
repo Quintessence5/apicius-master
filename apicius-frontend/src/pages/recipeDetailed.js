@@ -6,6 +6,7 @@ import '../styles/recipeDetailed.css';
 import StarRating from '../components/starRating';
 import CommentSection from '../components/CommentSection';
 import NoImageAvailable from '../assets/images/No_Image_Avail.jpg';
+import { getSourceInfo } from '../utils/sourceUtils';
 
 const RecipeDetails = () => {
     const navigate = useNavigate();
@@ -156,36 +157,64 @@ const RecipeDetails = () => {
         <div className="recipe-details-page">
 
             {/* Recipe Image */}
-            <div className="recipe-headerzz">
-                <img 
-    className="recipe-imagezz" 
-    src={
-        recipe.image_path 
-            ? recipe.image_path.startsWith('http')
-                ? recipe.image_path
-                : `http://localhost:5010/uploads/${recipe.image_path.split('/').pop()}`
-            : NoImageAvailable
-    }
-    alt={recipe.title} 
-/>
-                <div className="recipe-title-container">
-                    <h1 className="recipe-titlezz">{recipe.title}</h1>
-                    <p className="recipe-subtitle">{recipe.meal_type} | {recipe.course_type}</p>
-                    <div className="recipe-actions">
+{/* Recipe Image */}
+        <div className="recipe-headerzz">
+            <img 
+                className="recipe-imagezz" 
+                src={
+                    recipe.thumbnail_url
+                        ? recipe.thumbnail_url.startsWith('http')
+                            ? recipe.thumbnail_url
+                            : `http://localhost:5010/uploads/${recipe.thumbnail_url.split('/').pop()}`
+                        : recipe.image_path
+                            ? recipe.image_path.startsWith('http')
+                                ? recipe.image_path
+                                : `http://localhost:5010/uploads/${recipe.image_path.split('/').pop()}`
+                            : NoImageAvailable
+                }
+                alt={recipe.title} 
+            />
+            <div className="recipe-title-container">
+                <h1 className="recipe-titlezz">{recipe.title}</h1>
+                <p className="recipe-subtitle">{recipe.meal_type} | {recipe.course_type}</p>
+                <div className="recipe-actions">
                     <button className="timer-btn" onClick={handleTimer}>Timer</button>
                     <button className="edit-recipe-btn" onClick={handleEdit}>Edit</button>
-                    <button className="add-to-cart-btn" onClick={handleAddToCart}> Add to Cart  </button>
-                    </div></div>
+                    <button className="add-to-cart-btn" onClick={handleAddToCart}>Add to Cart</button>
+                </div>
             </div>
+        </div>
 
             {/* Recipe Information Sections */}
-            <div className="recipe-info">
+        <div className="recipe-info">
             <StarRating recipeId={id} />
-                {recipe.source && (<p><strong>Source:</strong> {' '} {recipe.source.startsWith('http') ? ( <a href={recipe.source} target="_blank" rel="noopener noreferrer"> {recipe.source} </a> ) : ( recipe.source )} </p> )}
-                <p><strong>Cuisine Type:</strong> {recipe.cuisine_type}</p>
-                <p><strong>Difficulty:</strong> {recipe.difficulty}</p>
-                <p><strong>Preparation Time:</strong> {recipe.prep_time} mins</p>
-                <p><strong>Cooking Time:</strong> {recipe.cook_time} mins</p>
+            
+            {/* Source with Website Icon */}
+            {recipe.source && (() => {
+                const sourceInfo = getSourceInfo(recipe.source);
+                return sourceInfo ? (
+                    <p className="source-field">
+                        <strong>Source:</strong> {' '}
+                        <a 
+                            href={sourceInfo.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="source-link"
+                            style={{ color: sourceInfo.color }}
+                        >
+                            <span className="source-icon">{sourceInfo.icon}</span>
+                            <span className="source-name">{sourceInfo.name}</span>
+                        </a>
+                    </p>
+                ) : (
+                    <p><strong>Source:</strong> {recipe.source}</p>
+                );
+            })()}
+            
+            <p><strong>Cuisine Type:</strong> {recipe.cuisine_type}</p>
+            <p><strong>Difficulty:</strong> {recipe.difficulty}</p>
+            <p><strong>Preparation Time:</strong> {recipe.prep_time} mins</p>
+            <p><strong>Cooking Time:</strong> {recipe.cook_time} mins</p>
 
                 {/* Allergies Section */}
                 {recipe.total_nutrition?.allergies?.length > 0 &&

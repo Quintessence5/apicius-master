@@ -44,6 +44,16 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
 
         console.log("Response received:", response.data);
 
+        if (response.data.redirect && response.data.recipeId) {
+            // Recipe already exists - redirect directly to recipe page
+            console.log("🔄 Redirecting to existing recipe...");
+            setSuccess('✅ Recipe already exists! Redirecting...');
+            setTimeout(() => {
+                navigate(`/recipe/${response.data.recipeId}`);
+            }, 1500);
+            return;
+        }
+
         if (response.data.success) {
             console.log("✅ Recipe extracted successfully");
             setProgress(90);
@@ -68,7 +78,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                         videoTitle: response.data.videoTitle
                     }
                 });
-            }, 1500);
+            }, 1000);
         } else {
             setError(response.data.message || 'Failed to extract recipe');
             setStep('input');

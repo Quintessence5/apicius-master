@@ -204,41 +204,35 @@ const extractRecipeFromVideo = async (req, res) => {
 
     try {
         const { videoUrl, userId = null } = req.body;
-        // Step 0: Check if this URL has been processed before
-console.log("\n📼 Step 0: Checking cache for previous conversions...");
-const cachedConversion = await pool.query(
-    `SELECT id, recipe_json, video_thumbnail_url, status FROM transcript_conversions 
-     WHERE source_url = $1 AND status = 'recipe_generated' 
-     ORDER BY created_at DESC LIMIT 1`,
-    [videoUrl]
-);
-
-if (cachedConversion.rows.length > 0) {
-    console.log(`✅ Found cached conversion! ID: ${cachedConversion.rows[0].id}`);
-    const cached = cachedConversion.rows[0];
-    
-    return res.json({
-        success: true,
-        conversionId: cached.id,
-        recipe: cached.recipe_json,
-        ingredientMatches: {
-            all: cached.recipe_json.ingredients || [],
-            matched: cached.recipe_json.ingredients || [],
-            unmatched: [],
-            matchPercentage: 100
-        },
-        videoThumbnail: cached.video_thumbnail_url,
-        processingTime: 0,
-        message: "✅ Recipe retrieved from cache! (Previously processed)",
-        fromCache: true
-    });
-}
-
         if (!videoUrl) {
             return res.status(400).json({ success: false, message: "Video URL is required" });
         }
 
         console.log("\n🎬 ========== STARTING RECIPE EXTRACTION ==========");
+        console.log("📼 Step 0: Checking for existing recipe...");
+        
+        // Step 0: Check if this URL has been processed before
+const existingRecipeCheck = await pool.query(
+            `SELECT r.id as recipe_id, r.title, tc.id as conversion_id
+             FROM transcript_conversions tc
+             LEFT JOIN recipes r ON tc.recipe_json->>'title' = r.title
+             WHERE tc.source_url = $1 AND tc.status = 'recipe_generated'
+             ORDER BY tc.created_at DESC LIMIT 1`,
+            [videoUrl]
+        );
+
+if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id) {
+            console.log(`✅ Found existing recipe! ID: ${existingRecipeCheck.rows[0].recipe_id}`);
+            
+            return res.json({
+                success: true,
+                redirect: true,
+                recipeId: existingRecipeCheck.rows[0].recipe_id,
+                message: "Recipe already exists for this URL",
+                processingTime: Date.now() - startTime
+            });
+        }
+
         console.log("📼 Step 1: Validating URL...");
         
         const videoId = extractVideoId(videoUrl);
@@ -422,7 +416,7 @@ if (cachedConversion.rows.length > 0) {
 const saveRecipeFromVideo = async (req, res) => {
     console.log("\n💾 ========== SAVING RECIPE TO DATABASE ==========");
     try {
-        const { generatedRecipe, conversionId, userId = null } = req.body;
+        const { generatedRecipe, conversionId, userId = null, videoThumbnail = null } = req.body;
 
         if (!generatedRecipe || !generatedRecipe.title) {
             return res.status(400).json({ success: false, message: "Valid recipe data is required" });
@@ -469,12 +463,11 @@ const saveRecipeFromVideo = async (req, res) => {
             }
         }
 
-        // Insert recipe
-        // Insert recipe
+        // Insert recipe WITH thumbnail URL
         const recipeResult = await pool.query(
             `INSERT INTO recipes (title, steps, notes, prep_time, cook_time, total_time, difficulty, 
-            course_type, meal_type, cuisine_type, public, source, portions)
-            VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+            course_type, meal_type, cuisine_type, public, source, portions, thumbnail_url)
+            VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
             RETURNING id`,
             [
                 title,
@@ -486,17 +479,19 @@ const saveRecipeFromVideo = async (req, res) => {
                 difficulty || 'Medium',
                 course_type || 'Main Course',
                 meal_type || 'Dinner',
-                cuisine_type || null,
+                cuisine_type || 'Homemade', // Default to 'Homemade' for video conversions
                 false,
                 sourceUrl,
-                servings || null
+                servings || null,
+                videoThumbnail || null // Save thumbnail URL
             ]
         );
 
         const recipeId = recipeResult.rows[0].id;
         console.log(`✅ Recipe inserted with ID: ${recipeId}`);
+        console.log(`✅ Thumbnail saved: ${videoThumbnail || 'None'}`);
 
-        // Insert ingredients
+        // Rest of the function continues...
         let savedCount = 0;
         if (ingredients && ingredients.length > 0) {
             console.log(`🔗 Linking ${ingredients.length} ingredients...`);
@@ -511,19 +506,16 @@ const saveRecipeFromVideo = async (req, res) => {
 
                 if (existingResult.rows.length > 0) {
                     ingredientId = existingResult.rows[0].id;
-                    console.log(`   ✅ Linked existing: "${ingredient.name}"`);
                 } else {
                     const newIngredientResult = await pool.query(
                         `INSERT INTO ingredients (name) VALUES ($1) RETURNING id`,
                         [ingredient.name]
                     );
                     ingredientId = newIngredientResult.rows[0].id;
-                    console.log(`   ✨ Created new: "${ingredient.name}"`);
                 }
 
                 if (ingredientId) {
                     const normalizedUnit = normalizeUnit(ingredient.unit) || ingredient.unit;
-                    // Include section if available
                     await pool.query(
                         `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, section)
                         VALUES ($1, $2, $3, $4, $5)`,
@@ -535,36 +527,45 @@ const saveRecipeFromVideo = async (req, res) => {
         }
 
         console.log(`✅ ${savedCount} ingredients linked`);
-        
+
         // Update conversion status
         if (conversionId) {
             await pool.query(
-                `UPDATE transcript_conversions 
-                SET recipe_status = 'saved', updated_at = CURRENT_TIMESTAMP 
-                WHERE id = $1`,
-                [conversionId]
+                `UPDATE transcript_conversions SET recipe_status = $1, status = $2, updated_at = NOW() 
+                 WHERE id = $3`,
+                ['saved', 'recipe_saved', conversionId]
             );
-            console.log(`✅ Conversion status updated to 'saved'`);
         }
 
-        console.log("\n💾 ========== SAVE COMPLETE ==========\n");
-
-        res.status(201).json({
+        res.json({
             success: true,
             message: "✅ Recipe saved successfully!",
             recipeId,
-            conversionId,
-            recipe: {
-                id: recipeId,
-                title,
-                ingredientCount: savedCount,
-                stepCount: steps.length
-            }
+            conversionId
         });
 
     } catch (error) {
         console.error("❌ Error saving recipe:", error);
-        res.status(500).json({ success: false, message: "Error saving recipe", error: error.message });
+        
+        if (req.body?.conversionId) {
+            try {
+                const { logConversionError } = require('../services/conversionLogger');
+                await logConversionError(
+                    req.body.conversionId,
+                    'RecipeSaveError',
+                    error.message,
+                    'recipe_save'
+                );
+            } catch (logErr) {
+                console.error("Could not log error:", logErr.message);
+            }
+        }
+
+        res.status(500).json({
+            success: false,
+            message: "Error saving recipe",
+            error: error.message
+        });
     }
 };
 

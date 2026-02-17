@@ -286,6 +286,7 @@ const VideoRecipeReview = () => {
         generatedRecipe: { ...editedRecipe, ingredients: finalIngredients },
         conversionId,
         userId: null,
+        videoThumbnail: videoThumbnail,
       });
 
       if (res.data.success) {

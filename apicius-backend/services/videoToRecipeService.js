@@ -256,6 +256,10 @@ CRITICAL REQUIREMENTS:
 4. **JSON OUTPUT STRUCTURE:**
    Your MUST return ONLY a valid JSON object with this EXACT structure:
 
+5 **CUISINE TYPE:**
+   For video-based recipes converted from online sources, ALWAYS use cuisine_type: "Homemade"
+   Do NOT attempt to guess cuisine type from video title alone.
+
 {
   "title": "Recipe Name",
   "description": "Brief professional description",
