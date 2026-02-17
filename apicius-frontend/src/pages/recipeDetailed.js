@@ -158,10 +158,16 @@ const RecipeDetails = () => {
             {/* Recipe Image */}
             <div className="recipe-headerzz">
                 <img 
-                    className="recipe-imagezz" 
-                    src={recipe.image_path ? `http://localhost:5010/uploads/${recipe.image_path.split('/').pop()}` : NoImageAvailable}
-                    alt={recipe.title} 
-                />
+    className="recipe-imagezz" 
+    src={
+        recipe.image_path 
+            ? recipe.image_path.startsWith('http')
+                ? recipe.image_path
+                : `http://localhost:5010/uploads/${recipe.image_path.split('/').pop()}`
+            : NoImageAvailable
+    }
+    alt={recipe.title} 
+/>
                 <div className="recipe-title-container">
                     <h1 className="recipe-titlezz">{recipe.title}</h1>
                     <p className="recipe-subtitle">{recipe.meal_type} | {recipe.course_type}</p>
@@ -175,7 +181,7 @@ const RecipeDetails = () => {
             {/* Recipe Information Sections */}
             <div className="recipe-info">
             <StarRating recipeId={id} />
-                {recipe.source && <p><strong>Source:</strong> {recipe.source}</p>}
+                {recipe.source && (<p><strong>Source:</strong> {' '} {recipe.source.startsWith('http') ? ( <a href={recipe.source} target="_blank" rel="noopener noreferrer"> {recipe.source} </a> ) : ( recipe.source )} </p> )}
                 <p><strong>Cuisine Type:</strong> {recipe.cuisine_type}</p>
                 <p><strong>Difficulty:</strong> {recipe.difficulty}</p>
                 <p><strong>Preparation Time:</strong> {recipe.prep_time} mins</p>
@@ -232,21 +238,37 @@ const RecipeDetails = () => {
                 {console.log("Current Recipe Data:", recipe)} 
 
                 <h3>Ingredients</h3>
-                <ul className="ingredient-list">
-                    {recipe.ingredients?.map((ingredient, index) => {
-                        const scaledIngredient = {
-                            ...ingredient,
-                            quantity: ingredient.quantity * (currentPortions / basePortions)
-                        };
-
-                        const converted = getConvertedQuantity(scaledIngredient);
-                        return (
-                            <li key={index}>
-                                {converted.quantity} {converted.unit} of {ingredient.ingredient_name}
-                            </li>
-                        );
-                    })}
-                </ul>
+{(() => {
+    // Group ingredients by section
+    const sections = {};
+    recipe.ingredients?.forEach(ing => {
+        const section = ing.section || 'Main';
+        if (!sections[section]) sections[section] = [];
+        sections[section].push(ing);
+    });
+    
+    return Object.entries(sections).map(([sectionName, ingredients]) => (
+        <div key={sectionName} className="ingredients-section">
+            {sectionName !== 'Main' && (
+                <h4 className="section-title">{sectionName}</h4>
+            )}
+            <ul className="ingredient-list">
+                {ingredients.map((ingredient, index) => {
+                    const scaledIngredient = {
+                        ...ingredient,
+                        quantity: ingredient.quantity * (currentPortions / basePortions)
+                    };
+                    const converted = getConvertedQuantity(scaledIngredient);
+                    return (
+                        <li key={index}>
+                            {converted.quantity} {converted.unit} of {ingredient.ingredient_name}
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    ));
+})()}
 
             {/* Unit Switches */}
             {(hasSolidIngredients || hasLiquidIngredients) && (
@@ -285,14 +307,49 @@ const RecipeDetails = () => {
                 )}
             </div>)}
 
-                <h3>Steps</h3>
+                <h3>Instructions</h3>
+{(() => {
+    // Group steps by section if available
+    const isStructured = Array.isArray(recipe.steps) && 
+                         recipe.steps.length > 0 && 
+                         typeof recipe.steps[0] === 'object';
+    
+    if (isStructured) {
+        const sections = {};
+        recipe.steps.forEach(step => {
+            const section = step.section || 'Main';
+            if (!sections[section]) sections[section] = [];
+            sections[section].push(step);
+        });
+        
+        return Object.entries(sections).map(([sectionName, steps]) => (
+            <div key={sectionName} className="steps-section">
+                {sectionName !== 'Main' && (
+                    <h4 className="section-title">{sectionName}</h4>
+                )}
                 <ol className="steps-list">
-                    {recipe.steps ? ( 
-                        recipe.steps.map((step, index) => <li key={index}>{step}</li>)
-                    ) : (
-                        <p>No steps available.</p> 
-                    )}
+                    {steps.map((step, idx) => (
+                        <li key={idx}>
+                            {step.instruction || step}
+                            {step.duration_minutes && (
+                                <span className="step-duration"> (~{step.duration_minutes} min)</span>
+                            )}
+                        </li>
+                    ))}
                 </ol>
+            </div>
+        ));
+    } else {
+        // Fallback for unstructured steps
+        return (
+            <ol className="steps-list">
+                {recipe.steps?.map((step, idx) => (
+                    <li key={idx}>{typeof step === 'object' ? step.instruction : step}</li>
+                ))}
+            </ol>
+        );
+    }
+})()}
 
                 {/* Nutritional Facts Table */}
                 <table className="nutrition-table">

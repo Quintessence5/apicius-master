@@ -204,6 +204,35 @@ const extractRecipeFromVideo = async (req, res) => {
 
     try {
         const { videoUrl, userId = null } = req.body;
+        // Step 0: Check if this URL has been processed before
+console.log("\n📼 Step 0: Checking cache for previous conversions...");
+const cachedConversion = await pool.query(
+    `SELECT id, recipe_json, video_thumbnail_url, status FROM transcript_conversions 
+     WHERE source_url = $1 AND status = 'recipe_generated' 
+     ORDER BY created_at DESC LIMIT 1`,
+    [videoUrl]
+);
+
+if (cachedConversion.rows.length > 0) {
+    console.log(`✅ Found cached conversion! ID: ${cachedConversion.rows[0].id}`);
+    const cached = cachedConversion.rows[0];
+    
+    return res.json({
+        success: true,
+        conversionId: cached.id,
+        recipe: cached.recipe_json,
+        ingredientMatches: {
+            all: cached.recipe_json.ingredients || [],
+            matched: cached.recipe_json.ingredients || [],
+            unmatched: [],
+            matchPercentage: 100
+        },
+        videoThumbnail: cached.video_thumbnail_url,
+        processingTime: 0,
+        message: "✅ Recipe retrieved from cache! (Previously processed)",
+        fromCache: true
+    });
+}
 
         if (!videoUrl) {
             return res.status(400).json({ success: false, message: "Video URL is required" });
@@ -257,6 +286,28 @@ const extractRecipeFromVideo = async (req, res) => {
         console.log("\n📼 Step 4: Extracting ingredients from description...");
         const extractedIngredients = extractIngredientsFromText(youtubeMetadata.description);
         console.log(`✅ Extracted ${extractedIngredients.length} ingredients`);
+        try {
+    youtubeMetadata = await getYouTubeDescription(videoUrl);
+    videoThumbnail = getYouTubeThumbnail(videoId);
+} catch (error) {
+    conversionId = await logConversion({
+        user_id: userId,
+        source_type: 'youtube',
+        source_url: videoUrl,
+        status: 'metadata_fetch_failed',
+        error_message: error.message,
+        processing_time_ms: Date.now() - startTime
+    });
+    
+    // Log the specific error
+    await logConversionError(conversionId, 'MetadataFetchError', error.message, 'metadata_fetch');
+    
+    return res.status(400).json({
+        success: false,
+        conversionId,
+        message: "Failed to fetch video metadata"
+    });
+}
 
         // Generate recipe with LLM
         console.log("\n📼 Step 5: Generating complete recipe with Groq LLM...");
@@ -418,9 +469,9 @@ const saveRecipeFromVideo = async (req, res) => {
                 difficulty || 'Medium',
                 course_type || 'Main Course',
                 meal_type || 'Dinner',
-                cuisine_type || null,
-                false,
-                source || 'video_conversion',
+                cuisine_type || 'Homemade',
+                true, // public
+                source || videoURL,
                 servings || null
             ]
         );

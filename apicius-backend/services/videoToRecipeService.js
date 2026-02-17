@@ -403,6 +403,7 @@ const sanitizeRecipe = (data) => {
             cook_time: data.cook_time ? parseInt(data.cook_time) || null : null,
             total_time: data.total_time ? parseInt(data.total_time) || null : null,
             baking_temperature: data.baking_temperature ? parseInt(data.baking_temperature) || null : null,
+            baking_temperature_unit: data.baking_temperature_unit || '°C',
             baking_time: data.baking_time ? parseInt(data.baking_time) || null : null,
             difficulty: ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'].includes(data.difficulty) ? data.difficulty : "Medium",
             course_type: ['Appetizer', 'Main Course', 'Dessert', 'Snack', 'Beverage'].includes(data.course_type) ? data.course_type : "Main Course",
@@ -410,12 +411,15 @@ const sanitizeRecipe = (data) => {
             cuisine_type: data.cuisine_type ? String(data.cuisine_type).substring(0, 100) : null,
             ingredients: Array.isArray(data.ingredients)
                 ? data.ingredients
-                    .map(ing => ({
-                        name: String(ing.name || '').substring(0, 255),
-                        quantity: ing.quantity ? String(ing.quantity) : null,
-                        unit: normalizeUnit(String(ing.unit)) || String(ing.unit).substring(0, 50),
-                        section: ing.section ? String(ing.section).substring(0, 100) : "Main"
-                    }))
+                    .map(ing => {
+                        const normalizedUnit = normalizeUnit(String(ing.unit)) || String(ing.unit).substring(0, 50);
+                        return {
+                            name: String(ing.name || '').substring(0, 255),
+                            quantity: ing.quantity ? String(ing.quantity) : null,
+                            unit: normalizedUnit,  // NORMALIZED UNIT IS KEY
+                            section: ing.section ? String(ing.section).substring(0, 100) : "Main"
+                        };
+                    })
                     .filter(ing => ing.name.length > 0)
                 : [],
             steps: Array.isArray(data.steps)
@@ -432,7 +436,6 @@ const sanitizeRecipe = (data) => {
         throw new Error("Failed to validate recipe data");
     }
 };
-
 // __________-------------Get YouTube Video Thumbnail-------------__________
 const getYouTubeThumbnail = (videoId) => {
     try {

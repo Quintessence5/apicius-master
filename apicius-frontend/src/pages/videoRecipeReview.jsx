@@ -394,9 +394,39 @@ const VideoRecipeReview = () => {
 
         {/* Ingredients */}
         <section className="section">
-          <h2>Ingredients ({ingredients.length})</h2>
+  <h2>Ingredients ({ingredients.length})</h2>
+
+  {ingredients.length === 0 ? (
+    <p className="empty-message">No ingredients found in the recipe.</p>
+  ) : (
+    // Group ingredients by section
+    (() => {
+      const sections = {};
+
+      ingredients.forEach((ing, idx) => {
+        const sectionName = ing.section?.trim() || 'Main';
+        if (!sections[sectionName]) {
+          sections[sectionName] = [];
+        }
+        sections[sectionName].push({ ing, idx });
+      });
+
+      // Sort sections – optional: put 'Main' first, then alphabetical
+      const orderedSectionNames = Object.keys(sections).sort((a, b) => {
+        if (a === 'Main') return -1;
+        if (b === 'Main') return 1;
+        return a.localeCompare(b);
+      });
+
+      return orderedSectionNames.map((sectionName) => (
+        <div key={sectionName} className="ingredients-by-section">
+          <h4 className="section-title">
+            {sectionName}
+            <span className="section-count">({sections[sectionName].length})</span>
+          </h4>
+
           <div className="ingredients-section">
-            {ingredients.map((ing, idx) => {
+            {sections[sectionName].map(({ ing, idx }) => {
               const match = ing.dbMatch;
               const results = searchResults[idx] || [];
 
@@ -451,30 +481,58 @@ const VideoRecipeReview = () => {
               );
             })}
           </div>
-        </section>
+        </div>
+      ));
+    })()
+  )}
+</section>
 
         {/* Steps */}
         <section className="section">
-          <h2>Instructions ({editedRecipe.steps?.length || 0})</h2>
-          <div className="steps-section">
-            {editedRecipe.steps?.map((step, idx) => (
-              <div key={idx} className="step-item">
-                <span className="step-number">{idx + 1}.</span>
-                <textarea
-                  value={step}
-                  onChange={(e) => handleStepChange(idx, e.target.value)}
-                  rows={2}
-                />
-                <button className="delete-btn" onClick={() => deleteStep(idx)} type="button">
-                  ×
-                </button>
+  <h2>Instructions ({editedRecipe.steps?.length || 0})</h2>
+  {(() => {
+      const sections = {};
+      editedRecipe.steps?.forEach((step, idx) => {
+          const section = typeof step === 'object' ? (step.section || 'Main') : 'Main';
+          if (!sections[section]) sections[section] = [];
+          sections[section].push({ step, idx });
+      });
+      
+      return Object.entries(sections).map(([sectionName, items]) => (
+          <div key={sectionName} className="steps-by-section">
+              {sectionName !== 'Main' && <h4>{sectionName}</h4>}
+              <div className="steps-section">
+                  {items.map(({ step, idx }) => (
+                      <div key={idx} className="step-item">
+                          <span className="step-number">{idx + 1}.</span>
+                          <textarea
+                              value={typeof step === 'object' ? step.instruction : step}
+                              onChange={(e) => handleStepChange(idx, e.target.value)}
+                              rows={2}
+                          />
+                          {typeof step === 'object' && (
+                              <input
+                                  type="number"
+                                  placeholder="Duration (minutes)"
+                                  value={step.duration_minutes || ''}
+                                  onChange={(e) => {
+                                      const steps = [...editedRecipe.steps];
+                                      steps[idx] = { ...step, duration_minutes: parseInt(e.target.value) || null };
+                                      setEditedRecipe(prev => ({ ...prev, steps }));
+                                  }}
+                                  min="0"
+                              />
+                          )}
+                          <button className="delete-btn" onClick={() => deleteStep(idx)} type="button">
+                              ×
+                          </button>
+                      </div>
+                  ))}
               </div>
-            ))}
           </div>
-          <button className="add-step-btn" onClick={addStep} type="button">
-            + Add Step
-          </button>
-        </section>
+      ));
+  })()}
+</section>
 
         {/* Summary */}
         {ingredientMatches && (

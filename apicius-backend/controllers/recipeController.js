@@ -24,7 +24,7 @@ const getAllRecipes = async (req, res) => {
         let query = `
             SELECT r.id AS recipe_id, r.title, r.notes, r.prep_time, r.cook_time, r.total_time, r.difficulty, 
                    r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, 
-                   ri.quantity, ri.unit, i.name AS ingredient_name, i.calories_per_100g, i.protein, 
+                   ri.quantity, ri.unit, ri.section, i.name AS ingredient_name, i.calories_per_100g, i.protein, 
                    i.lipids, i.carbohydrates, i.allergies
             FROM recipes r
             LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
@@ -144,7 +144,7 @@ const getAllRecipes = async (req, res) => {
 
             // Add ingredient to the recipe
             if (ingredient_name) {
-                recipe.ingredients.push({ ingredient_name, quantity, unit });
+                recipe.ingredients.push({ ingredient_name, quantity, unit, section: row.section || 'Main' });
 
                 // Calculate nutrition for the ingredient
                 const multiplier = parseFloat(quantity || 0) / 100; // Convert quantity to a fraction of 100g
@@ -181,7 +181,8 @@ const getRecipeById = async (req, res) => {
         const recipeResult = await pool.query(`
             SELECT r.id, r.title, r.notes, r.prep_time, r.cook_time, r.total_time, r.difficulty, 
                    r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, r.portions, r.public,
-                   ri.quantity, ri.unit, i.id AS ingredient_id, i.name AS ingredient_name, i.calories_per_100g, 
+                   ri.quantity, ri.unit, ri.section, 
+                   i.id AS ingredient_id, i.name AS ingredient_name, i.calories_per_100g, 
                    i.protein, i.lipids, i.carbohydrates, i.saturated_fat, i.trans_fat, 
                    i.cholesterol, i.sodium, i.fibers, i.sugars, i.added_sugars, i.allergies, i.form
             FROM recipes r
@@ -223,15 +224,15 @@ const getRecipeById = async (req, res) => {
 
         // Process Ingredients & Nutrition Data
         recipeResult.rows.forEach(row => {
-            if (row.ingredient_name) {
-                // Add ingredient
-                recipe.ingredients.push({
-                    ingredient_id: row.ingredient_id, // Ensure this is included
-                    ingredient_name: row.ingredient_name,
-                    quantity: row.quantity,
-                    unit: row.unit,
-                    form: row.form
-                });
+    if (row.ingredient_name) {
+        recipe.ingredients.push({
+            ingredient_id: row.ingredient_id,
+            ingredient_name: row.ingredient_name,
+            quantity: row.quantity,
+            unit: row.unit,
+            form: row.form,
+            section: row.section || 'Main'   // ← added
+        });
 
                 // Calculate Nutrition Facts per Recipe
                 const multiplier = parseFloat(row.quantity || 0) / 100; // Convert quantity to a fraction of 100g
@@ -419,63 +420,68 @@ const updateRecipe = async (req, res) => {
 
         // --- Handling Ingredients ---
                 console.log("Processing ingredients...");
-        
-                // ✅ Convert ingredients object into an array
-                if (typeof ingredients === "object" && !Array.isArray(ingredients)) {
-                    ingredients = Object.values(ingredients).filter(ing => ing.ingredientId || ing.name);
-                }
-        
-                if (Array.isArray(ingredients) && ingredients.length > 0) {
-                    console.log(`🔄 Updating ${ingredients.length} ingredients...`);
-        
-                    for (const ingredient of ingredients) {
-                        if (!ingredient.ingredientId && !ingredient.name) continue; // Skip empty entries
-        
-                        let ingredientId = ingredient.ingredientId;
-        
-                        // 🔹 **Insert ingredient if it doesn't exist**
-                        if (!ingredientId) {
-                            const ingredientResult = await pool.query(
-                                `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
-                                [ingredient.name]
-                            );
-        
-                            ingredientId = ingredientResult.rows[0]?.id;
-        
-                            if (!ingredientId) {
-                                const existingIngredient = await pool.query(
-                                    `SELECT id FROM ingredients WHERE name = $1`,
-                                    [ingredient.name]
-                                );
-                                ingredientId = existingIngredient.rows[0]?.id;
-                            }
-                        }
 
-                const existingRecipeIngredient = await pool.query(
-                    `SELECT * FROM recipe_ingredients WHERE recipe_id = $1 AND ingredient_id = $2`,
-                    [id, ingredientId]
+if (typeof ingredients === "object" && !Array.isArray(ingredients)) {
+    ingredients = Object.values(ingredients).filter(ing => ing.ingredientId || ing.name);
+}
+
+if (Array.isArray(ingredients) && ingredients.length > 0) {
+    console.log(`🔄 Updating ${ingredients.length} ingredients...`);
+
+    for (const ingredient of ingredients) {
+        if (!ingredient.ingredientId && !ingredient.name) continue;
+
+        let ingredientId = ingredient.ingredientId;
+
+        // Insert ingredient if it doesn't exist
+        if (!ingredientId) {
+            const ingredientResult = await pool.query(
+                `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
+                [ingredient.name]
+            );
+
+            ingredientId = ingredientResult.rows[0]?.id;
+
+            if (!ingredientId) {
+                const existing = await pool.query(
+                    `SELECT id FROM ingredients WHERE name = $1`,
+                    [ingredient.name]
                 );
-
-                if (existingRecipeIngredient.rows.length > 0) {
-                    await pool.query(
-                        `UPDATE recipe_ingredients 
-                         SET quantity = $1, unit = $2 
-                         WHERE recipe_id = $3 AND ingredient_id = $4`,
-                        [ingredient.quantity || null, ingredient.unit || null, id, ingredientId]
-                    );
-                    console.log(`✅ Updated existing ingredient: ${ingredient.name} (ID: ${ingredientId})`);
-                } else {
-                    await pool.query(
-                        `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
-                         VALUES (\$1, \$2, \$3, \$4)`,
-                        [id, ingredientId, ingredient.quantity || null, ingredient.unit || null]
-                    );
-                    console.log(`✅ Added new ingredient: ${ingredient.name} (ID: ${ingredientId})`);
-                }
+                ingredientId = existing.rows[0]?.id;
             }
-        } else {
-            console.log("⚠️ No valid ingredients provided. Keeping existing ingredients.");
         }
+
+        if (ingredientId) {
+            const section = ingredient.section || 'Main';
+
+            const existing = await pool.query(
+                `SELECT * FROM recipe_ingredients WHERE recipe_id = $1 AND ingredient_id = $2`,
+                [id, ingredientId]
+            );
+
+            if (existing.rows.length > 0) {
+                // Update existing
+                await pool.query(
+                    `UPDATE recipe_ingredients 
+                     SET quantity = $1, unit = $2, section = $3 
+                     WHERE recipe_id = $4 AND ingredient_id = $5`,
+                    [ingredient.quantity || null, ingredient.unit || null, section, id, ingredientId]
+                );
+                console.log(`✅ Updated ingredient: ${ingredient.name || ingredientId} (section: ${section})`);
+            } else {
+                // Insert new
+                await pool.query(
+                    `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, section)
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [id, ingredientId, ingredient.quantity || null, ingredient.unit || null, section]
+                );
+                console.log(`✅ Added ingredient: ${ingredient.name || ingredientId} (section: ${section})`);
+            }
+        }
+    }
+} else {
+    console.log("⚠️ No valid ingredients provided. Keeping existing ones.");
+}
 
         // --- Handling Deleted Ingredients ---
         if (deletedIngredients && deletedIngredients.length > 0) {
