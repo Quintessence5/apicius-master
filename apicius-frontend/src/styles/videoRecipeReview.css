@@ -386,6 +386,131 @@
     background: #0056b3;
 }
 
+/* ==================== STEPS BY SECTION ==================== */
+.steps-by-section {
+    margin-bottom: 2rem;
+}
+
+.steps-by-section .section-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 1.5rem 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e8f0fe;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.steps-by-section .section-count {
+    font-size: 0.9rem;
+    color: #888;
+    font-weight: 400;
+}
+
+.step-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.step-textarea {
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    resize: vertical;
+}
+
+.step-textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.step-meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.duration-input,
+.section-select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background: white;
+}
+
+.duration-input {
+    width: 120px;
+}
+
+.duration-input:focus,
+.section-select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.sub-steps {
+    margin-top: 0.8rem;
+    padding: 0.8rem;
+    background: #f8f9fa;
+    border-left: 3px solid #007bff;
+    border-radius: 4px;
+}
+
+.sub-steps strong {
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.sub-steps ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+    list-style-type: disc;
+}
+
+.sub-steps li {
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.3;
+    margin-bottom: 0.3rem;
+}
+
+.add-step-container {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.add-step-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 0.8rem 1.5rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.add-step-btn:hover {
+    background: #218838;
+}
+
+.add-step-btn:active {
+    transform: scale(0.98);
+}
+
 /* Match Summary */
 .match-summary {
     background: #f0f7ff;

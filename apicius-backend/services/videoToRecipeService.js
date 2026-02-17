@@ -224,7 +224,6 @@ const analyzeDescriptionContent = (description) => {
 };
 
 // __________-------------Generate complete recipe with LLM (with unit constraints)-------------__________
-// __________-------------Generate complete recipe with LLM (METRIC SYSTEM PREFERENCE)-------------__________
 const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients) => {
     try {
         console.log("📤 Sending all data to Groq for recipe generation...");
@@ -233,101 +232,104 @@ const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extr
             throw new Error("GROQ_API_KEY not set in environment");
         }
         
-        const systemPrompt = `You are an expert professional Chef and recipe editor.
+        const systemPrompt = `You are an expert professional Chef and recipe editor specializing in creating detailed, structured recipes.
 
-Your job is to create a complete, structured recipe from whatever information is provided about a cooking video.
+CRITICAL REQUIREMENTS:
 
-CRITICAL UNIT CONSTRAINT - USE METRIC/EUROPEAN SYSTEM BY DEFAULT:
-You MUST use ONLY these units for ingredients. Use METRIC/EUROPEAN system primarily:
+1. **UNIT CONSTRAINT - USE METRIC SYSTEM BY DEFAULT:**
+   Use ONLY: g, kg, ml, l, tsp, tbsp, pc (pieces), pinch, dash
 
-**Weight (Metric preferred):** g, kg, mg
-**Volume (Metric preferred):** ml, l
-**Quantity:** pc, doz, pinch, dash, cup (only if recipe explicitly requires it)
+2. **STEPS MUST BE COMPREHENSIVE AND SECTIONED:**
+   - Group steps into logical sections (e.g., "Prepare the pan and oven", "Make the cake batter", "Bake", "Make the ganache", "Assemble and serve")
+   - Each section should have a descriptive title
+   - Each step within a section should be 2-4 sentences with actionable details
+   - Include specific techniques and warnings (e.g., "Don't overmix", "until smooth and lump-free")
+   - Include timing/duration when relevant (stored in "duration_minutes" field)
+   - Include temperature ranges when applicable
+   - Provide sub-details using bullet points within step instructions
 
-ONLY use US customary units (cup, tbsp, tsp, oz, lb) if the recipe description explicitly states them or is clearly from a US source.
+3. **INGREDIENTS MUST HAVE SECTIONS:**
+   - Group ingredients by component (e.g., "Cake Batter", "Ganache", "Topping")
+   - If single-component, use "Main"
+   - Include quantities in metric units
 
-**Oven Temperature MUST be in Celsius with Fahrenheit in parentheses:**
-- Format: "350°C (662°F)" or just "180°C" if Fahrenheit not mentioned
-- Store baking_temperature as the Celsius value
-- Store baking_temperature_fahrenheit (optional) if needed
+4. **JSON OUTPUT STRUCTURE:**
+   Your MUST return ONLY a valid JSON object with this EXACT structure:
 
-CRITICAL NAME CONSTRAINT:
-Ingredient names MUST be:
-- Basic, simple names WITHOUT adjectives or descriptions
-- Example: "flour" not "all-purpose flour"
-- Example: "sugar" not "granulated sugar"
-- Example: "milk" not "fresh whole milk"
-- Example: "butter" not "unsalted room temperature butter"
-
-INPUT DATA YOU MAY RECEIVE:
-- Video title
-- Channel name
-- Description text (may contain ingredients, steps, or both)
-- Pre-extracted ingredients from description
-
-YOUR JOB:
-1. Use ALL information provided
-2. Parse ingredients carefully with BASIC NAMES and STANDARD UNITS ONLY
-3. Convert US measurements to metric when possible (e.g., 1 cup flour ≈ 240ml)
-4. If steps are missing, generate realistic steps from expert knowledge
-5. Group ingredients by component (e.g., "Cake Batter", "Ganache")
-6. Use CELSIUS for temperatures with Fahrenheit in parentheses
-
-OUTPUT: Return ONLY valid JSON (no markdown, no explanation).
-
-JSON STRUCTURE:
 {
   "title": "Recipe Name",
-  "description": "Professional short description",
+  "description": "Brief professional description",
   "servings": 4,
-  "prep_time": 15,
-  "cook_time": 30,
-  "total_time": 45,
-  "baking_temperature": 180,
-  "baking_temperature_unit": "°C (350°F)",
-  "baking_time": 30,
+  "prep_time": 20,
+  "cook_time": 35,
+  "total_time": 55,
   "difficulty": "Medium",
   "course_type": "Dessert",
   "meal_type": "Dinner",
-  "cuisine_type": null,
+  "cuisine_type": "Western",
   "ingredients": [
     {
-      "name": "flour",
-      "quantity": "240",
-      "unit": "g",
-      "section": "Cake Batter"
-    },
-    {
-      "name": "sugar",
-      "quantity": "200",
-      "unit": "g",
-      "section": "Cake Batter"
-    },
-    {
-      "name": "eggs",
+      "name": "ingredient name",
       "quantity": "2",
       "unit": "pc",
       "section": "Cake Batter"
     }
   ],
-  "steps": ["Step 1...", "Step 2...", "..."],
-  "notes": null,
-  "tags": []
+  "steps": [
+    {
+      "section": "Prepare the pan and oven",
+      "step_number": 1,
+      "instruction": "Preheat your oven to 170–180°C (340–355°F). While preheating, grease an 8-inch round or square cake pan with butter or cooking spray. Line the bottom with baking/parchment paper for easy removal.",
+      "duration_minutes": 10,
+      "sub_steps": ["Ensure oven temperature reaches target", "Paper should cover entire bottom", "Light dusting of flour on sides helps (optional)"]
+    },
+    {
+      "section": "Prepare the pan and oven",
+      "step_number": 2,
+      "instruction": "Lightly dust the sides with flour if you want easier unmolding. Set the pan aside.",
+      "duration_minutes": null,
+      "sub_steps": []
+    },
+    {
+      "section": "Make the cake batter",
+      "step_number": 3,
+      "instruction": "In a large bowl, whisk together the DRY ingredients: flour, cocoa powder, sugar, salt, baking soda, and baking powder. Mix thoroughly to combine the leavening agents evenly.",
+      "duration_minutes": 3,
+      "sub_steps": ["Sift dry ingredients if possible to remove lumps", "Ensure baking soda and powder are evenly distributed"]
+    },
+    {
+      "section": "Make the cake batter",
+      "step_number": 4,
+      "instruction": "In a separate bowl or large jug, whisk the WET ingredients: eggs, vanilla extract, white vinegar, neutral oil, and milk until smooth and combined. The vinegar will react with the baking soda to help leaven the cake.",
+      "duration_minutes": 3,
+      "sub_steps": ["Whisk until eggs are fully incorporated", "Mixture should be homogeneous", "Vinegar activates baking soda"]
+    },
+    {
+      "section": "Make the cake batter",
+      "step_number": 5,
+      "instruction": "Pour the wet mixture into the dry ingredients. Using a spatula or whisk, fold together just until you have a smooth, lump-free batter. AVOID OVERMIXING – overmixing develops gluten and results in a tough cake.",
+      "duration_minutes": 2,
+      "sub_steps": ["Mix gently with minimum strokes", "Stop when no visible dry streaks remain", "Do NOT beat or whisk vigorously"]
+    },
+    {
+      "section": "Make the cake batter",
+      "step_number": 6,
+      "instruction": "Pour the batter into the prepared pan and tap gently on the counter 2-3 times to release large air bubbles. This helps ensure an even crumb structure.",
+      "duration_minutes": 1,
+      "sub_steps": ["Tap firmly but not violently", "Surface should appear relatively smooth"]
+    }
+  ]
 }
 
-CONVERSION REFERENCE (use if converting from US):
-- 1 cup flour ≈ 240g
-- 1 cup sugar ≈ 200g
-- 1 tbsp ≈ 15ml
-- 1 tsp ≈ 5ml
-- 1 cup milk ≈ 240ml
-- 1 cup water ≈ 240ml
-- 1 oz ≈ 28g
-- 1 fluid oz ≈ 28ml
-- 1 lb ≈ 453g
-If you have to convert alway try to do round number to be easy to measure.
+5. **CRITICAL NOTES:**
+   - Always use CELSIUS for temperatures with Fahrenheit in parentheses
+   - Steps must be logical, chronological, and detailed
+   - Include warnings, tips, and techniques
+   - Each section should have 2-7 steps with clear progression
+   - Duration should be in minutes (or null if unknown) but it must alway be realistic.
+   - sub_steps should be an array of brief bullet points with extra tips
 
-REMEMBER: Simple ingredient names, metric units by default, Celsius temperatures!`;
+OUTPUT: Return ONLY valid JSON. No markdown, no explanations, no backticks.`;
 
         let userMessage = `Video Title: "${videoTitle || 'Unknown'}"\n`;
         userMessage += `Channel: ${channelTitle || 'Unknown'}\n\n`;
@@ -340,7 +342,14 @@ REMEMBER: Simple ingredient names, metric units by default, Celsius temperatures
             });
         }
         
-        userMessage += `\nGenerate a complete, professional recipe JSON with METRIC units by default and temperatures in CELSIUS (with Fahrenheit in parentheses).`;
+        userMessage += `\n\nCREATE A COMPREHENSIVE, DETAILED RECIPE with:
+- Multiple step sections with clear titles
+- Detailed instructions (2-4 sentences each)
+- Duration estimates for each step
+- Specific techniques and warnings
+- Sub-steps with tips
+- Metric units (grams, ml, celsius)
+- Grouped ingredients by component`;
 
         const response = await axios.post(
             'https://api.groq.com/openai/v1/chat/completions',
@@ -351,7 +360,7 @@ REMEMBER: Simple ingredient names, metric units by default, Celsius temperatures
                     { role: "user", content: userMessage }
                 ],
                 temperature: 0.5,
-                max_tokens: 3000,
+                max_tokens: 4000, // Increase to allow for more detailed content
                 response_format: { type: "json_object" }
             },
             {
@@ -403,39 +412,62 @@ const sanitizeRecipe = (data) => {
             cook_time: data.cook_time ? parseInt(data.cook_time) || null : null,
             total_time: data.total_time ? parseInt(data.total_time) || null : null,
             baking_temperature: data.baking_temperature ? parseInt(data.baking_temperature) || null : null,
-            baking_temperature_unit: data.baking_temperature_unit || '°C',
             baking_time: data.baking_time ? parseInt(data.baking_time) || null : null,
-            difficulty: ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'].includes(data.difficulty) ? data.difficulty : "Medium",
-            course_type: ['Appetizer', 'Main Course', 'Dessert', 'Snack', 'Beverage'].includes(data.course_type) ? data.course_type : "Main Course",
-            meal_type: ['Breakfast', 'Lunch', 'Dinner', 'Snack'].includes(data.meal_type) ? data.meal_type : "Dinner",
+            difficulty: ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'].includes(data.difficulty)
+                ? data.difficulty
+                : "Medium",
+            course_type: ['Appetizer', 'Main Course', 'Dessert', 'Snack', 'Beverage'].includes(data.course_type)
+                ? data.course_type
+                : "Main Course",
+            meal_type: ['Breakfast', 'Lunch', 'Dinner', 'Snack'].includes(data.meal_type)
+                ? data.meal_type
+                : "Dinner",
             cuisine_type: data.cuisine_type ? String(data.cuisine_type).substring(0, 100) : null,
             ingredients: Array.isArray(data.ingredients)
-                ? data.ingredients
-                    .map(ing => {
-                        const normalizedUnit = normalizeUnit(String(ing.unit)) || String(ing.unit).substring(0, 50);
-                        return {
-                            name: String(ing.name || '').substring(0, 255),
-                            quantity: ing.quantity ? String(ing.quantity) : null,
-                            unit: normalizedUnit,  // NORMALIZED UNIT IS KEY
-                            section: ing.section ? String(ing.section).substring(0, 100) : "Main"
-                        };
-                    })
-                    .filter(ing => ing.name.length > 0)
+                ? data.ingredients.map(ing => ({
+                    name: String(ing.name || '').substring(0, 255),
+                    quantity: ing.quantity ? String(ing.quantity) : null,
+                    unit: ing.unit ? String(ing.unit).substring(0, 50) : null,
+                    section: ing.section ? String(ing.section).substring(0, 100) : "Main"
+                })).filter(ing => ing.name.length > 0)
                 : [],
+            // Support BOTH structured and simple step formats
             steps: Array.isArray(data.steps)
-                ? data.steps
-                    .map(step => typeof step === 'string' ? step.substring(0, 500) : (step?.instruction?.substring(0, 500) || null))
-                    .filter(step => step && step.trim().length > 0)
+                ? data.steps.map((step, idx) => {
+                    if (typeof step === 'string') {
+                        // Convert simple string to structured format
+                        return {
+                            section: 'Main',
+                            step_number: idx + 1,
+                            instruction: step.substring(0, 1000),
+                            duration_minutes: null,
+                            sub_steps: []
+                        };
+                    }
+                    if (step && typeof step === 'object') {
+                        return {
+                            section: step.section ? String(step.section).substring(0, 100) : 'Main',
+                            step_number: step.step_number || idx + 1,
+                            instruction: step.instruction ? String(step.instruction).substring(0, 1000) : '',
+                            duration_minutes: step.duration_minutes ? parseInt(step.duration_minutes) || null : null,
+                            sub_steps: Array.isArray(step.sub_steps) 
+                                ? step.sub_steps.map(s => String(s).substring(0, 300))
+                                : []
+                        };
+                    }
+                    return null;
+                }).filter(Boolean)
                 : [],
             notes: data.notes ? String(data.notes).substring(0, 2000) : null,
-            tags: Array.isArray(data.tags) ? data.tags.map(t => String(t).substring(0, 50)).slice(0, 10) : [],
-            public: false
+            tags: Array.isArray(data.tags) ? data.tags.map(t => String(t).substring(0, 50)) : [],
+            public: typeof data.public === 'boolean' ? data.public : false
         };
     } catch (error) {
         console.error("❌ Error sanitizing recipe:", error);
         throw new Error("Failed to validate recipe data");
     }
 };
+
 // __________-------------Get YouTube Video Thumbnail-------------__________
 const getYouTubeThumbnail = (videoId) => {
     try {

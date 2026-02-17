@@ -453,6 +453,23 @@ const saveRecipeFromVideo = async (req, res) => {
 
         const total_time = (parseInt(prep_time) || 0) + (parseInt(cook_time) || 0) || null;
 
+        // Fetch the source URL from the conversion record if available
+        let sourceUrl = source || 'video_conversion';
+        if (conversionId) {
+            try {
+                const conversionResult = await pool.query(
+                    `SELECT source_url FROM transcript_conversions WHERE id = $1`,
+                    [conversionId]
+                );
+                if (conversionResult.rows.length > 0 && conversionResult.rows[0].source_url) {
+                    sourceUrl = conversionResult.rows[0].source_url;
+                }
+            } catch (err) {
+                console.warn("Could not fetch source URL from conversion:", err.message);
+            }
+        }
+
+        // Insert recipe
         // Insert recipe
         const recipeResult = await pool.query(
             `INSERT INTO recipes (title, steps, notes, prep_time, cook_time, total_time, difficulty, 
@@ -469,9 +486,9 @@ const saveRecipeFromVideo = async (req, res) => {
                 difficulty || 'Medium',
                 course_type || 'Main Course',
                 meal_type || 'Dinner',
-                cuisine_type || 'Homemade',
-                true, // public
-                source || videoURL,
+                cuisine_type || null,
+                false,
+                sourceUrl,
                 servings || null
             ]
         );
@@ -506,17 +523,19 @@ const saveRecipeFromVideo = async (req, res) => {
 
                 if (ingredientId) {
                     const normalizedUnit = normalizeUnit(ingredient.unit) || ingredient.unit;
+                    // Include section if available
                     await pool.query(
-                        `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit)
-                        VALUES ($1, $2, $3, $4)`,
-                        [recipeId, ingredientId, ingredient.quantity || null, normalizedUnit]
+                        `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, section)
+                        VALUES ($1, $2, $3, $4, $5)`,
+                        [recipeId, ingredientId, ingredient.quantity || null, normalizedUnit, ingredient.section || 'Main']
                     );
                     savedCount++;
                 }
             }
-            console.log(`✅ Linked ${savedCount} ingredients`);
         }
 
+        console.log(`✅ ${savedCount} ingredients linked`);
+        
         // Update conversion status
         if (conversionId) {
             await pool.query(
