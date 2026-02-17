@@ -208,6 +208,42 @@
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
+/* Unit Display */
+.unit-display {
+    display: block;
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: 0.3rem;
+    padding: 0.3rem;
+    background: #f9f9f9;
+    border-radius: 3px;
+}
+
+.ingredient-unit select {
+    padding: 0.6rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    min-height: 38px;
+}
+
+.ingredient-unit select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Option styling */
+.ingredient-unit select option {
+    padding: 0.5rem;
+}
+
+.ingredient-unit select option:checked {
+    background: linear-gradient(#007bff, #007bff);
+    background-color: #007bff;
+    color: white;
+}
+
 .ingredient-quantity,
 .ingredient-unit {
     display: flex;

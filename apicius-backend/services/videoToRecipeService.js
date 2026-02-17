@@ -224,6 +224,7 @@ const analyzeDescriptionContent = (description) => {
 };
 
 // __________-------------Generate complete recipe with LLM (with unit constraints)-------------__________
+// __________-------------Generate complete recipe with LLM (METRIC SYSTEM PREFERENCE)-------------__________
 const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients) => {
     try {
         console.log("📤 Sending all data to Groq for recipe generation...");
@@ -232,25 +233,31 @@ const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extr
             throw new Error("GROQ_API_KEY not set in environment");
         }
         
-        const systemPrompt = `You are an expert professional baker and recipe editor.
+        const systemPrompt = `You are an expert professional Chef and recipe editor.
 
 Your job is to create a complete, structured recipe from whatever information is provided about a cooking video.
 
-CRITICAL UNIT CONSTRAINT:
-You MUST use ONLY these units for ingredients. NO OTHER UNITS ALLOWED:
-Weight: g, kg, mg, oz, lb, t
-Volume: ml, l, tsp, tbsp, fl oz, pt, qt, gal
-Quantity: pc, doz, pinch, dash, cup
+CRITICAL UNIT CONSTRAINT - USE METRIC/EUROPEAN SYSTEM BY DEFAULT:
+You MUST use ONLY these units for ingredients. Use METRIC/EUROPEAN system primarily:
+
+**Weight (Metric preferred):** g, kg, mg
+**Volume (Metric preferred):** ml, l
+**Quantity:** pc, doz, pinch, dash, cup (only if recipe explicitly requires it)
+
+ONLY use US customary units (cup, tbsp, tsp, oz, lb) if the recipe description explicitly states them or is clearly from a US source.
+
+**Oven Temperature MUST be in Celsius with Fahrenheit in parentheses:**
+- Format: "350°C (662°F)" or just "180°C" if Fahrenheit not mentioned
+- Store baking_temperature as the Celsius value
+- Store baking_temperature_fahrenheit (optional) if needed
 
 CRITICAL NAME CONSTRAINT:
 Ingredient names MUST be:
 - Basic, simple names WITHOUT adjectives or descriptions
-- Example: "flour" not "all-purpose flour" or "wheat flour"
+- Example: "flour" not "all-purpose flour"
 - Example: "sugar" not "granulated sugar"
 - Example: "milk" not "fresh whole milk"
 - Example: "butter" not "unsalted room temperature butter"
-
-THIS IS ESSENTIAL FOR DATABASE MATCHING!
 
 INPUT DATA YOU MAY RECEIVE:
 - Video title
@@ -261,9 +268,10 @@ INPUT DATA YOU MAY RECEIVE:
 YOUR JOB:
 1. Use ALL information provided
 2. Parse ingredients carefully with BASIC NAMES and STANDARD UNITS ONLY
-3. If steps are missing, generate realistic steps from expert knowledge
-4. Infer oven temperature, baking times, servings from context
+3. Convert US measurements to metric when possible (e.g., 1 cup flour ≈ 240ml)
+4. If steps are missing, generate realistic steps from expert knowledge
 5. Group ingredients by component (e.g., "Cake Batter", "Ganache")
+6. Use CELSIUS for temperatures with Fahrenheit in parentheses
 
 OUTPUT: Return ONLY valid JSON (no markdown, no explanation).
 
@@ -275,8 +283,9 @@ JSON STRUCTURE:
   "prep_time": 15,
   "cook_time": 30,
   "total_time": 45,
-  "baking_temperature": 350,
-  "baking_time": 25,
+  "baking_temperature": 180,
+  "baking_temperature_unit": "°C (350°F)",
+  "baking_time": 30,
   "difficulty": "Medium",
   "course_type": "Dessert",
   "meal_type": "Dinner",
@@ -284,14 +293,20 @@ JSON STRUCTURE:
   "ingredients": [
     {
       "name": "flour",
-      "quantity": "2",
-      "unit": "cup",
+      "quantity": "240",
+      "unit": "g",
       "section": "Cake Batter"
     },
     {
       "name": "sugar",
-      "quantity": "1",
-      "unit": "cup",
+      "quantity": "200",
+      "unit": "g",
+      "section": "Cake Batter"
+    },
+    {
+      "name": "eggs",
+      "quantity": "2",
+      "unit": "pc",
       "section": "Cake Batter"
     }
   ],
@@ -300,7 +315,19 @@ JSON STRUCTURE:
   "tags": []
 }
 
-REMEMBER: Simple ingredient names, standard units only!`;
+CONVERSION REFERENCE (use if converting from US):
+- 1 cup flour ≈ 240g
+- 1 cup sugar ≈ 200g
+- 1 tbsp ≈ 15ml
+- 1 tsp ≈ 5ml
+- 1 cup milk ≈ 240ml
+- 1 cup water ≈ 240ml
+- 1 oz ≈ 28g
+- 1 fluid oz ≈ 28ml
+- 1 lb ≈ 453g
+If you have to convert alway try to do round number to be easy to measure.
+
+REMEMBER: Simple ingredient names, metric units by default, Celsius temperatures!`;
 
         let userMessage = `Video Title: "${videoTitle || 'Unknown'}"\n`;
         userMessage += `Channel: ${channelTitle || 'Unknown'}\n\n`;
@@ -313,7 +340,7 @@ REMEMBER: Simple ingredient names, standard units only!`;
             });
         }
         
-        userMessage += `\nGenerate a complete, professional recipe JSON with BASIC ingredient names and STANDARD units ONLY.`;
+        userMessage += `\nGenerate a complete, professional recipe JSON with METRIC units by default and temperatures in CELSIUS (with Fahrenheit in parentheses).`;
 
         const response = await axios.post(
             'https://api.groq.com/openai/v1/chat/completions',
