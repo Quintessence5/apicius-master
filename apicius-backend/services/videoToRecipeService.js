@@ -406,6 +406,21 @@ const sanitizeRecipe = (data) => {
     }
 };
 
+// __________-------------Get YouTube Video Thumbnail-------------__________
+const getYouTubeThumbnail = (videoId) => {
+    try {
+        // YouTube provides several thumbnail quality options
+        // maxresdefault is highest quality, but not always available
+        // sddefault is usually available for most videos
+        const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/sddefault.jpg`;
+        return thumbnailUrl;
+    } catch (error) {
+        console.error("Error getting YouTube thumbnail:", error);
+        return null;
+    }
+};
+
+
 module.exports = {
     getYouTubeDescription,
     extractIngredientsFromText,
@@ -414,5 +429,6 @@ module.exports = {
     sanitizeRecipe,
     normalizeUnit,
     cleanIngredientName,
+    getYouTubeThumbnail,
     VALID_UNITS
 };

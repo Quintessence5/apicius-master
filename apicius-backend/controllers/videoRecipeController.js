@@ -6,7 +6,8 @@ const {
     extractIngredientsFromText,
     analyzeDescriptionContent,
     generateRecipeWithLLM,
-    normalizeUnit
+    normalizeUnit,
+    getYouTubeThumbnail
 } = require('../services/videoToRecipeService');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
@@ -220,10 +221,13 @@ const extractRecipeFromVideo = async (req, res) => {
         // Fetch metadata
         console.log("\n📼 Step 2: Fetching YouTube metadata...");
         let youtubeMetadata;
+        let videoThumbnail = null; 
         try {
             youtubeMetadata = await getYouTubeDescription(videoUrl);
+            videoThumbnail = getYouTubeThumbnail(videoId);
             console.log(`✅ Title: "${youtubeMetadata.title}"`);
             console.log(`✅ Description length: ${youtubeMetadata.description?.length || 0} characters`);
+            console.log(`✅ Thumbnail: ${videoThumbnail}`);
         } catch (error) {
             conversionId = await logConversion({
                 user_id: userId,
@@ -342,6 +346,7 @@ const extractRecipeFromVideo = async (req, res) => {
             ingredientMatches: ingredientMatches,
             videoTitle: youtubeMetadata.title,
             channelTitle: youtubeMetadata.channelTitle,
+            videoThumbnail: videoThumbnail,
             processingTime: Date.now() - startTime,
             message: "✅ Recipe extracted successfully!"
         });
