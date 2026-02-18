@@ -10,7 +10,6 @@ const {
     getYouTubeThumbnail
 } = require('../services/videoToRecipeService');
 const { mineRecipeFromComments } = require('../services/youtubeCommentsService');
-const { mineRecipeFromComments } = require('../services/youtubeCommentsService');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
 const extractVideoId = (url) => {
@@ -286,14 +285,23 @@ const extractRecipeFromVideo = async (req, res) => {
         console.log(`✅ Extracted ${extractedIngredients.length} ingredients from descrption`);
 
         //______Step 5: If ingredients are sparse, mine YouTube comments
+        //______Step 5: If ingredients are sparse, mine YouTube comments
         console.log("\n📼 Step 5: Parsing Comments...");
+        let topCommentText = ""; // Add this to capture top comment
+        
         if (extractedIngredients.length < 4 && process.env.YOUTUBE_API_KEY) {
             try {
-                const minedData = await mineRecipeFromComments(videoId, 50);
+                const minedData = await mineRecipeFromComments(videoId, 100);
                 
                 if (minedData.found && minedData.ingredients.length > 0) {
                     console.log(`✅ Mined ${minedData.ingredients.length} ingredients from ${minedData.sourceCommentCount} comments`);
                     console.log(`   Quality Score: ${minedData.commentQuality}/100`);
+                    console.log(`   From Top Comment: ${minedData.fromTopComment ? 'YES ✅' : 'NO'}`);
+                    
+                    // Store top comment text for LLM
+                    if (minedData.topComments && minedData.topComments.length > 0) {
+                        topCommentText = minedData.topComments[0];
+                    }
                     
                     // Merge mined ingredients with description ingredients
                     extractedIngredients = mergeIngredients(extractedIngredients, minedData.ingredients);
@@ -304,43 +312,21 @@ const extractRecipeFromVideo = async (req, res) => {
             } catch (miningError) {
                 console.warn("⚠️ Comment mining failed (continuing with description only):", miningError.message);
             }
-        } else if (extractedIngredients.length >= 5) {
-            console.log("✅ Sufficient ingredients found in description, skipping comment mining");
-        } else if (!process.env.YOUTUBE_API_KEY) {
-            console.warn("⚠️ YOUTUBE_API_KEY not configured, skipping comment mining");
+        } else {
+            console.log("✅ Sufficient ingredients in description, skipping comment mining");
         }
-
-        try {
-        youtubeMetadata = await getYouTubeDescription(videoUrl);
-        videoThumbnail = getYouTubeThumbnail(videoId);
-            } catch (error) {
-    conversionId = await logConversion({
-        user_id: userId,
-        source_type: 'youtube',
-        source_url: videoUrl,
-        status: 'metadata_fetch_failed',
-        error_message: error.message,
-        processing_time_ms: Date.now() - startTime
-    });
-    
-    await logConversionError(conversionId, 'MetadataFetchError', error.message, 'metadata_fetch');
-    
-    return res.status(400).json({
-        success: false,
-        conversionId,
-        message: "Failed to fetch video metadata"
-    });
-            }
 
         //______ Step 6: Generate recipe with LLM
         console.log("\n📼 Step 6: Generating complete recipe with Groq LLM...");
         let finalRecipe;
         try {
+            // Pass topCommentText to LLM so it can understand recipe structure
             finalRecipe = await generateRecipeWithLLM(
                 youtubeMetadata.description,
                 youtubeMetadata.title,
                 youtubeMetadata.channelTitle,
-                extractedIngredients
+                extractedIngredients,
+                topCommentText // ADD THIS PARAMETER
             );
             
             console.log(`\n✅ RECIPE GENERATED!`);

@@ -232,7 +232,8 @@ const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extr
             throw new Error("GROQ_API_KEY not set in environment");
         }
         
-        const systemPrompt = `You are an expert professional Chef and recipe editor specializing in creating detailed, structured recipes.
+        const systemPrompt = `You are an expert professional Chef and recipe editor specializing in creating detailed, structured recipes. KEEP THE EXISTING SYSTEM PROMPT - DON'T CHANGE IT
+        
 
 CRITICAL REQUIREMENTS:
 
@@ -339,6 +340,11 @@ OUTPUT: Return ONLY valid JSON. No markdown, no explanations, no backticks.`;
         userMessage += `Channel: ${channelTitle || 'Unknown'}\n\n`;
         userMessage += `Description:\n${description || '(No description provided)'}\n\n`;
         
+        if (topCommentText && topCommentText.trim().length > 20) {
+            console.log(`📝 Including top comment as recipe reference source`);
+            userMessage += `\n⭐ TOP COMMENT WITH RECIPE DETAILS:\n${topCommentText}\n\n`;
+        }
+
         if (extractedIngredients && extractedIngredients.length > 0) {
             userMessage += `Pre-extracted ingredients (already cleaned and standardized):\n`;
             extractedIngredients.forEach(ing => {

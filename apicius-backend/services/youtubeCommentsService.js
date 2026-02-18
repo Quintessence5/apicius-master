@@ -57,23 +57,29 @@ const extractIngredientsFromText = (text) => {
     
     // Better regex patterns for ingredient detection
     const patterns = [
-        // Pattern: "123 g ingredient name" or "123ml ingredient"
-        /(\d+(?:\.\d+)?)\s*(g|ml|tbsp|tsp|cup|cups|oz|lb|lbs|kg|l|litre|tablespoon|teaspoon|pinch|dash|handful)\s+([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
-        // Pattern: "1/2 teaspoon baking powder"
-        /(\d+\/\d+|\d+)\s+(teaspoon|tablespoon|tsp|tbsp|cup|cups|g|ml|oz|lb)\s+([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
-        // Pattern: "2 large eggs" or "3/4 teaspoon salt"
+        // Pattern: "123 g ingredient" or "123ml ingredient" 
+        /(\d+(?:\.\d+)?)\s*(g|mg|kg|ml|l|litre|liter|tbsp|tsp|cup|cups|oz|lb|lbs|tablespoon|teaspoon|pinch|dash|handful)\s+([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
+        // Pattern: "1/2 teaspoon baking powder" or "3/4 cup flour"
+        /(\d+\/\d+)\s+(teaspoon|tablespoon|tsp|tbsp|cup|cups|g|ml|oz|lb)\s+([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
+        // Pattern: "2 large eggs" or "1 egg" - handle fractions in ingredients
         /(\d+(?:\/\d+)?)\s+(large|small|medium)?\s*([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
     ];
 
     // Split text into lines and process
     const lines = text.split('\n');
+    const seen = new Set(); // Track duplicates
     
     for (const line of lines) {
-        // Skip empty lines and section headers
-        if (!line.trim() || line.match(/^[A-Z\s\-]+$/)) continue;
+        // Skip empty lines, headers, and instruction keywords
+        if (!line.trim() || line.match(/^[A-Z\s\-]+$/) || line.length > 500) continue;
         
-        // Skip lines that don't look like ingredients
-        if (!line.match(/\d|\(|\)/) && !line.match(/egg|flour|sugar|butter|milk|oil|powder|salt|soda/i)) {
+        // Skip instruction lines
+        if (/^(mix|bake|heat|cook|fold|whisk|heat|preheat|batter|baking|oven|temperature|°|degrees|step|instruction|direction)/i.test(line.trim())) {
+            continue;
+        }
+
+        // Skip lines that don't look like ingredients (no numbers or ingredient keywords)
+        if (!line.match(/\d|\(|\)/) && !line.match(/egg|flour|sugar|butter|milk|oil|powder|salt|soda|cream|chocolate|cocoa/i)) {
             continue;
         }
 
@@ -81,18 +87,31 @@ const extractIngredientsFromText = (text) => {
         for (const pattern of patterns) {
             let match;
             while ((match = pattern.exec(line)) !== null) {
-                const quantity = match[1];
-                const unit = match[2];
-                const name = match[3]?.trim().toLowerCase();
+                let quantity = match[1];
+                let unit = match[2] || '';
+                let name = match[3]?.trim().toLowerCase() || '';
 
-                if (name && name.length > 2) {
-                    ingredients.push({
-                        quantity: quantity,
-                        unit: unit,
-                        name: name,
-                        original: line.trim()
-                    });
-                }
+                // Clean up name
+                name = name
+                    .replace(/\([^)]*\)/g, '') // Remove parentheses
+                    .replace(/^\s+|\s+$/g, '') // Trim
+                    .trim();
+
+                // Skip very short or very long names
+                if (name.length < 2 || name.length > 100) continue;
+
+                // Create unique key to avoid duplicates
+                const key = `${quantity}-${unit}-${name}`.toLowerCase();
+                if (seen.has(key)) continue;
+                seen.add(key);
+
+                ingredients.push({
+                    quantity: quantity,
+                    unit: unit || null,
+                    name: name,
+                    original: line.trim()
+                });
+                break; // Move to next line after successful match
             }
         }
     }
@@ -131,6 +150,46 @@ const extractSections = (text) => {
 const mineCommentsForRecipe = (commentTexts) => {
     console.log(`\n🔍 Step 2: Filtering for recipe content...\n`);
     
+    // CRITICAL: Check if top comment contains full recipe
+    if (commentTexts.length > 0) {
+        const topComment = commentTexts[0];
+        console.log(`🔝 ANALYZING TOP COMMENT (${topComment.length} chars)...`);
+        
+        // Check if top comment has structured recipe format
+        const hasIngredientList = /(\d+\.?\d*\s*(g|ml|cup|tbsp|tsp|oz|lb|litre))/gi.test(topComment);
+        const hasMultipleLines = (topComment.match(/\n/g) || []).length > 3;
+        const hasInstructionKeywords = /mix|bake|heat|cook|fold|whisk|temperature|preheat|oven|°|degrees/i.test(topComment);
+        
+        if (hasIngredientList && hasMultipleLines) {
+            console.log(`✅ TOP COMMENT CONTAINS COMPLETE RECIPE STRUCTURE!`);
+            console.log(`   - Has ingredient measurements: YES`);
+            console.log(`   - Has multiple sections: YES`);
+            console.log(`   - Has cooking instructions: ${hasInstructionKeywords ? 'YES' : 'NO'}`);
+            
+            const sections = extractSections(topComment);
+            let allIngredients = [];
+            
+            for (const [section, content] of Object.entries(sections)) {
+                const ingredients = extractIngredientsFromText(content);
+                console.log(`   - ${section}: ${ingredients.length} ingredients`);
+                allIngredients = allIngredients.concat(ingredients);
+            }
+            
+            const normalized = normalizeIngredients(allIngredients);
+            console.log(`\n✅ EXTRACTED FROM TOP COMMENT: ${normalized.length} unique ingredients\n`);
+            
+            return {
+                ingredients: normalized,
+                topComments: [topComment],
+                qualityScore: 95, // Top comment is usually high quality
+                fromTopComment: true
+            };
+        }
+    }
+    
+    // Fallback: Score all comments if top comment doesn't have full recipe
+    console.log(`❌ Top comment doesn't have complete recipe, scoring all comments...\n`);
+    
     let allExtractedIngredients = [];
     let scores = [];
     
@@ -139,15 +198,15 @@ const mineCommentsForRecipe = (commentTexts) => {
         let score = 0;
         
         // Give points for ingredient keywords
-        if (comment.match(/\d+\s*(g|ml|cup|tbsp|tsp|oz|lb)/i)) score += 30; // Has measurements
-        if (comment.match(/flour|sugar|butter|eggs|milk|oil|baking/i)) score += 20;
+        if (comment.match(/\d+\s*(g|ml|cup|tbsp|tsp|oz|lb|litre)/gi)) score += 30; // Has measurements
+        if (comment.match(/flour|sugar|butter|eggs|milk|oil|baking|egg|soda|powder/i)) score += 20;
         if (comment.match(/ingredient|recipe|ingredients|measurement/i)) score += 15;
         if (comment.match(/metric|imperial|version/i)) score += 10;
         if (comment.match(/frosting|icing|topping|filling/i)) score += 10;
-        if (comment.match(/\n/)) score += 5; // Multiple lines = likely structured
+        if ((comment.match(/\n/g) || []).length > 2) score += 5; // Multiple lines
         
         // Penalize short comments
-        if (comment.length < 20) score -= 10;
+        if (comment.length < 30) score -= 10;
         
         return { comment, score };
     });
@@ -156,7 +215,7 @@ const mineCommentsForRecipe = (commentTexts) => {
     const topComments = scoredComments
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
-
+    
     console.log(`🔍 Filtering comments for recipe content...`);
     console.log(`✅ Found ${topComments.length} comments with recipe-like content (score: ${topComments.map(c => c.score).join(', ')})\n`);
 
@@ -164,7 +223,7 @@ const mineCommentsForRecipe = (commentTexts) => {
     console.log(`🥘 Step 3: Extracting ingredients from comments...\n`);
     
     for (const { comment, score } of topComments) {
-        if (score < 8) continue; // Skip low-scoring comments
+        if (score < 8) continue;
         
         const extracted = extractIngredientsFromText(comment);
         allExtractedIngredients = allExtractedIngredients.concat(extracted);
@@ -173,15 +232,14 @@ const mineCommentsForRecipe = (commentTexts) => {
 
     console.log(`✅ Extracted ${allExtractedIngredients.length} ingredient entries from ${topComments.length} comments\n`);
 
-    // Deduplicate and normalize
     console.log(`🔄 Step 4: Normalizing and deduplicating ingredients...\n`);
     
     const normalized = normalizeIngredients(allExtractedIngredients);
     
     const qualityScore = Math.min(100, Math.round(
-        (normalized.length / 20) * 50 + // Ingredient count (0-50 points)
-        (topComments.length / 10) * 30 + // Comment count (0-30 points)
-        (scores.reduce((a, b) => a + b, 0) / scores.length / 3) // Average score (0-20 points)
+        (normalized.length / 20) * 50 +
+        (topComments.length / 10) * 30 +
+        (scores.reduce((a, b) => a + b, 0) / scores.length / 3)
     ));
 
     console.log(`✅ Final ingredient count: ${normalized.length} unique ingredients`);
@@ -190,7 +248,8 @@ const mineCommentsForRecipe = (commentTexts) => {
     return {
         ingredients: normalized,
         topComments: topComments.slice(0, 5).map(c => c.comment),
-        qualityScore: qualityScore
+        qualityScore: qualityScore,
+        fromTopComment: false
     };
 };
 
