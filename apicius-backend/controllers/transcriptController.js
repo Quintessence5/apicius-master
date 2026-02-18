@@ -2,25 +2,7 @@ const pool = require('../config/db');
 const { transcriptToRecipeService } = require('../services/transcriptService');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 const { getYouTubeTranscript } = require('../services/youtubeAudioService');
-
-// __________-------------Extract Video ID-------------__________
-const extractVideoId = (url) => {
-    if (!url || typeof url !== 'string') return null;
-
-    const patterns = [
-        /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/,
-        /youtube\.com\/shorts\/([^&\n?#]+)/,
-        /youtu\.be\/([^&\n?#]+)/,
-    ];
-
-    for (const pattern of patterns) {
-        const match = url.match(pattern);
-        if (match && match[1]) {
-            return match[1];
-        }
-    }
-    return null;
-};
+const { extractVideoId } = require('../services/utils/videoUtils');
 
 // __________-------------Extract YouTube Transcript with Enhanced Error Handling-------------__________
 const extractYouTubeTranscript = async (req, res) => {
@@ -418,10 +400,7 @@ const getConversionDetails = async (req, res) => {
 };
 
 module.exports = {
-    extractYouTubeTranscript,
     convertTranscriptToRecipe,
-    mapIngredientsToDatabase,
     getConversionHistory,
-    getConversionDetails,
-    extractVideoId
+    getConversionDetails
 };

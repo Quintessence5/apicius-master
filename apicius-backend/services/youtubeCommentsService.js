@@ -303,38 +303,10 @@ const normalizeIngredients = (ingredients) => {
     }));
 };
 
-// __________-------------Parse Top Comment Directly (BEST APPROACH)-------------__________
-const parseTopCommentAsRecipe = (topCommentText) => {
-    console.log(`\n🔍 DEEP PARSING TOP COMMENT AS PRIMARY RECIPE SOURCE\n`);
-    
-    // Extract sections from the comment
-    const sections = extractSections(topCommentText);
-    
-    console.log(`✅ Detected sections:`, Object.keys(sections));
-    
-    // Extract all ingredients from all sections
-    let allIngredients = [];
-    for (const [section, content] of Object.entries(sections)) {
-        const ingredients = extractIngredientsFromText(content);
-        console.log(`   - ${section}: ${ingredients.length} ingredients`);
-        allIngredients = allIngredients.concat(ingredients);
-    }
-
-    const normalized = normalizeIngredients(allIngredients);
-    console.log(`\n✅ Total unique ingredients from top comment: ${normalized.length}\n`);
-
-    return {
-        ingredients: normalized,
-        sections: sections,
-        qualityScore: 95 // Top comment is usually high quality
-    };
-};
-
 module.exports = {
     fetchYouTubeComments,
     extractIngredientsFromText,
     extractSections,
     mineRecipeFromComments,
-    normalizeIngredients,
-    parseTopCommentAsRecipe
+    normalizeIngredients
 };

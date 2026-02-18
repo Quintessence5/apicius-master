@@ -282,42 +282,42 @@ CRITICAL REQUIREMENTS:
   ],
   "steps": [
     {
-      "section": "Prepare the pan and oven",
+      "section": "Preparations",
       "step_number": 1,
       "instruction": "Preheat your oven to 170–180°C (340–355°F). While preheating, grease an 8-inch round or square cake pan with butter or cooking spray. Line the bottom with baking/parchment paper for easy removal.",
       "duration_minutes": 10,
       "sub_steps": ["Ensure oven temperature reaches target", "Paper should cover entire bottom", "Light dusting of flour on sides helps (optional)"]
     },
     {
-      "section": "Prepare the pan and oven",
+      "section": "Preparations",
       "step_number": 2,
       "instruction": "Lightly dust the sides with flour if you want easier unmolding. Set the pan aside.",
       "duration_minutes": null,
       "sub_steps": []
     },
     {
-      "section": "Make the cake batter",
+      "section": "Cake batter",
       "step_number": 3,
       "instruction": "In a large bowl, whisk together the DRY ingredients: flour, cocoa powder, sugar, salt, baking soda, and baking powder. Mix thoroughly to combine the leavening agents evenly.",
       "duration_minutes": 3,
       "sub_steps": ["Sift dry ingredients if possible to remove lumps", "Ensure baking soda and powder are evenly distributed"]
     },
     {
-      "section": "Make the cake batter",
+      "section": "Cake batter",
       "step_number": 4,
       "instruction": "In a separate bowl or large jug, whisk the WET ingredients: eggs, vanilla extract, white vinegar, neutral oil, and milk until smooth and combined. The vinegar will react with the baking soda to help leaven the cake.",
       "duration_minutes": 3,
       "sub_steps": ["Whisk until eggs are fully incorporated", "Mixture should be homogeneous", "Vinegar activates baking soda"]
     },
     {
-      "section": "Make the cake batter",
+      "section": "Cake batter",
       "step_number": 5,
       "instruction": "Pour the wet mixture into the dry ingredients. Using a spatula or whisk, fold together just until you have a smooth, lump-free batter. AVOID OVERMIXING – overmixing develops gluten and results in a tough cake.",
       "duration_minutes": 2,
       "sub_steps": ["Mix gently with minimum strokes", "Stop when no visible dry streaks remain", "Do NOT beat or whisk vigorously"]
     },
     {
-      "section": "Make the cake batter",
+      "section": "Cake batter",
       "step_number": 6,
       "instruction": "Pour the batter into the prepared pan and tap gently on the counter 2-3 times to release large air bubbles. This helps ensure an even crumb structure.",
       "duration_minutes": 1,
@@ -328,6 +328,8 @@ CRITICAL REQUIREMENTS:
 
 5. **CRITICAL NOTES:**
    - Always use CELSIUS for temperatures with Fahrenheit in parentheses
+   - Use in priority the metric units system for all ingredient quantities (g, kg, ml, l) pieces (pc), unless the original recipe explicitly uses, imperial unit in which case you can retain those units.
+   - Never use Fractions in quantities (like 1/2 or 3/4) always use decimals (0.5, 0.75) for clarity and consistency
    - Steps must be logical, chronological, and detailed
    - Include warnings, tips, and techniques
    - Each section should have 2-7 steps with clear progression

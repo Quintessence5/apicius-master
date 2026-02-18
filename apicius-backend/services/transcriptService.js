@@ -90,6 +90,8 @@ EXTRACTION RULES:
 
 IMPORTANT:
 - If data is missing, use null (for numbers) or empty string (for text)
+- Use in priority the metric units system for all ingredient quantities (g, kg, ml, l) pieces (pc), unless the original recipe explicitly uses, imperial unit in which case you can retain those units.
+- Never use Fractions in quantities (like 1/2 or 3/4) always use decimals (0.5, 0.75) for clarity and consistency
 - Default values if NOT mentioned: servings=null, difficulty="Medium", course_type="Main Course", meal_type="Dinner", cuisine_type=null
 - Ensure all ingredient quantities and units are realistic and accurate
 - Do NOT include any text outside the JSON object

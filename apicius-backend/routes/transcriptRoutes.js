@@ -5,7 +5,6 @@ const {
     saveRecipeFromVideo
 } = require('../controllers/videoRecipeController');
 const {
-    mapIngredientsToDatabase,
     getConversionHistory,
     getConversionDetails
 } = require('../controllers/transcriptController');
@@ -23,7 +22,6 @@ router.post('/extract-youtube', extractRecipeFromVideo);
 router.post('/save-recipe', saveRecipeFromVideo);
 
 // __________-------------Keep existing endpoints for compatibility-------------__________
-router.post('/map-ingredients', mapIngredientsToDatabase);
 router.get('/history', getConversionHistory);
 router.get('/history/:id', getConversionDetails);
 

@@ -1,6 +1,4 @@
 const pool = require('../config/db');
-const fs = require('fs');
-const path = require('path');
 const {
     getYouTubeDescription,
     extractIngredientsFromText,
@@ -10,13 +8,8 @@ const {
     getYouTubeThumbnail
 } = require('../services/videoToRecipeService');
 const { mineRecipeFromComments } = require('../services/youtubeCommentsService');
+const { extractVideoId } = require('../services/utils/videoUtils');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
-
-const extractVideoId = (url) => {
-    if (!url || typeof url !== 'string') return null;
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\n?#]+)/);
-    return match ? match[1] : null;
-};
 
 // __________-------------Match ingredients with database-------------__________
 const matchIngredientsWithDatabase = async (ingredients) => {
@@ -617,6 +610,5 @@ const saveRecipeFromVideo = async (req, res) => {
 module.exports = {
     extractRecipeFromVideo,
     saveRecipeFromVideo,
-    matchIngredientsWithDatabase,
-    extractVideoId
+    matchIngredientsWithDatabase
 };
