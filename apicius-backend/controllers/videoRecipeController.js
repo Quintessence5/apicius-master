@@ -9,6 +9,8 @@ const {
     normalizeUnit,
     getYouTubeThumbnail
 } = require('../services/videoToRecipeService');
+const { mineRecipeFromComments } = require('../services/youtubeCommentsService');
+const { mineRecipeFromComments } = require('../services/youtubeCommentsService');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
 const extractVideoId = (url) => {
@@ -189,7 +191,7 @@ const cleanIngredientForMatching = (name) => {
         // Remove plurals
         .replace(/s$/, '')
         // Remove common descriptors
-        .replace(/\s*(type|variety|kind|grade|quality|premium|standard|raw|fresh|dried|cooked|roasted|ground)\s*/gi, '')
+        .replace(/\s*(type|variety|kind|grade|quality|premium|standard|raw|fresh|dried|cooked|roasted|all|purpose|ground)\s*/gi, '')
         // Remove numbers and types (like "type 55")
         .replace(/\s*\d+\s*/g, '')
         // Remove extra spaces
@@ -209,10 +211,11 @@ const extractRecipeFromVideo = async (req, res) => {
         }
 
         console.log("\n🎬 ========== STARTING RECIPE EXTRACTION ==========");
+        console.log(`Source: ${videoUrl}`);
         console.log("📼 Step 0: Checking for existing recipe...");
         
-        // Step 0: Check if this URL has been processed before
-const existingRecipeCheck = await pool.query(
+        //______Step 0: Check if this URL has been processed before
+        const existingRecipeCheck = await pool.query(
             `SELECT r.id as recipe_id, r.title, tc.id as conversion_id
              FROM transcript_conversions tc
              LEFT JOIN recipes r ON tc.recipe_json->>'title' = r.title
@@ -221,7 +224,7 @@ const existingRecipeCheck = await pool.query(
             [videoUrl]
         );
 
-if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id) {
+            if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id) {
             console.log(`✅ Found existing recipe! ID: ${existingRecipeCheck.rows[0].recipe_id}`);
             
             return res.json({
@@ -233,6 +236,7 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
             });
         }
 
+        //______Step 1: Validate URL and extract video ID
         console.log("📼 Step 1: Validating URL...");
         
         const videoId = extractVideoId(videoUrl);
@@ -241,7 +245,7 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
         }
         console.log(`✅ Valid URL. Video ID: ${videoId}`);
 
-        // Fetch metadata
+        //______Step 2: Fetch metadata
         console.log("\n📼 Step 2: Fetching YouTube metadata...");
         let youtubeMetadata;
         let videoThumbnail = null; 
@@ -269,21 +273,47 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
             });
         }
 
-        // Analyze content
+        //______Step 3: Analyze description
         console.log("\n📼 Step 3: Analyzing description content...");
         const analysis = analyzeDescriptionContent(youtubeMetadata.description);
         console.log(`   - Has ingredients: ${analysis.hasIngredients}`);
         console.log(`   - Has steps: ${analysis.hasSteps}`);
         console.log(`   - Total lines: ${analysis.lineCount}`);
 
-        // Extract ingredients
+        //______Step 4: Extract ingredients
         console.log("\n📼 Step 4: Extracting ingredients from description...");
-        const extractedIngredients = extractIngredientsFromText(youtubeMetadata.description);
-        console.log(`✅ Extracted ${extractedIngredients.length} ingredients`);
+        let extractedIngredients = extractIngredientsFromText(youtubeMetadata.description);
+        console.log(`✅ Extracted ${extractedIngredients.length} ingredients from descrption`);
+
+        //______Step 5: If ingredients are sparse, mine YouTube comments
+        console.log("\n📼 Step 5: Parsing Comments...");
+        if (extractedIngredients.length < 4 && process.env.YOUTUBE_API_KEY) {
+            try {
+                const minedData = await mineRecipeFromComments(videoId, 50);
+                
+                if (minedData.found && minedData.ingredients.length > 0) {
+                    console.log(`✅ Mined ${minedData.ingredients.length} ingredients from ${minedData.sourceCommentCount} comments`);
+                    console.log(`   Quality Score: ${minedData.commentQuality}/100`);
+                    
+                    // Merge mined ingredients with description ingredients
+                    extractedIngredients = mergeIngredients(extractedIngredients, minedData.ingredients);
+                    console.log(`✅ Total ingredients after merging: ${extractedIngredients.length}`);
+                } else {
+                    console.warn(`⚠️ ${minedData.reason}`);
+                }
+            } catch (miningError) {
+                console.warn("⚠️ Comment mining failed (continuing with description only):", miningError.message);
+            }
+        } else if (extractedIngredients.length >= 5) {
+            console.log("✅ Sufficient ingredients found in description, skipping comment mining");
+        } else if (!process.env.YOUTUBE_API_KEY) {
+            console.warn("⚠️ YOUTUBE_API_KEY not configured, skipping comment mining");
+        }
+
         try {
-    youtubeMetadata = await getYouTubeDescription(videoUrl);
-    videoThumbnail = getYouTubeThumbnail(videoId);
-} catch (error) {
+        youtubeMetadata = await getYouTubeDescription(videoUrl);
+        videoThumbnail = getYouTubeThumbnail(videoId);
+            } catch (error) {
     conversionId = await logConversion({
         user_id: userId,
         source_type: 'youtube',
@@ -293,7 +323,6 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
         processing_time_ms: Date.now() - startTime
     });
     
-    // Log the specific error
     await logConversionError(conversionId, 'MetadataFetchError', error.message, 'metadata_fetch');
     
     return res.status(400).json({
@@ -301,10 +330,10 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
         conversionId,
         message: "Failed to fetch video metadata"
     });
-}
+            }
 
-        // Generate recipe with LLM
-        console.log("\n📼 Step 5: Generating complete recipe with Groq LLM...");
+        //______ Step 6: Generate recipe with LLM
+        console.log("\n📼 Step 6: Generating complete recipe with Groq LLM...");
         let finalRecipe;
         try {
             finalRecipe = await generateRecipeWithLLM(
@@ -345,14 +374,13 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
             });
         }
 
-        // Match ingredients with database (NON-BLOCKING - always succeeds)
-        console.log("\n📼 Step 6: Matching ingredients with database...");
+        //_______Step 7 Match ingredients with database
+        console.log("\n📼 Step 7: Matching ingredients with database...");
         let ingredientMatches;
         try {
             ingredientMatches = await matchIngredientsWithDatabase(finalRecipe.ingredients);
         } catch (matchError) {
             console.warn("⚠️ Ingredient matching error (continuing anyway):", matchError.message);
-            // Don't fail here - create a basic match response
             ingredientMatches = {
                 all: finalRecipe.ingredients.map(ing => ({
                     ...ing,
@@ -366,8 +394,8 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
             };
         }
 
-        // Log conversion
-        console.log("\n📼 Step 7: Logging conversion to database...");
+        //________Step 8: Log conversion
+        console.log("\n📼 Step 8: Logging conversion to database...");
         conversionId = await logConversion({
             user_id: userId,
             source_type: 'youtube',
@@ -383,7 +411,6 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
 
         console.log("\n🎬 ========== EXTRACTION COMPLETE ==========\n");
 
-        // ALWAYS RESPOND WITH SUCCESS - let user proceed to review page
         res.json({
             success: true,
             conversionId,
@@ -410,6 +437,26 @@ if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id
             error: error.message
         });
     }
+};
+
+const mergeIngredients = (descriptionIngredients, minedIngredients) => {
+    const merged = [...descriptionIngredients];
+    const existingNames = new Set(merged.map(ing => ing.name.toLowerCase().trim()));
+
+    for (const minedIng of minedIngredients) {
+        const normalizedName = minedIng.name.toLowerCase().trim();
+        if (!existingNames.has(normalizedName)) {
+            merged.push({
+                name: minedIng.name,
+                quantity: minedIng.quantity,
+                unit: minedIng.unit,
+                section: minedIng.section || 'Main'
+            });
+            existingNames.add(normalizedName);
+        }
+    }
+
+    return merged;
 };
 
 // __________-------------Save Recipe from Video to Database-------------__________
@@ -446,6 +493,7 @@ const saveRecipeFromVideo = async (req, res) => {
         console.log(`📝 Saving recipe: "${title}"`);
         console.log(`   Ingredients: ${ingredients?.length || 0}`);
         console.log(`   Steps: ${steps.length}`);
+        console.log(`   Thumbnail: ${videoThumbnail || 'None'}`);
 
         const total_time = (parseInt(prep_time) || 0) + (parseInt(cook_time) || 0) || null;
 
