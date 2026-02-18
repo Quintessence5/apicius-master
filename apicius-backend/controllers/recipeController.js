@@ -181,7 +181,7 @@ const getRecipeById = async (req, res) => {
         const recipeResult = await pool.query(`
             SELECT r.id, r.title, r.notes, r.prep_time, r.cook_time, r.total_time, r.difficulty, 
                    r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, r.portions, r.public,
-                   ri.quantity, ri.unit, ri.section, 
+                   r.thumbnail_url, ri.quantity, ri.unit, ri.section, 
                    i.id AS ingredient_id, i.name AS ingredient_name, i.calories_per_100g, 
                    i.protein, i.lipids, i.carbohydrates, i.saturated_fat, i.trans_fat, 
                    i.cholesterol, i.sodium, i.fibers, i.sugars, i.added_sugars, i.allergies, i.form
@@ -212,6 +212,7 @@ const getRecipeById = async (req, res) => {
             source: recipeResult.rows[0].source,
             steps: recipeResult.rows[0].steps,
             image_path: recipeResult.rows[0].image_path,
+            thumbnail_url: recipeResult.rows[0].thumbnail_url,
             portions: recipeResult.rows[0].portions,
             public: recipeResult.rows[0].public,
             total_nutrition: {
@@ -231,7 +232,7 @@ const getRecipeById = async (req, res) => {
             quantity: row.quantity,
             unit: row.unit,
             form: row.form,
-            section: row.section || 'Main'   // ← added
+            section: row.section || 'Main'
         });
 
                 // Calculate Nutrition Facts per Recipe

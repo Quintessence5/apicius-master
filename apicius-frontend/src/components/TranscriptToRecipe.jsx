@@ -21,6 +21,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     const [statusMessage, setStatusMessage] = useState('');
     const [conversionId, setConversionId] = useState(null);
     const [videoTitle, setVideoTitle] = useState('');
+    const [videoThumbnail, setVideoThumbnail] = useState('');
     
     const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5010/api';
 
@@ -60,12 +61,13 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
             setStatusMessage('📊 Matching ingredients with database...');
             
             setGeneratedRecipe(response.data.recipe);
-            setIngredientMatches(response.data.ingredientMatches);
+            setIngredientMatches(response.data.ingredientMatches || null);
             setConversionId(response.data.conversionId);
-            setVideoTitle(response.data.videoTitle);
+            setVideoTitle(response.data.videoTitle || 'YouTube Video');
             setSuccess('✅ Recipe extracted! Redirecting to review page...');
             setProgress(100);
             setStatusMessage('✨ Complete!');
+            setStep('review');
             
             // Wait a moment then redirect
             setTimeout(() => {
@@ -75,7 +77,8 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                         recipe: response.data.recipe,
                         ingredientMatches: response.data.ingredientMatches,
                         conversionId: response.data.conversionId,
-                        videoTitle: response.data.videoTitle
+                        videoTitle: response.data.videoTitle,
+                        videoThumbnail: response.data.videoThumbnail 
                     }
                 });
             }, 1000);
@@ -178,7 +181,8 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                 recipe: generatedRecipe,
                 ingredientMatches: ingredientMatches,
                 conversionId: conversionId,
-                videoTitle: videoTitle
+                videoTitle: videoTitle,
+                videoThumbnail: videoThumbnail,
             }
         });
     };

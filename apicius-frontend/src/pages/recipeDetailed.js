@@ -156,34 +156,37 @@ const RecipeDetails = () => {
     return (
         <div className="recipe-details-page">
 
-            {/* Recipe Image */}
-{/* Recipe Image */}
-        <div className="recipe-headerzz">
-            <img 
-                className="recipe-imagezz" 
-                src={
-                    recipe.thumbnail_url
-                        ? recipe.thumbnail_url.startsWith('http')
-                            ? recipe.thumbnail_url
-                            : `http://localhost:5010/uploads/${recipe.thumbnail_url.split('/').pop()}`
-                        : recipe.image_path
-                            ? recipe.image_path.startsWith('http')
-                                ? recipe.image_path
-                                : `http://localhost:5010/uploads/${recipe.image_path.split('/').pop()}`
-                            : NoImageAvailable
-                }
-                alt={recipe.title} 
-            />
-            <div className="recipe-title-container">
-                <h1 className="recipe-titlezz">{recipe.title}</h1>
-                <p className="recipe-subtitle">{recipe.meal_type} | {recipe.course_type}</p>
-                <div className="recipe-actions">
-                    <button className="timer-btn" onClick={handleTimer}>Timer</button>
-                    <button className="edit-recipe-btn" onClick={handleEdit}>Edit</button>
-                    <button className="add-to-cart-btn" onClick={handleAddToCart}>Add to Cart</button>
-                </div>
-            </div>
+           {/* Recipe Image */}
+<div className="recipe-headerzz">
+    <img 
+        className="recipe-imagezz" 
+        src={
+            recipe.thumbnail_url && recipe.thumbnail_url.trim() !== ''
+                ? recipe.thumbnail_url.startsWith('http')
+                    ? recipe.thumbnail_url
+                    : `http://localhost:5010/uploads/${recipe.thumbnail_url.split('/').pop()}`
+                : recipe.image_path && recipe.image_path.trim() !== ''
+                    ? recipe.image_path.startsWith('http')
+                        ? recipe.image_path
+                        : `http://localhost:5010/uploads/${recipe.image_path.split('/').pop()}`
+                    : NoImageAvailable
+        }
+        onError={(e) => {
+            // Fallback if image fails to load
+            e.target.src = NoImageAvailable;
+        }}
+        alt={recipe.title} 
+    />
+    <div className="recipe-title-container">
+        <h1 className="recipe-titlezz">{recipe.title}</h1>
+        <p className="recipe-subtitle">{recipe.meal_type} | {recipe.course_type}</p>
+        <div className="recipe-actions">
+            <button className="timer-btn" onClick={handleTimer}>Timer</button>
+            <button className="edit-recipe-btn" onClick={handleEdit}>Edit</button>
+            <button className="add-to-cart-btn" onClick={handleAddToCart}>Add to Cart</button>
         </div>
+    </div>
+</div>
 
             {/* Recipe Information Sections */}
         <div className="recipe-info">

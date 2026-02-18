@@ -417,6 +417,8 @@ const saveRecipeFromVideo = async (req, res) => {
     console.log("\n💾 ========== SAVING RECIPE TO DATABASE ==========");
     try {
         const { generatedRecipe, conversionId, userId = null, videoThumbnail = null } = req.body;
+        console.log(`📸 Thumbnail received: ${videoThumbnail ? 'Yes ✅' : 'No ❌'}`);
+        console.log(`📸 Thumbnail URL: ${videoThumbnail || 'null'}`);
 
         if (!generatedRecipe || !generatedRecipe.title) {
             return res.status(400).json({ success: false, message: "Valid recipe data is required" });
@@ -463,6 +465,8 @@ const saveRecipeFromVideo = async (req, res) => {
             }
         }
 
+        console.log(`🔍 Inserting recipe with thumbnail: ${videoThumbnail || 'null'}`);
+
         // Insert recipe WITH thumbnail URL
         const recipeResult = await pool.query(
             `INSERT INTO recipes (title, steps, notes, prep_time, cook_time, total_time, difficulty, 
@@ -479,19 +483,20 @@ const saveRecipeFromVideo = async (req, res) => {
                 difficulty || 'Medium',
                 course_type || 'Main Course',
                 meal_type || 'Dinner',
-                cuisine_type || 'Homemade', // Default to 'Homemade' for video conversions
+                cuisine_type || 'Homemade',
                 false,
                 sourceUrl,
                 servings || null,
-                videoThumbnail || null // Save thumbnail URL
+                videoThumbnail || null 
             ]
         );
 
         const recipeId = recipeResult.rows[0].id;
+        const savedThumbnail = recipeResult.rows[0].thumbnail_url;
+        
         console.log(`✅ Recipe inserted with ID: ${recipeId}`);
-        console.log(`✅ Thumbnail saved: ${videoThumbnail || 'None'}`);
+        console.log(`✅ Thumbnail saved: ${savedThumbnail || 'None'}`);
 
-        // Rest of the function continues...
         let savedCount = 0;
         if (ingredients && ingredients.length > 0) {
             console.log(`🔗 Linking ${ingredients.length} ingredients...`);

@@ -74,6 +74,13 @@ const VideoRecipeReview = () => {
   const { recipe, ingredientMatches, conversionId, videoTitle, videoThumbnail } =
     location.state || {};
 
+    console.log('🎬 VideoRecipeReview received state:', {
+    recipe: recipe?.title,
+    conversionId,
+    videoTitle,
+    videoThumbnail: videoThumbnail ? `✅ ${videoThumbnail}` : '❌ undefined'
+  });
+
   const [editedRecipe, setEditedRecipe] = useState(recipe || {});
   const [ingredients, setIngredients] = useState([]);
   const [availableUnits, setAvailableUnits] = useState([]);
@@ -280,6 +287,8 @@ const VideoRecipeReview = () => {
       section: ing.section,
       ingredientId: ing.ingredientId,
     }));
+
+    console.log('📸 Sending thumbnail to backend:', videoThumbnail);
 
     try {
       const res = await axios.post('/api/transcripts/save-recipe', {
