@@ -284,49 +284,55 @@ const extractRecipeFromVideo = async (req, res) => {
         let extractedIngredients = extractIngredientsFromText(youtubeMetadata.description);
         console.log(`✅ Extracted ${extractedIngredients.length} ingredients from descrption`);
 
-        //______Step 5: If ingredients are sparse, mine YouTube comments
-        //______Step 5: If ingredients are sparse, mine YouTube comments
+        // ______Step 5: If ingredients are sparse, mine YouTube comments
         console.log("\n📼 Step 5: Parsing Comments...");
-        let topCommentText = ""; // Add this to capture top comment
+        let topCommentsText = ""; // Store top comment texts for LLM
         
         if (extractedIngredients.length < 4 && process.env.YOUTUBE_API_KEY) {
             try {
-                const minedData = await mineRecipeFromComments(videoId, 100);
-                
-                if (minedData.found && minedData.ingredients.length > 0) {
-                    console.log(`✅ Mined ${minedData.ingredients.length} ingredients from ${minedData.sourceCommentCount} comments`);
-                    console.log(`   Quality Score: ${minedData.commentQuality}/100`);
-                    console.log(`   From Top Comment: ${minedData.fromTopComment ? 'YES ✅' : 'NO'}`);
+                // Fetch comments first
+                const { fetchYouTubeComments } = require('../services/youtubeCommentsService');
+                const allComments = await fetchYouTubeComments(videoId);
+
+                if (allComments.length > 0) {
+                    // Mine for recipe
+                    const minedData = mineRecipeFromComments(allComments);
                     
-                    // Store top comment text for LLM
-                    if (minedData.topComments && minedData.topComments.length > 0) {
-                        topCommentText = minedData.topComments[0];
+                    if (minedData.found && minedData.ingredients.length > 0) {
+                        console.log(`✅ Mined ${minedData.ingredients.length} ingredients from ${minedData.sourceCommentCount} comments`);
+                        console.log(`   Quality Score: ${minedData.qualityScore}/100`);
+                        
+                        // Store top comments for LLM reference
+                        if (minedData.topComments && minedData.topComments.length > 0) {
+                            topCommentsText = minedData.topComments.slice(0, 5).join('\n\n---\n\n');
+                        }
+                        
+                        // Merge mined ingredients with description ingredients
+                        extractedIngredients = mergeIngredients(extractedIngredients, minedData.ingredients);
+                        console.log(`✅ Total ingredients after merging: ${extractedIngredients.length}`);
+                    } else {
+                        console.warn(`⚠️ ${minedData.reason}`);
                     }
-                    
-                    // Merge mined ingredients with description ingredients
-                    extractedIngredients = mergeIngredients(extractedIngredients, minedData.ingredients);
-                    console.log(`✅ Total ingredients after merging: ${extractedIngredients.length}`);
-                } else {
-                    console.warn(`⚠️ ${minedData.reason}`);
                 }
             } catch (miningError) {
                 console.warn("⚠️ Comment mining failed (continuing with description only):", miningError.message);
             }
-        } else {
+        } else if (extractedIngredients.length >= 4) {
             console.log("✅ Sufficient ingredients in description, skipping comment mining");
+        } else {
+            console.warn("⚠️ YOUTUBE_API_KEY not configured");
         }
 
-        //______ Step 6: Generate recipe with LLM
+        // ______Step 6: Generate recipe with LLM
         console.log("\n📼 Step 6: Generating complete recipe with Groq LLM...");
         let finalRecipe;
         try {
-            // Pass topCommentText to LLM so it can understand recipe structure
             finalRecipe = await generateRecipeWithLLM(
                 youtubeMetadata.description,
                 youtubeMetadata.title,
                 youtubeMetadata.channelTitle,
                 extractedIngredients,
-                topCommentText // ADD THIS PARAMETER
+                topCommentsText // Pass the top comments text
             );
             
             console.log(`\n✅ RECIPE GENERATED!`);

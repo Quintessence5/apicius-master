@@ -288,6 +288,11 @@ const VideoRecipeReview = () => {
       ingredientId: ing.ingredientId,
     }));
 
+    console.log('💾 About to save recipe with:', {
+        title: editedRecipe.title,
+        conversionId,
+        videoThumbnail: videoThumbnail || 'null'
+      });
     console.log('📸 Sending thumbnail to backend:', videoThumbnail);
 
     try {

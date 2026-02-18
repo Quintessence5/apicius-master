@@ -224,7 +224,7 @@ const analyzeDescriptionContent = (description) => {
 };
 
 // __________-------------Generate complete recipe with LLM (with unit constraints)-------------__________
-const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients) => {
+const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients, topCommentsText = "") => {
     try {
         console.log("📤 Sending all data to Groq for recipe generation...");
         
@@ -340,9 +340,9 @@ OUTPUT: Return ONLY valid JSON. No markdown, no explanations, no backticks.`;
         userMessage += `Channel: ${channelTitle || 'Unknown'}\n\n`;
         userMessage += `Description:\n${description || '(No description provided)'}\n\n`;
         
-        if (topCommentText && topCommentText.trim().length > 20) {
-            console.log(`📝 Including top comment as recipe reference source`);
-            userMessage += `\n⭐ TOP COMMENT WITH RECIPE DETAILS:\n${topCommentText}\n\n`;
+        if (topCommentsText && topCommentsText.trim().length > 50) {
+            console.log(`📝 Including top YouTube comments as recipe reference (${topCommentsText.length} chars)`);
+            userMessage += `⭐ TOP YOUTUBE COMMENTS WITH RECIPE DETAILS:\n${topCommentsText}\n\n`;
         }
 
         if (extractedIngredients && extractedIngredients.length > 0) {
