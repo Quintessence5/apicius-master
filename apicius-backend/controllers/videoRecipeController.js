@@ -11,7 +11,8 @@ const {
     getTikTokMetadata,
     getTikTokThumbnail,
     analyzeTikTokDescription,
-    validateTikTokUrl
+    validateTikTokUrl,
+    extractRecipeFromCreatorWebsite
 } = require('../services/tikTokService');
 const { mineRecipeFromComments } = require('../services/youtubeCommentsService');
 const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
@@ -549,10 +550,40 @@ const extractRecipeFromTikTok = async (req, res) => {
         let extractedIngredients = extractIngredientsFromText(tikTokMetadata.description);
         console.log(`✅ Extracted ${extractedIngredients.length} ingredients from description`);
 
-        // Step 5: SKIP comment mining for TikTok (not available)
-        console.log("\n📼 Step 5: Comment mining skipped for TikTok...");
-        console.log("⚠️ TikTok comments not accessible via API (skipping comment mining)");
-        let topCommentsText = "";
+         // Step 5: Try to find recipe on creator's website if description is sparse
+        console.log("\n📼 Step 5: Checking for recipe on creator's website...");
+        let websiteRecipeContent = "";
+        
+        // Only try to find website recipe if we have very few ingredients
+        if (extractedIngredients.length < 3) {
+            console.log("⚠️ Sparse ingredients detected, searching for creator's website...");
+            
+            try {
+                const { extractRecipeFromCreatorWebsite } = require('../services/tikTokService');
+                const websiteContent = await extractRecipeFromCreatorWebsite(
+                    tikTokMetadata.description,
+                    tikTokMetadata.creator
+                );
+                
+                if (websiteContent) {
+                    console.log(`✅ Found recipe content on creator website`);
+                    websiteRecipeContent = websiteContent;
+                    
+                    // Try to extract ingredients from website content
+                    const websiteIngredients = extractIngredientsFromText(websiteContent);
+                    if (websiteIngredients.length > 0) {
+                        console.log(`✅ Extracted ${websiteIngredients.length} additional ingredients from website`);
+                        extractedIngredients = mergeIngredients(extractedIngredients, websiteIngredients);
+                    }
+                } else {
+                    console.log("⚠️ No recipe found on creator website, continuing with description only");
+                }
+            } catch (websiteError) {
+                console.warn(`⚠️ Website scraping failed (continuing): ${websiteError.message}`);
+            }
+        } else {
+            console.log("✅ Sufficient ingredients found, skipping website search");
+        }
 
         // Step 6: Generate recipe with LLM
         console.log("\n📼 Step 6: Generating recipe with Groq LLM...");

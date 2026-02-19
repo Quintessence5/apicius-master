@@ -59,17 +59,24 @@ const getTikTokMetadata = async (videoUrl) => {
 
         // Set up axios with a proper user agent to avoid blocking
         const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Referer': 'https://www.tiktok.com/',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0'
         };
 
         // Try to fetch the TikTok page
         const response = await axios.get(videoUrl, {
             headers,
             timeout: 15000,
-            maxRedirects: 5
+            maxRedirects: 5,
+            httpAgent: new (require('http')).Agent({ keepAlive: true }),
+            httpsAgent: new (require('https')).Agent({ keepAlive: true })
         });
 
         console.log("✅ TikTok page fetched successfully");
@@ -77,16 +84,42 @@ const getTikTokMetadata = async (videoUrl) => {
         // Parse HTML to extract metadata
         const $ = cheerio.load(response.data);
 
+        let description = null;
+        
+        // Method 1: OG description
+        description = $('meta[property="og:description"]').attr('content');
+        if (!description || description.trim() === 'Cooking video from TikTok') {
+            // Method 2: Meta description
+            description = $('meta[name="description"]').attr('content');
+        }
+        if (!description) {
+            // Method 3: Look for JSON-LD data
+            const jsonLd = $('script[type="application/ld+json"]').html();
+            if (jsonLd) {
+                try {
+                    const data = JSON.parse(jsonLd);
+                    if (data.description) {
+                        description = data.description;
+                    }
+                } catch (e) {
+                    console.warn("⚠️ Could not parse JSON-LD");
+                }
+            }
+        }
+        if (!description) {
+            // Method 4: Look for common text patterns in HTML
+            const bodyText = $('body').text();
+            const lines = bodyText.split('\n').filter(line => line.length > 20 && line.length < 500);
+            if (lines.length > 0) {
+                description = lines[0];
+            }
+        }
+
         // Extract metadata from OG tags (most reliable method)
         const title = 
             $('meta[property="og:title"]').attr('content') ||
             $('h1').text() ||
             'TikTok Video Recipe';
-
-        const description = 
-            $('meta[property="og:description"]').attr('content') ||
-            $('meta[name="description"]').attr('content') ||
-            'Cooking video from TikTok';
 
         const thumbnail = 
             $('meta[property="og:image"]').attr('content') ||
@@ -94,8 +127,18 @@ const getTikTokMetadata = async (videoUrl) => {
             null;
 
         // Extract creator info from page
-        const creatorMatch = response.data.match(/@([\w.-]+)/);
-        const creator = creatorMatch ? creatorMatch[1] : 'TikTok Creator';
+        const creatorMatch = videoUrl.match(/@([\w.-]+)/);
+        if (creatorMatch) {
+            creator = creatorMatch[1];
+        } else {
+            // Try to find creator in HTML
+            const creatorFromHTML = $('meta[property="article:author"]').attr('content') ||
+                                   $('[data-creator]').attr('data-creator') ||
+                                   $('span:contains("@")').first().text();
+            if (creatorFromHTML) {
+                creator = creatorFromHTML.replace('@', '').trim();
+            }
+        }
 
         // Extract avatar if available
         const avatarMatch = response.data.match(/"avatarLarger":"([^"]+)"/);
@@ -118,6 +161,86 @@ const getTikTokMetadata = async (videoUrl) => {
     } catch (error) {
         console.error("❌ Error fetching TikTok metadata:", error.message);
         throw new Error(`Could not fetch TikTok video metadata: ${error.message}`);
+    }
+};
+
+/**
+ * Extract URLs from text and try to fetch recipe data from creator website
+ * 
+ * @param {string} description - Description text
+ * @param {string} creator - Creator name
+ * @returns {Promise<string|null>} Recipe content from website or null if not found
+ */
+const extractRecipeFromCreatorWebsite = async (description, creator) => {
+    try {
+        console.log("\n🔗 Attempting to find recipe on creator's website...");
+        
+        if (!description || description.trim() === 'Cooking video from TikTok') {
+            console.warn("⚠️ No description to search for URLs");
+            return null;
+        }
+
+        // Extract URLs from description
+        const urlRegex = /(https?:\/\/[^\s]+)/gi;
+        const urlMatches = description.match(urlRegex);
+
+        if (!urlMatches || urlMatches.length === 0) {
+            console.warn("⚠️ No URLs found in description");
+            return null;
+        }
+
+        console.log(`Found ${urlMatches.length} URL(s) in description`);
+
+        // Try each URL
+        for (const url of urlMatches) {
+            try {
+                const cleanUrl = url.replace(/[,.\]}\)]+$/, ''); // Remove trailing punctuation
+                console.log(`🔍 Checking URL: ${cleanUrl}`);
+
+                const response = await axios.get(cleanUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    },
+                    timeout: 10000,
+                    maxRedirects: 3
+                });
+
+                const $ = cheerio.load(response.data);
+
+                // Look for recipe-like content
+                let recipeContent = null;
+
+                // Method 1: Look for recipe class/id
+                let recipeSection = $('[class*="recipe"]').first().text();
+                if (!recipeSection) {
+                    recipeSection = $('[id*="recipe"]').first().text();
+                }
+                if (!recipeSection) {
+                    // Method 2: Look for ingredients list
+                    recipeSection = $('ul').first().text();
+                }
+                if (recipeSection && recipeSection.length > 50) {
+                    recipeContent = recipeSection;
+                }
+
+                if (recipeContent) {
+                    console.log(`✅ Found recipe content on ${cleanUrl}`);
+                    console.log(`📄 Content preview: ${recipeContent.substring(0, 100)}...`);
+                    return recipeContent;
+                }
+
+            } catch (urlError) {
+                console.warn(`⚠️ Could not access ${url}: ${urlError.message}`);
+                continue;
+            }
+        }
+
+        console.warn("⚠️ No recipe content found on creator websites");
+        return null;
+
+    } catch (error) {
+        console.error("❌ Error extracting recipe from creator website:", error.message);
+        return null;
     }
 };
 
@@ -179,7 +302,7 @@ const analyzeTikTokDescription = (text) => {
     return {
         hasIngredients,
         hasSteps,
-        isEmpty: lines.length < 3,
+        isEmpty: lines.length < 2,
         ingredientCount: unitMatches,
         lineCount: lines.length
     };
@@ -259,5 +382,6 @@ module.exports = {
     getTikTokMetadata,
     getTikTokThumbnail,
     analyzeTikTokDescription,
-    validateTikTokUrl
+    validateTikTokUrl,
+    extractRecipeFromCreatorWebsite
 };
