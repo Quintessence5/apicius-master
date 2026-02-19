@@ -96,6 +96,88 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     }
 };
 
+// __________-------------Extract TikTok Video and Recipe-------------__________
+    const handleExtractTikTok = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setSuccess('');
+        setProgress(0);
+        setStep('extracting');
+
+        try {
+            console.log("🎵 Step 1: Extracting recipe from TikTok...");
+            setStatusMessage('🎵 Analyzing TikTok video...');
+            setProgress(20);
+
+            const response = await axios.post(`${API_BASE_URL}/transcripts/extract-tiktok`, {
+                videoUrl
+            });
+
+            console.log("Response received:", response.data);
+
+            if (response.data.redirect && response.data.recipeId) {
+                // Recipe already exists - redirect directly to recipe page
+                console.log("🔄 Redirecting to existing recipe...");
+                setSuccess('✅ Recipe already exists! Redirecting...');
+                setTimeout(() => {
+                    navigate(`/recipe/${response.data.recipeId}`);
+                }, 1500);
+                return;
+            }
+
+            if (response.data.requiresManualInput) {
+                // Metadata fetch failed - prompt user for manual input
+                console.warn("⚠️ Automatic extraction failed, switching to manual input...");
+                setError(`${response.data.message}. Please paste the video transcript below.`);
+                setStep('input');
+                setActiveTab('tiktok');
+                setLoading(false);
+                return;
+            }
+
+            if (response.data.success) {
+                console.log("✅ Recipe extracted from TikTok successfully");
+                setProgress(90);
+                setStatusMessage('📊 Matching ingredients with database...');
+                
+                setGeneratedRecipe(response.data.recipe);
+                setIngredientMatches(response.data.ingredientMatches || null);
+                setConversionId(response.data.conversionId);
+                setVideoTitle(response.data.videoTitle || 'TikTok Video');
+                setVideoThumbnail(response.data.videoThumbnail);
+                setSuccess('✅ Recipe extracted from TikTok! Redirecting to review page...');
+                setProgress(100);
+                setStatusMessage('✨ Complete!');
+                setStep('review');
+                
+                // Wait a moment then redirect
+                setTimeout(() => {
+                    console.log("🔀 Redirecting to review page...");
+                    navigate('/recipe-review', {
+                        state: {
+                            recipe: response.data.recipe,
+                            ingredientMatches: response.data.ingredientMatches,
+                            conversionId: response.data.conversionId,
+                            videoTitle: response.data.videoTitle,
+                            videoThumbnail: response.data.videoThumbnail 
+                        }
+                    });
+                }, 1000);
+            } else {
+                setError(response.data.message || 'Failed to extract recipe from TikTok');
+                setStep('input');
+            }
+        } catch (err) {
+            console.error('TikTok extraction error:', err);
+            const errorMsg = err.response?.data?.message || err.message || 'Failed to extract recipe from TikTok';
+            setError(`❌ ${errorMsg}`);
+            setStep('input');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // __________-------------Convert Manual Transcript to Recipe-------------__________
     const handleManualTranscriptSubmit = async (e) => {
     e.preventDefault();
@@ -250,29 +332,29 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                 </form>
             )}
 
-            {/* TikTok/Instagram Input */}
-            {(activeTab === 'tiktok' || activeTab === 'instagram') && step === 'input' && (
-                <form onSubmit={handleManualTranscriptSubmit} className="transcript-form">
-                    <textarea
-                        placeholder={`Paste ${activeTab} video transcript here...\nTip: Use browser tools or copy from video captions`}
-                        value={manualTranscript}
-                        onChange={(e) => setManualTranscript(e.target.value)}
-                        required
+            {/* TikTok URL Input */}
+            {activeTab === 'tiktok' && step === 'input' && (
+                <form onSubmit={handleExtractTikTok} className="transcript-form">
+                    <input
+                        type="url"
+                        placeholder="https://www.tiktok.com/@username/video/... or https://vt.tiktok.com/..."
+                        value={videoUrl}
+                        onChange={(e) => setVideoUrl(e.target.value)}
                         disabled={loading}
-                        rows="6"
-                        className="transcript-textarea"
+                        className="transcript-input"
                     />
                     <button type="submit" disabled={loading} className="transcript-submit-btn">
-                        {loading ? '🔄 Converting...' : '🍳 Convert to Recipe'}
+                        {loading ? '🔄 Extracting...' : '🎵 Extract Recipe'}
                     </button>
+                    <p className="tab-info">💡 Tip: If automatic extraction fails, you can paste the transcript manually below</p>
                 </form>
             )}
 
-            {/* Manual Input */}
-            {activeTab === 'manual' && step === 'input' && (
+            {/* Instagram/Manual Input */}
+            {(activeTab === 'instagram' || activeTab === 'manual') && step === 'input' && (
                 <form onSubmit={handleManualTranscriptSubmit} className="transcript-form">
                     <textarea
-                        placeholder="Paste any cooking transcript or recipe text here..."
+                        placeholder={`Paste ${activeTab === 'instagram' ? 'Instagram' : 'cooking'} video transcript or recipe text here...\nTip: Copy from video captions, description, or comments`}
                         value={manualTranscript}
                         onChange={(e) => setManualTranscript(e.target.value)}
                         required
@@ -285,6 +367,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                     </button>
                 </form>
             )}
+
 
             {/* Progress Indicator */}
             {loading && step === 'extracting' && (

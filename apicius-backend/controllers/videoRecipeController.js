@@ -7,10 +7,15 @@ const {
     normalizeUnit,
     getYouTubeThumbnail
 } = require('../services/videoToRecipeService');
+const {
+    getTikTokMetadata,
+    getTikTokThumbnail,
+    analyzeTikTokDescription,
+    validateTikTokUrl
+} = require('../services/tikTokService');
 const { mineRecipeFromComments } = require('../services/youtubeCommentsService');
-const { extractVideoId } = require('../services/utils/videoUtils');
+const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
-
 // __________-------------Match ingredients with database-------------__________
 const matchIngredientsWithDatabase = async (ingredients) => {
     try {
@@ -424,6 +429,239 @@ const extractRecipeFromVideo = async (req, res) => {
     }
 };
 
+// __________-------------Main Endpoint: Extract Recipe from TikTok Video-------------__________
+const extractRecipeFromTikTok = async (req, res) => {
+    const startTime = Date.now();
+    let conversionId = null;
+
+    try {
+        const { videoUrl, userId = null } = req.body;
+        if (!videoUrl) {
+            return res.status(400).json({ success: false, message: "Video URL is required" });
+        }
+
+        console.log("\n🎬 ========== STARTING TIKTOK RECIPE EXTRACTION ==========");
+        console.log(`Source: ${videoUrl}`);
+        console.log("📼 Step 0: Checking for existing recipe...");
+        
+        // Check if this URL has been processed before
+        const existingRecipeCheck = await pool.query(
+            `SELECT r.id as recipe_id, r.title, tc.id as conversion_id
+             FROM transcript_conversions tc
+             LEFT JOIN recipes r ON tc.recipe_json->>'title' = r.title
+             WHERE tc.source_url = $1 AND tc.status = 'recipe_generated'
+             ORDER BY tc.created_at DESC LIMIT 1`,
+            [videoUrl]
+        );
+
+        if (existingRecipeCheck.rows.length > 0 && existingRecipeCheck.rows[0].recipe_id) {
+            console.log(`✅ Found existing recipe! ID: ${existingRecipeCheck.rows[0].recipe_id}`);
+            
+            return res.json({
+                success: true,
+                redirect: true,
+                recipeId: existingRecipeCheck.rows[0].recipe_id,
+                message: "Recipe already exists for this URL",
+                processingTime: Date.now() - startTime
+            });
+        }
+
+        // Step 1: Validate TikTok URL
+        console.log("📼 Step 1: Validating TikTok URL...");
+        const urlValidation = validateTikTokUrl(videoUrl);
+        
+        if (!urlValidation.isValid) {
+            console.log(`❌ Invalid TikTok URL: ${urlValidation.error}`);
+            
+            conversionId = await logConversion({
+                user_id: userId,
+                source_type: 'tiktok',
+                source_url: videoUrl,
+                status: 'url_validation_failed',
+                error_message: urlValidation.error,
+                processing_time_ms: Date.now() - startTime
+            });
+
+            return res.status(400).json({
+                success: false,
+                conversionId,
+                message: "Invalid TikTok URL format",
+                error: urlValidation.error,
+                supportedFormats: [
+                    'https://www.tiktok.com/@username/video/VIDEO_ID',
+                    'https://vt.tiktok.com/shortcode',
+                    'https://m.tiktok.com/@username/video/VIDEO_ID'
+                ]
+            });
+        }
+
+        const videoId = urlValidation.videoId;
+        console.log(`✅ Valid TikTok URL. Video ID: ${videoId}`);
+
+        // Step 2: Fetch TikTok metadata
+        console.log("\n📼 Step 2: Fetching TikTok metadata...");
+        let tikTokMetadata;
+        let videoThumbnail = null;
+        
+        try {
+            tikTokMetadata = await getTikTokMetadata(videoUrl);
+            videoThumbnail = getTikTokThumbnail(videoId, tikTokMetadata.thumbnail);
+            console.log(`✅ Title: "${tikTokMetadata.title}"`);
+            console.log(`✅ Creator: @${tikTokMetadata.creator}`);
+            console.log(`✅ Description length: ${tikTokMetadata.description?.length || 0} characters`);
+            console.log(`✅ Thumbnail: ${videoThumbnail ? '✓' : '✗'}`);
+        } catch (metadataError) {
+            console.warn(`⚠️ TikTok metadata fetch failed: ${metadataError.message}`);
+            console.log("⚠️ User will be prompted to manually enter transcript");
+            
+            // Log but don't fail - allow fallback to manual input
+            await logConversion({
+                user_id: userId,
+                source_type: 'tiktok',
+                source_url: videoUrl,
+                status: 'metadata_fetch_failed',
+                error_message: metadataError.message,
+                processing_time_ms: Date.now() - startTime
+            });
+
+            return res.status(400).json({
+                success: false,
+                requiresManualInput: true,
+                message: "Could not automatically fetch TikTok video data",
+                error: metadataError.message,
+                suggestion: "Please paste the video description or transcript manually below",
+                supportedFormats: [
+                    'https://www.tiktok.com/@username/video/VIDEO_ID',
+                    'https://vt.tiktok.com/shortcode'
+                ]
+            });
+        }
+
+        // Step 3: Analyze description
+        console.log("\n📼 Step 3: Analyzing description content...");
+        const analysis = analyzeTikTokDescription(tikTokMetadata.description);
+        console.log(`   - Has ingredients: ${analysis.hasIngredients}`);
+        console.log(`   - Has steps: ${analysis.hasSteps}`);
+        console.log(`   - Total lines: ${analysis.lineCount}`);
+
+        // Step 4: Extract ingredients
+        console.log("\n📼 Step 4: Extracting ingredients from description...");
+        let extractedIngredients = extractIngredientsFromText(tikTokMetadata.description);
+        console.log(`✅ Extracted ${extractedIngredients.length} ingredients from description`);
+
+        // Step 5: SKIP comment mining for TikTok (not available)
+        console.log("\n📼 Step 5: Comment mining skipped for TikTok...");
+        console.log("⚠️ TikTok comments not accessible via API (skipping comment mining)");
+        let topCommentsText = "";
+
+        // Step 6: Generate recipe with LLM
+        console.log("\n📼 Step 6: Generating recipe with Groq LLM...");
+        let finalRecipe;
+        try {
+            const { recipe } = await generateRecipeWithLLM(
+                tikTokMetadata.description,
+                tikTokMetadata.title,
+                tikTokMetadata.creator,
+                extractedIngredients,
+                topCommentsText,
+                'tiktok'  // Pass source type
+            );
+            finalRecipe = recipe;
+            console.log(`✅ Recipe generated successfully`);
+            console.log(`   - Ingredients: ${finalRecipe.ingredients.length}`);
+            console.log(`   - Steps: ${finalRecipe.steps.length}`);
+        } catch (groqError) {
+            console.error("\n❌ LLM Error:", groqError.message);
+            
+            conversionId = await logConversion({
+                user_id: userId,
+                source_type: 'tiktok',
+                source_url: videoUrl,
+                video_title: tikTokMetadata.title,
+                transcript_text: tikTokMetadata.description,
+                status: 'recipe_generation_failed',
+                error_message: groqError.message,
+                processing_time_ms: Date.now() - startTime
+            });
+
+            if (conversionId) {
+                await logConversionError(conversionId, 'GroqError', groqError.message, 'recipe_generation');
+            }
+
+            return res.status(500).json({
+                success: false,
+                conversionId,
+                message: "Failed to generate recipe from TikTok video",
+                error: groqError.message
+            });
+        }
+
+        // Step 7: Match ingredients with database
+        console.log("\n📼 Step 7: Matching ingredients with database...");
+        let ingredientMatches;
+        try {
+            ingredientMatches = await matchIngredientsWithDatabase(finalRecipe.ingredients);
+        } catch (matchError) {
+            console.warn("⚠️ Ingredient matching error (continuing anyway):", matchError.message);
+            ingredientMatches = {
+                all: finalRecipe.ingredients.map(ing => ({
+                    ...ing,
+                    dbId: null,
+                    found: false,
+                    icon: '⚠️'
+                })),
+                matched: [],
+                unmatched: finalRecipe.ingredients,
+                matchPercentage: 0
+            };
+        }
+
+        // Step 8: Log conversion
+        console.log("\n📼 Step 8: Logging conversion to database...");
+        conversionId = await logConversion({
+            user_id: userId,
+            source_type: 'tiktok',
+            source_url: videoUrl,
+            video_title: tikTokMetadata.title,
+            transcript_text: tikTokMetadata.description,
+            recipe_json: finalRecipe,
+            recipe_status: 'generated',
+            status: 'recipe_generated',
+            processing_time_ms: Date.now() - startTime
+        });
+
+        console.log(`✅ Conversion logged with ID: ${conversionId}`);
+        console.log("\n🎬 ========== TIKTOK EXTRACTION COMPLETE ==========\n");
+
+        res.json({
+            success: true,
+            conversionId,
+            recipe: finalRecipe,
+            ingredientMatches: ingredientMatches,
+            videoTitle: tikTokMetadata.title,
+            creator: tikTokMetadata.creator,
+            videoThumbnail: videoThumbnail,
+            processingTime: Date.now() - startTime,
+            message: "✅ Recipe extracted from TikTok successfully!"
+        });
+
+    } catch (error) {
+        console.error("\n❌ CRITICAL ERROR:", error.message);
+        
+        if (conversionId) {
+            await logConversionError(conversionId, 'CriticalError', error.message, 'extraction');
+        }
+
+        res.status(500).json({
+            success: false,
+            conversionId,
+            message: "Server error during TikTok recipe extraction",
+            error: error.message
+        });
+    }
+};
+
+// __________-------------Merge ingredients from multiple sources-------------__________
 const mergeIngredients = (descriptionIngredients, minedIngredients) => {
     const merged = [...descriptionIngredients];
     const existingNames = new Set(merged.map(ing => ing.name.toLowerCase().trim()));
@@ -609,6 +847,7 @@ const saveRecipeFromVideo = async (req, res) => {
 
 module.exports = {
     extractRecipeFromVideo,
+    extractRecipeFromTikTok,
     saveRecipeFromVideo,
     matchIngredientsWithDatabase
 };

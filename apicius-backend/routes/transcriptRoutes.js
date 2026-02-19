@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
     extractRecipeFromVideo,
+    extractRecipeFromTikTok,
     saveRecipeFromVideo
 } = require('../controllers/videoRecipeController');
 const {
@@ -17,6 +18,7 @@ router.use((req, res, next) => {
 
 // __________-------------Main Endpoint: Extract recipe from YouTube video description-------------__________
 router.post('/extract-youtube', extractRecipeFromVideo);
+router.post('/extract-tiktok', extractRecipeFromTikTok);
 
 // __________-------------Save recipe to database-------------__________
 router.post('/save-recipe', saveRecipeFromVideo);
