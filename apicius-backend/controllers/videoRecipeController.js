@@ -547,9 +547,13 @@ const extractRecipeFromTikTok = async (req, res) => {
 
         // Step 4: Extract ingredients
         console.log("\n📼 Step 4: Extracting ingredients from description...");
-        let extractedIngredients = extractIngredientsFromText(tikTokMetadata.description);
+        let extractedIngredients;
+        
+        // Use TikTok-specific ingredient extractor
+        const { extractTikTokIngredients } = require('../services/tikTokService');
+        extractedIngredients = extractTikTokIngredients(tikTokMetadata.description);
+        
         console.log(`✅ Extracted ${extractedIngredients.length} ingredients from description`);
-
          // Step 5: Try to find recipe on creator's website if description is sparse
         console.log("\n📼 Step 5: Checking for recipe on creator's website...");
         let websiteRecipeContent = "";

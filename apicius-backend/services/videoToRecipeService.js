@@ -142,6 +142,7 @@ const getYouTubeDescription = async (videoUrl) => {
 };
 
 // __________-------------Extract ingredients from text with unit normalization-------------__________
+// __________-------------Extract ingredients from text with unit normalization-------------__________
 const extractIngredientsFromText = (text) => {
     if (!text) return [];
     
@@ -149,80 +150,149 @@ const extractIngredientsFromText = (text) => {
     const lines = text.split('\n').filter(line => line.trim().length > 0);
     
     let currentSection = 'Main';
+    let inIngredientsSection = false;
     
     for (const line of lines) {
         const trimmed = line.trim();
         
-        // Detect section headers
-        const sectionMatch = trimmed.match(/^[✔✓]?\s*([A-Za-z\s]+)$/i);
-        if (sectionMatch && /batter|ganache|frosting|glaze|sauce|filling|topping|dough|crust|base/i.test(trimmed)) {
-            currentSection = trimmed.replace(/^[✔✓]\s*/, '').trim();
+        // ✅ DETECT INGREDIENTS SECTION HEADER
+        if (/^ingredients\s*:?\s*$/i.test(trimmed)) {
+            inIngredientsSection = true;
+            console.log(`   📍 Found Ingredients section`);
             continue;
         }
         
-        // Skip instructions
-        if (/^(\d+\.|step|instruction|direction|procedure|preheat|mix|bake|cool|serve)/i.test(trimmed)) {
+        // Detect other section headers (Cake Batter, Frosting, etc.)
+        const sectionMatch = trimmed.match(/^[✔✓]?\s*([A-Za-z\s]+?)\s*:?\s*$/i);
+        if (sectionMatch && /cake|batter|frosting|glaze|sauce|filling|topping|dough|crust|base|icing|ganache|baking|pan/i.test(trimmed)) {
+            currentSection = trimmed.replace(/[:\s]+$/, '').trim();
+            inIngredientsSection = false;
+            console.log(`   📍 Detected section: "${currentSection}"`);
             continue;
         }
         
-        // Try to parse as ingredient line
-        const ingredientPatterns = [
-            /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+)\s+([a-zA-Z\s]+?)\s+(.+?)(?:\s*\[|\s*\(|$)/,
-            /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+)\s+([a-zA-Z\s]+?)\s+(.+)/,
-        ];
+        // ✅ STOP at instruction keywords or empty lines
+        if (/^(instructions|directions|steps|method|procedure|pan\s+size)/i.test(trimmed)) {
+            inIngredientsSection = false;
+            continue;
+        }
         
-        for (const pattern of ingredientPatterns) {
-            const match = trimmed.match(pattern);
+        // Skip empty lines or non-ingredient lines when in ingredients section
+        if (inIngredientsSection && trimmed.length === 0) continue;
+        
+        // Skip pure text lines (section transitions, notes)
+        if (/^[a-z\s]*$/i.test(trimmed) && !trimmed.match(/\d/) && !trimmed.match(/[-•✓✔]/)) {
+            continue;
+        }
+        
+        // ✅ IMPROVED: Multiple regex patterns to handle different formats
+        let match = null;
+        let quantity = null;
+        let rawUnit = null;
+        let rawName = null;
+        
+        // Pattern 1: "Ingredient name - 1 cup (130g)" or "Ingredient - 1cup"
+        // This is the PRIMARY PATTERN for your description format
+        const pattern1 = /^[-•✓✔]?\s*([a-zA-Z\s]+?)\s*-\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s*([a-zA-Z\s]*?)(?:\s*[\(\[]|$)/i;
+        match = trimmed.match(pattern1);
+        if (match) {
+            rawName = match[1];
+            quantity = match[2].replace(/½/, '0.5').replace(/¼/, '0.25').replace(/⅓/, '0.33').replace(/⅔/, '0.67');
+            rawUnit = match[3] || '';
+            console.log(`   [Pattern 1] "${rawName}" - ${quantity} ${rawUnit}`);
+        }
+        
+        // Pattern 2: "1 cup flour" or "½ cup cocoa powder"
+        if (!match) {
+            const pattern2 = /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s+([a-zA-Z\s]+?)\s+(.+?)(?:\s*\[|\s*\(|$)/i;
+            match = trimmed.match(pattern2);
             if (match) {
-                const quantity = match[1];
-                const rawUnit = match[2].trim();
-                const rawName = match[3].replace(/\s*[\[\(].*[\]\)]/, '').trim();
+                quantity = match[1].replace(/½/, '0.5').replace(/¼/, '0.25').replace(/⅓/, '0.33').replace(/⅔/, '0.67');
+                rawUnit = match[2];
+                rawName = match[3];
+                console.log(`   [Pattern 2] "${rawName}" - ${quantity} ${rawUnit}`);
+            }
+        }
+        
+        // Pattern 3: "1 cup flour" (simpler format)
+        if (!match) {
+            const pattern3 = /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s+([a-zA-Z\s]+?)$/i;
+            match = trimmed.match(pattern3);
+            if (match) {
+                quantity = match[1].replace(/½/, '0.5').replace(/¼/, '0.25').replace(/⅓/, '0.33').replace(/⅔/, '0.67');
+                rawUnit = '';
+                rawName = match[2];
+                console.log(`   [Pattern 3] "${rawName}" - ${quantity}`);
+            }
+        }
+        
+        // Pattern 4: "Ingredient - 200g" or "Dark Chocolate - 200g"
+        if (!match) {
+            const pattern4 = /^[-•✓✔]?\s*([a-zA-Z\s]+?)\s*-\s*(\d+\.?\d*)\s*([a-zA-Z]+)(?:\s*[\(\[]|$)/i;
+            match = trimmed.match(pattern4);
+            if (match) {
+                rawName = match[1];
+                quantity = match[2];
+                rawUnit = match[3];
+                console.log(`   [Pattern 4] "${rawName}" - ${quantity} ${rawUnit}`);
+            }
+        }
+        
+        // ✅ ONLY PROCESS IF WE FOUND A MATCH
+        if (match && rawName) {
+            const normalizedUnit = normalizeUnit(rawUnit?.toLowerCase()) || rawUnit;
+            const cleanName = cleanIngredientName(rawName);
+            
+            if (cleanName.length > 0 && cleanName.length < 200) {
+                const ingredient = {
+                    name: cleanName,
+                    quantity: quantity || null,
+                    unit: normalizedUnit || rawUnit || 'pc',
+                    section: currentSection,
+                    rawUnit: rawUnit,
+                    matched: !!normalizedUnit
+                };
                 
-                const normalizedUnit = normalizeUnit(rawUnit);
-                const cleanName = cleanIngredientName(rawName);
-                
-                if (cleanName.length > 0 && cleanName.length < 200) {
-                    ingredients.push({
-                        name: cleanName,
-                        quantity: quantity || null,
-                        unit: normalizedUnit || rawUnit,
-                        section: currentSection,
-                        rawUnit: rawUnit,
-                        matched: !!normalizedUnit // Flag if unit was matched to standard
-                    });
-                    break;
-                }
+                ingredients.push(ingredient);
+                console.log(`   ✅ Extracted: ${quantity} ${ingredient.unit} of ${cleanName}`);
             }
         }
     }
     
+    console.log(`✅ Total extracted from description: ${ingredients.length} ingredients\n`);
     return ingredients;
 };
 
-// __________-------------Analyze description content-------------__________
+/// __________-------------Analyze description content-------------__________
 const analyzeDescriptionContent = (description) => {
-    if (!description) return { hasIngredients: false, hasSteps: false, isEmpty: true };
+    if (!description) return { hasIngredients: false, hasSteps: false, isEmpty: true, lineCount: 0 };
     
     const text = description.toLowerCase();
     const lines = description.split('\n').filter(l => l.trim().length > 0);
     
-    const ingredientUnits = /(cup|cups|tbsp|tsp|tablespoon|teaspoon|gram|grams|g|ml|milliliter|oz|pound|lb|pinch|dash)\b/gi;
+    const ingredientUnits = /(cup|cups|tbsp|tsp|tablespoon|teaspoon|gram|grams|g|ml|milliliter|oz|pound|lb|pinch|dash|ml|l|liter|litre|kg)\b/gi;
     const unitMatches = (description.match(ingredientUnits) || []).length;
-    const quantityMatches = (description.match(/\b\d+\.?\d*\s*(\/\s*\d+)?\b/g) || []).length;
     
-    const hasIngredients = unitMatches >= 3 && quantityMatches >= 5;
-    const stepKeywords = /(step|instruction|direction|procedure|preheat|mix|whisk|combine|bake|cook|heat|cool|serve|spread|pour|add|place)/gi;
+    const quantityMatches = (description.match(/\b(\d+\.?\d*|\d+\/\d+)\s*(?:cup|tbsp|tsp|g|ml|oz|lb|kg|l|liter|litre)?\b/gi) || []).length;
+    
+    const hasIngredients = unitMatches >= 2 && quantityMatches >= 2;
+    
+    // Step detection - improved pattern
+    const stepKeywords = /(step|instruction|direction|procedure|preheat|mix|whisk|combine|bake|cook|heat|cool|serve|spread|pour|add|place|fold|whip|blend|knead|season|drain|strain)\b/gi;
     const hasSteps = stepKeywords.test(text);
     
+    // Count actual extracted ingredients for better accuracy
+    const ingredientPattern = /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+)\s+([a-zA-Z\s]+?)\s+(.+?)(?:\s*\[|\s*\(|$)/gm;
+    const extractedCount = (description.match(ingredientPattern) || []).length;
+    
     return {
-        hasIngredients,
+        hasIngredients: hasIngredients || extractedCount >= 5,
         hasSteps,
         isEmpty: lines.length < 3,
-        ingredientCount: unitMatches,
+        ingredientCount: Math.max(unitMatches, extractedCount),
         lineCount: lines.length
     };
 };
-
 // __________-------------Generate complete recipe with LLM (with unit constraints)-------------__________
 const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients, topCommentsText = "") => {
     try {
