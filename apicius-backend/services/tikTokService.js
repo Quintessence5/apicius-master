@@ -389,6 +389,257 @@ const validateTikTokUrl = (url) => {
     };
 };
 
+// __________-------------Extract Recipe from Creator's Website-------------__________
+const extractRecipeFromCreatorWebsite = async (description, creatorName) => {
+    try {
+        console.log(`🔗 Attempting to extract website URL from description...`);
+        
+        // Extract URLs from description with better cleanup
+        const urlPattern = /(https?:\/\/[^\s)]+)/g;
+        let urls = description.match(urlPattern) || [];
+        
+        if (urls.length === 0) {
+            console.log("⚠️ No URLs found in description");
+            return null;
+        }
+        
+        console.log(`🔗 Found ${urls.length} URL(s) in description`);
+        
+        // Clean up URLs - only keep the part before the first parenthesis
+        urls = urls.map(url => {
+            // Split on ( to remove anything in parentheses
+            url = url.split('(')[0];
+            
+            // Remove trailing punctuation and whitespace
+            url = url.replace(/[,;:)}\s]+$/, '');
+            
+            // Remove query parameters
+            url = url.split('?')[0];
+            
+            // Remove fragments
+            url = url.split('#')[0];
+            
+            // Ensure it ends with / if it's a path (not a file)
+            if (!url.endsWith('/') && !url.match(/\.[a-z]{2,4}$/i)) {
+                url = url + '/';
+            }
+            
+            return url.trim();
+        });
+        
+        // Remove duplicates
+        urls = [...new Set(urls)];
+        
+        console.log(`📋 Cleaned URLs:`);
+        urls.forEach((u, i) => console.log(`   ${i + 1}. ${u}`));
+        
+        // Filter out common non-recipe URLs and social media
+        const recipeUrls = urls.filter(url => {
+            const lowerUrl = url.toLowerCase();
+            
+            // Reject if it's just a domain (ends with .com/ or .com)
+            if (/\.(com|org|net|co|io)(\/)?$/.test(lowerUrl)) {
+                console.log(`   ❌ Rejected (domain only): ${url}`);
+                return false;
+            }
+            
+            // Reject social media and external sites
+            if (lowerUrl.includes('tiktok.com') ||
+                lowerUrl.includes('instagram.com') ||
+                lowerUrl.includes('youtube.com') ||
+                lowerUrl.includes('facebook.com') ||
+                lowerUrl.includes('twitter.com') ||
+                lowerUrl.includes('pinterest.com')) {
+                console.log(`   ❌ Rejected (social media): ${url}`);
+                return false;
+            }
+            
+            // Reject navigation/utility pages
+            if (lowerUrl.includes('/contact') ||
+                lowerUrl.includes('/about') ||
+                lowerUrl.includes('/shop') ||
+                lowerUrl.includes('/category') ||
+                lowerUrl.includes('/page/') ||
+                lowerUrl.includes('/author/') ||
+                lowerUrl.includes('/tag/') ||
+                lowerUrl.includes('/search')) {
+                console.log(`   ❌ Rejected (navigation page): ${url}`);
+                return false;
+            }
+            
+            console.log(`   ✅ Accepted: ${url}`);
+            return true;
+        });
+        
+        if (recipeUrls.length === 0) {
+            console.log("⚠️ No valid recipe URLs found");
+            return null;
+        }
+        
+        console.log(`\n🔗 Found ${recipeUrls.length} valid recipe URL(s)`);
+        
+        // Score URLs based on relevance
+        const scoredUrls = recipeUrls.map(url => {
+            let score = 0;
+            const lowerUrl = url.toLowerCase();
+            const lowerCreator = creatorName.toLowerCase();
+            
+            // Check if URL contains creator name or domain
+            if (lowerUrl.includes(lowerCreator)) score += 10;
+            if (lowerUrl.includes('recipe')) score += 8;
+            if (lowerUrl.includes('food') || lowerUrl.includes('cook')) score += 5;
+            if (lowerUrl.includes('cake') || lowerUrl.includes('dessert') || lowerUrl.includes('chocolate')) score += 4;
+            
+            // Prefer recipe-like paths (not too many slashes)
+            const slashCount = (url.match(/\//g) || []).length;
+            if (slashCount <= 4) score += 3;
+            
+            // Penalize very long URLs
+            if (url.length > 100) score -= 2;
+            
+            console.log(`   📊 Score: ${score.toString().padStart(2, ' ')} → ${url}`);
+            
+            return { url, score };
+        });
+        
+        // Sort by score descending
+        scoredUrls.sort((a, b) => b.score - a.score);
+        
+        const targetUrl = scoredUrls[0].url;
+        console.log(`\n🎯 Selected best URL: ${targetUrl}`);
+        
+        const puppeteer = require('puppeteer');
+        let browser;
+        
+        try {
+            browser = await puppeteer.launch({
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-blink-features=AutomationControlled'
+                ]
+            });
+            
+            const page = await browser.newPage();
+            
+            await page.setUserAgent(
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            );
+            
+            console.log(`🌐 Navigating to: ${targetUrl}`);
+            
+            await page.goto(targetUrl, {
+                waitUntil: 'networkidle2',
+                timeout: 15000
+            });
+            
+            const finalUrl = page.url();
+            console.log(`✅ Page loaded from: ${finalUrl}`);
+            
+            // Check if final URL is acceptable
+            const lowerFinalUrl = finalUrl.toLowerCase();
+            if (/\.(com|org|net|co|io)(\/)?$/.test(lowerFinalUrl)) {
+                console.log(`⚠️ Final URL is domain-only, skipping`);
+                await browser.close();
+                return null;
+            }
+            
+            if (lowerFinalUrl.includes('tiktok.com') || 
+                lowerFinalUrl.includes('instagram.com') ||
+                lowerFinalUrl.includes('facebook.com')) {
+                console.log(`⚠️ Final URL redirected to social media, skipping`);
+                await browser.close();
+                return null;
+            }
+            
+            // Wait for content to fully load
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Extract content using smart selectors
+            const extractedData = await page.evaluate(() => {
+                let recipeContent = '';
+                
+                // Priority 1: Try to extract from recipe plugin HTML (Tasty Recipes, etc.)
+                const recipePluginSelectors = [
+                    '.tasty-recipes-ingredients',
+                    '.tasty-recipes-instructions',
+                    '[itemtype*="Recipe"]',
+                    '.recipe-ingredients',
+                    '.recipe-instructions'
+                ];
+                
+                // Get ingredients section
+                let ingredientsElement = null;
+                for (const selector of recipePluginSelectors) {
+                    ingredientsElement = document.querySelector(selector);
+                    if (ingredientsElement) {
+                        console.log(`✅ Found recipe section with: ${selector}`);
+                        break;
+                    }
+                }
+                
+                // If we found a recipe plugin section, extract just that
+                if (ingredientsElement) {
+                    // Get the parent recipe container (usually contains ingredients + instructions)
+                    let recipeContainer = ingredientsElement.closest('.tasty-recipes') || 
+                                        ingredientsElement.closest('[itemtype*="Recipe"]') ||
+                                        ingredientsElement.parentElement;
+                    
+                    if (recipeContainer) {
+                        recipeContent = recipeContainer.innerText || recipeContainer.textContent;
+                    } else {
+                        recipeContent = ingredientsElement.innerText || ingredientsElement.textContent;
+                    }
+                } else {
+                    // Fallback: Try article or main content areas
+                    const contentSelectors = [
+                        'article',
+                        'main',
+                        '.post-content',
+                        '.entry-content',
+                        '.content'
+                    ];
+                    
+                    for (const selector of contentSelectors) {
+                        const element = document.querySelector(selector);
+                        if (element) {
+                            recipeContent = element.innerText || element.textContent;
+                            if (recipeContent && recipeContent.trim().length > 200) {
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                return recipeContent || document.body.innerText || '';
+            });
+            
+            await browser.close();
+            
+            if (!extractedData || extractedData.trim().length < 100) {
+                console.log("⚠️ Fetched content is too short or empty");
+                return null;
+            }
+            
+            console.log(`✅ Successfully extracted recipe content (${extractedData.length} characters)`);
+            return extractedData;
+            
+        } catch (fetchError) {
+            if (browser) {
+                await browser.close().catch(() => {});
+            }
+            console.log(`⚠️ Failed to fetch website content: ${fetchError.message}`);
+            return null;
+        }
+        
+    } catch (error) {
+        console.error(`❌ Error extracting recipe from creator website:`, error.message);
+        return null;
+    }
+};
+
 module.exports = {
     extractTikTokVideoId,
     isValidTikTokUrl,
@@ -397,5 +648,6 @@ module.exports = {
     analyzeTikTokDescription,
     validateTikTokUrl,
     extractDescriptionFromContext,
-    extractTikTokIngredients  // ✅ NEW: TikTok-specific extractor
+    extractTikTokIngredients,
+    extractRecipeFromCreatorWebsite
 };
