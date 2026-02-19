@@ -585,19 +585,24 @@ const extractRecipeFromTikTok = async (req, res) => {
             console.log("✅ Sufficient ingredients found, skipping website search");
         }
 
-        // Step 6: Generate recipe with LLM
+                // Step 6: Generate recipe with LLM
         console.log("\n📼 Step 6: Generating recipe with Groq LLM...");
         let finalRecipe;
         try {
-            const { recipe } = await generateRecipeWithLLM(
+            const response = await generateRecipeWithLLM(
                 tikTokMetadata.description,
                 tikTokMetadata.title,
                 tikTokMetadata.creator,
-                extractedIngredients,
-                topCommentsText,
-                'tiktok'  // Pass source type
+                extractedIngredients
             );
-            finalRecipe = recipe;
+            
+            // ✅ FIX: Handle response properly
+            finalRecipe = response.recipe || response;
+            
+            if (!finalRecipe || !finalRecipe.title) {
+                throw new Error("Invalid recipe data received from LLM");
+            }
+            
             console.log(`✅ Recipe generated successfully`);
             console.log(`   - Ingredients: ${finalRecipe.ingredients.length}`);
             console.log(`   - Steps: ${finalRecipe.steps.length}`);

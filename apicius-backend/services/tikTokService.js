@@ -49,6 +49,7 @@ const isValidTikTokUrl = (url) => {
  * @returns {Promise<Object>} Metadata object {title, description, creator, creatorAvatar, thumbnail, videoId}
  */
 const getTikTokMetadata = async (videoUrl) => {
+    let browser;
     try {
         console.log("📄 Fetching TikTok video metadata...");
         
@@ -57,108 +58,92 @@ const getTikTokMetadata = async (videoUrl) => {
             throw new Error("Invalid TikTok URL format");
         }
 
-        // Set up axios with a proper user agent to avoid blocking
-        const headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://www.tiktok.com/',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Cache-Control': 'max-age=0'
-        };
-
-        // Try to fetch the TikTok page
-        const response = await axios.get(videoUrl, {
-            headers,
-            timeout: 15000,
-            maxRedirects: 5,
-            httpAgent: new (require('http')).Agent({ keepAlive: true }),
-            httpsAgent: new (require('https')).Agent({ keepAlive: true })
+        // Use Puppeteer to render JavaScript-heavy TikTok page
+        const puppeteer = require('puppeteer');
+        browser = await puppeteer.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage'
+            ]
         });
 
-        console.log("✅ TikTok page fetched successfully");
-
-        // Parse HTML to extract metadata
-        const $ = cheerio.load(response.data);
-
-        let description = null;
+        const page = await browser.newPage();
         
-        // Method 1: OG description
-        description = $('meta[property="og:description"]').attr('content');
-        if (!description || description.trim() === 'Cooking video from TikTok') {
-            // Method 2: Meta description
-            description = $('meta[name="description"]').attr('content');
-        }
-        if (!description) {
-            // Method 3: Look for JSON-LD data
-            const jsonLd = $('script[type="application/ld+json"]').html();
-            if (jsonLd) {
-                try {
-                    const data = JSON.parse(jsonLd);
-                    if (data.description) {
-                        description = data.description;
-                    }
-                } catch (e) {
-                    console.warn("⚠️ Could not parse JSON-LD");
-                }
-            }
-        }
-        if (!description) {
-            // Method 4: Look for common text patterns in HTML
-            const bodyText = $('body').text();
-            const lines = bodyText.split('\n').filter(line => line.length > 20 && line.length < 500);
-            if (lines.length > 0) {
-                description = lines[0];
-            }
-        }
+        // Set user agent and viewport
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        await page.setViewport({ width: 1280, height: 720 });
 
-        // Extract metadata from OG tags (most reliable method)
-        const title = 
-            $('meta[property="og:title"]').attr('content') ||
-            $('h1').text() ||
-            'TikTok Video Recipe';
+        console.log("🌐 Loading TikTok page with Puppeteer...");
+        await page.goto(videoUrl, {
+            waitUntil: 'networkidle2',
+            timeout: 30000
+        });
 
-        const thumbnail = 
-            $('meta[property="og:image"]').attr('content') ||
-            $('meta[name="thumbnail"]').attr('content') ||
-            null;
+        // Wait for description element to appear
+        await page.waitForSelector('[data-e2e="browse-video-desc"]', {
+            timeout: 5000
+        }).catch(() => {
+            console.warn("⚠️ Description container not found");
+        });
 
-        // Extract creator info from page
+        // Extract all description text from spans
+        const descriptionText = await page.evaluate(() => {
+            const descDiv = document.querySelector('[data-e2e="browse-video-desc"]');
+            if (!descDiv) return null;
+
+            const spans = descDiv.querySelectorAll('span[data-e2e="new-desc-span"]');
+            const texts = Array.from(spans)
+                .map(span => span.textContent.trim())
+                .filter(text => text.length > 0 && !text.startsWith('#'));
+
+            return texts.join('\n');
+        });
+
+        // Extract title
+        const title = await page.evaluate(() => {
+            // TikTok title is usually in meta tag or h1
+            const metaTitle = document.querySelector('meta[property="og:title"]')?.getAttribute('content');
+            if (metaTitle) return metaTitle;
+            
+            const h1 = document.querySelector('h1');
+            if (h1) return h1.textContent;
+            
+            return null;
+        });
+
+        // Extract creator from URL
         const creatorMatch = videoUrl.match(/@([\w.-]+)/);
-        if (creatorMatch) {
-            creator = creatorMatch[1];
-        } else {
-            // Try to find creator in HTML
-            const creatorFromHTML = $('meta[property="article:author"]').attr('content') ||
-                                   $('[data-creator]').attr('data-creator') ||
-                                   $('span:contains("@")').first().text();
-            if (creatorFromHTML) {
-                creator = creatorFromHTML.replace('@', '').trim();
-            }
-        }
+        const creator = creatorMatch ? creatorMatch[1] : 'TikTok Creator';
 
-        // Extract avatar if available
-        const avatarMatch = response.data.match(/"avatarLarger":"([^"]+)"/);
-        const creatorAvatar = avatarMatch ? avatarMatch[1] : null;
+        // Extract thumbnail
+        const thumbnail = await page.evaluate(() => {
+            return document.querySelector('meta[property="og:image"]')?.getAttribute('content') || null;
+        });
 
-        console.log(`✅ Title: "${title}"`);
+        await browser.close();
+
+        console.log("✅ TikTok page loaded and parsed with Puppeteer");
+        console.log(`✅ Title: "${title || 'TikTok Video Recipe'}"`);
         console.log(`✅ Creator: @${creator}`);
-        console.log(`✅ Description length: ${description?.length || 0} characters`);
+        console.log(`✅ Description length: ${descriptionText?.length || 0} characters`);
         console.log(`✅ Thumbnail: ${thumbnail ? '✓' : '✗'}`);
 
         return {
             title: title || 'TikTok Video Recipe',
-            description: description || 'Cooking video from TikTok',
+            description: descriptionText || 'Cooking video from TikTok',
             creator: creator,
-            creatorAvatar: creatorAvatar,
+            creatorAvatar: null,
             thumbnail: thumbnail,
-            videoId: videoId
+            videoId: videoId,
+            originalUrl: videoUrl
         };
 
     } catch (error) {
+        if (browser) {
+            await browser.close().catch(() => {});
+        }
         console.error("❌ Error fetching TikTok metadata:", error.message);
         throw new Error(`Could not fetch TikTok video metadata: ${error.message}`);
     }
