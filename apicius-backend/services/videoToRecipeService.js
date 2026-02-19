@@ -96,52 +96,6 @@ const cleanIngredientName = (name) => {
     return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 };
 
-// __________-------------Get YouTube Video Description via Official API-------------__________
-const getYouTubeDescription = async (videoUrl) => {
-    try {
-        console.log("📄 Fetching YouTube video description...");
-        
-        const videoIdMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([^&\n?#]+)/);
-        if (!videoIdMatch) {
-            throw new Error("Invalid YouTube URL format");
-        }
-        
-        const videoId = videoIdMatch[1];
-        const apiKey = process.env.YOUTUBE_API_KEY;
-        
-        if (!apiKey) {
-            throw new Error("YOUTUBE_API_KEY not set in environment variables");
-        }
-        
-        const response = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
-            params: {
-                id: videoId,
-                part: 'snippet',
-                key: apiKey
-            },
-            timeout: 10000
-        });
-        
-        if (!response.data.items || response.data.items.length === 0) {
-            throw new Error("Video not found or is private");
-        }
-        
-        const videoData = response.data.items[0].snippet;
-        
-        return {
-            title: videoData.title || null,
-            description: videoData.description || null,
-            channelTitle: videoData.channelTitle || null,
-            videoId: videoId
-        };
-        
-    } catch (error) {
-        console.error("❌ Error fetching YouTube description:", error.message);
-        throw error;
-    }
-};
-
-// __________-------------Extract ingredients from text with unit normalization-------------__________
 // __________-------------Extract ingredients from text with unit normalization-------------__________
 const extractIngredientsFromText = (text) => {
     if (!text) return [];
@@ -550,29 +504,40 @@ const sanitizeRecipe = (data) => {
     }
 };
 
-// __________-------------Get YouTube Video Thumbnail-------------__________
-const getYouTubeThumbnail = (videoId) => {
-    try {
-        // YouTube provides several thumbnail quality options
-        // maxresdefault is highest quality, but not always available
-        // sddefault is usually available for most videos
-        const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/sddefault.jpg`;
-        return thumbnailUrl;
-    } catch (error) {
-        console.error("Error getting YouTube thumbnail:", error);
-        return null;
+// __________-------------Extract Sections (Cake, Frosting, Baking)-------------__________
+const extractSections = (text) => {
+    const sections = {};
+    const lines = text.split('\n');
+    let currentSection = 'main';
+    let sectionContent = [];
+
+    for (const line of lines) {
+        // Detect section headers
+        if (line.match(/^(ingredients|frosting|icing|cake|baking|instructions|directions|method|topping|filling|ganache)\s*:?/i)) {
+            if (sectionContent.length > 0) {
+                sections[currentSection] = sectionContent.join('\n');
+            }
+            currentSection = line.toLowerCase().replace(/\s*:?\s*$/, '');
+            sectionContent = [];
+        } else {
+            sectionContent.push(line);
+        }
     }
+
+    if (sectionContent.length > 0) {
+        sections[currentSection] = sectionContent.join('\n');
+    }
+
+    return sections;
 };
 
 
 module.exports = {
-    getYouTubeDescription,
     extractIngredientsFromText,
     analyzeDescriptionContent,
     generateRecipeWithLLM,
     sanitizeRecipe,
     normalizeUnit,
     cleanIngredientName,
-    getYouTubeThumbnail,
-    VALID_UNITS
+    extractSections,
 };
