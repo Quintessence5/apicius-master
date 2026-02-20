@@ -7,6 +7,7 @@ const {
 } = require('../services/videoToRecipeService');
 const{
     normalizeIngredients,
+    normalizeIngredientNameForMatching,
     matchIngredientsWithDatabase,
     mergeIngredients } = require('../controllers/videoRecipeController');
 const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
@@ -160,7 +161,7 @@ const extractRecipeFromYoutube = async (req, res) => {
         console.log("\n📼 Step 5: Parsing Comments...");
         let topCommentsText = ""; // Store top comment texts for LLM
         
-        if (extractedIngredients.length < 4 && process.env.YOUTUBE_API_KEY) {
+        if (extractedIngredients.length < 3 && process.env.YOUTUBE_API_KEY) {
             try {
                 // Fetch comments first
                 const allComments = await fetchYouTubeComments(videoId);
@@ -172,10 +173,11 @@ const extractRecipeFromYoutube = async (req, res) => {
                     if (minedData.found && minedData.ingredients.length > 0) {
                         console.log(`✅ Mined ${minedData.ingredients.length} ingredients from ${minedData.sourceCommentCount} comments`);
                         console.log(`   Quality Score: ${minedData.qualityScore}/100`);
+                        console.log(`✅ Mined ${minedData.ingredients.length} ingredients from consensus recipe (Quality: ${minedData.qualityScore}/100)`);
                         
                         // Store top comments for LLM reference
                         if (minedData.topComments && minedData.topComments.length > 0) {
-                            topCommentsText = minedData.topComments.slice(0, 5).join('\n\n---\n\n');
+                            topCommentsText = minedData.topComments[0];
                         }
                         
                         // Merge mined ingredients with description ingredients
@@ -188,7 +190,7 @@ const extractRecipeFromYoutube = async (req, res) => {
             } catch (miningError) {
                 console.warn("⚠️ Comment mining failed (continuing with description only):", miningError.message);
             }
-        } else if (extractedIngredients.length >= 4) {
+        } else if (extractedIngredients.length >= 3) {
             console.log("✅ Sufficient ingredients in description, skipping comment mining");
         } else {
             console.warn("⚠️ YOUTUBE_API_KEY not configured");
@@ -385,8 +387,12 @@ const mineRecipeFromComments = (commentTexts) => {
         }
         
         // Has cooking instructions
-        if (comment.match(/bake|mix|heat|cook|oven|temperature|preheat|fold|whisk/i)) {
+        if (comment.match(/mix|heat|cook|oven|temperature|preheat|fold|whisk/i)) {
             score += 15;
+        }
+
+        if (comment.match(/bake|rest|cook|degrees|temperature|farenheit|cut|slice/i)) {
+            score += 10;
         }
         
         // Has imperial/metric versions
