@@ -1,6 +1,9 @@
 const pool = require('../config/db');
+const { Client } = require('pg');
 
-// __________-------------Match ingredients with database-------------__________
+const nameNormalizationCache = new Map();
+
+// ________________________--------------Match ingredients with database-------------_____________________
 const matchIngredientsWithDatabase = async (ingredients) => {
     try {
         console.log(`\n🔗 Matching ${ingredients.length} ingredients with database...`);
@@ -35,7 +38,7 @@ const matchIngredientsWithDatabase = async (ingredients) => {
     }
 };
 
-// __________-------------Smart Ingredient Matching Function-------------__________
+// ________________________--------------Smart Ingredient Matching Function-------------__________
 const matchSingleIngredient = async (ingredient) => {
     try {
         const searchName = ingredient.name.toLowerCase().trim();
@@ -82,28 +85,43 @@ const matchSingleIngredient = async (ingredient) => {
         }
         
         // Strategy 3: Fuzzy matching (remove common suffixes/prefixes)
-        console.log(`   🔍 Trying fuzzy match...`);
-        
-        const cleanedName = cleanIngredientForMatching(searchName);
-        
-        result = await pool.query(
-            `SELECT id, name FROM ingredients 
-             WHERE LOWER(name) LIKE $1 OR LOWER(name) LIKE $2
-             ORDER BY LENGTH(name) ASC
-             LIMIT 1`,
-            [`%${cleanedName}%`, `${cleanedName}%`]
-        );
-        
-        if (result.rows.length > 0) {
-            return {
-                ...ingredient,
-                dbId: result.rows[0].id,
-                dbName: result.rows[0].name,
-                found: true,
-                icon: '✅',
-                matchType: 'fuzzy'
-            };
-        }
+        console.log(`   🔍 Trying normalized / canonical match...`);
+const normalized = normalizeIngredientNameForMatching(searchName);
+
+result = await pool.query(`
+    SELECT id, name 
+    FROM ingredients 
+    WHERE LOWER(name) = $1
+       OR LOWER(name) LIKE $2
+       OR LOWER(name) LIKE $3
+       OR $4 LIKE '%' || LOWER(name) || '%'
+    ORDER BY 
+        CASE 
+            WHEN LOWER(name) = $1 THEN 0
+            WHEN LOWER(name) = $4 THEN 1
+            WHEN LOWER(name) LIKE $2 THEN 2
+            WHEN LOWER(name) LIKE $3 THEN 3
+            ELSE 4
+        END,
+        LENGTH(name) ASC
+    LIMIT 1
+`, [
+    normalized,                 // exact normalized
+    `${normalized}%`,           // starts with normalized
+    `%${normalized}%`,          // contains normalized
+    searchName                  // original contains db name
+]);
+
+if (result.rows.length > 0) {
+    return {
+        ...ingredient,
+        dbId: result.rows[0].id,
+        dbName: result.rows[0].name,
+        found: true,
+        icon: '✅',
+        matchType: 'normalized'
+    };
+}
         
         // Strategy 4: Similar ingredients (like "flour type 55" for "flour")
         console.log(`   🔍 Trying similar ingredient match...`);
@@ -127,17 +145,6 @@ const matchSingleIngredient = async (ingredient) => {
                 `%${searchName}%`   // Contains search name
             ]
         );
-        
-        if (result.rows.length > 0) {
-            return {
-                ...ingredient,
-                dbId: result.rows[0].id,
-                dbName: result.rows[0].name,
-                found: true,
-                icon: '✅',
-                matchType: 'similar'
-            };
-        }
         
         // No match found - will be created
         return {
@@ -164,268 +171,237 @@ const matchSingleIngredient = async (ingredient) => {
     }
 };
 
-// __________-------------Clean ingredient name for fuzzy matching-------------__________
-const cleanIngredientForMatching = (name) => {
-    return name
-        .toLowerCase()
-        .trim()
-        // Remove plurals
-        .replace(/s$/, '')
-        // Remove common descriptors
-        .replace(/\s*(type|variety|kind|grade|quality|premium|standard|raw|fresh|dried|cooked|roasted|all|purpose|ground)\s*/gi, '')
-        // Remove numbers and types (like "type 55")
-        .replace(/\s*\d+\s*/g, '')
-        // Remove extra spaces
-        .replace(/\s+/g, ' ')
-        .trim();
-};
-
-// __________-------------Merge ingredients from multiple sources-------------__________
+// ________________________--------------Merge ingredients from multiple sources-------------__________
 const mergeIngredients = (descriptionIngredients, minedIngredients) => {
     const merged = [...descriptionIngredients];
-    const existingNames = new Set(merged.map(ing => ing.name.toLowerCase().trim()));
+    
+    const existingKeys = new Set(
+        merged.map(ing => normalizeIngredientNameForMatching(ing.name))
+    );
 
     for (const minedIng of minedIngredients) {
-        const normalizedName = minedIng.name.toLowerCase().trim();
-        if (!existingNames.has(normalizedName)) {
+        const normKey = normalizeIngredientNameForMatching(minedIng.name);
+        
+        if (!existingKeys.has(normKey)) {
             merged.push({
                 name: minedIng.name,
                 quantity: minedIng.quantity,
                 unit: minedIng.unit,
                 section: minedIng.section || 'Main'
             });
-            existingNames.add(normalizedName);
+            existingKeys.add(normKey);
         }
     }
 
     return merged;
 };
 
-// __________-------------Save Recipe from Video to Database-------------__________
+// ________________________--------------Save Recipe from Video to Database-------------__________
+// ________________________ Save Recipe from Video to Database ________________________
 const saveRecipeFromVideo = async (req, res) => {
-    console.log("\n💾 ========== SAVING RECIPE TO DATABASE ==========");
+    const { generatedRecipe, conversionId, userId = null, videoThumbnail = null } = req.body;
+
+    if (!generatedRecipe || !generatedRecipe.title) {
+        return res.status(400).json({
+            success: false,
+            message: "Valid recipe data with title is required"
+        });
+    }
+
+    const {
+        title,
+        steps,
+        notes,
+        prep_time,
+        cook_time,
+        difficulty,
+        ingredients = [],
+        course_type,
+        meal_type,
+        cuisine_type,
+        servings,
+        source
+    } = generatedRecipe;
+
+    if (!title || !Array.isArray(steps) || steps.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Title and non-empty steps array are required"
+        });
+    }
+
+    const total_time = (Number(prep_time) || 0) + (Number(cook_time) || 0) || null;
+    let sourceUrl = source || 'video_conversion';
+
+    const client = await pool.connect();
+
     try {
-        const { generatedRecipe, conversionId, userId = null, videoThumbnail = null } = req.body;
-        console.log(`📸 Thumbnail received: ${videoThumbnail ? 'Yes ✅' : 'No ❌'}`);
-        console.log(`📸 Thumbnail URL: ${videoThumbnail || 'null'}`);
+        await client.query('BEGIN');
 
-        if (!generatedRecipe || !generatedRecipe.title) {
-            return res.status(400).json({ success: false, message: "Valid recipe data is required" });
-        }
-
-        const {
-            title,
-            steps,
-            notes,
-            prep_time,
-            cook_time,
-            difficulty,
-            ingredients,
-            course_type,
-            meal_type,
-            cuisine_type,
-            servings,
-            source
-        } = generatedRecipe;
-
-        if (!title || !Array.isArray(steps) || steps.length === 0) {
-            return res.status(400).json({ success: false, message: "Title and steps are required" });
-        }
-
-        console.log(`📝 Saving recipe: "${title}"`);
-        console.log(`   Ingredients: ${ingredients?.length || 0}`);
-        console.log(`   Steps: ${steps.length}`);
-        console.log(`   Thumbnail: ${videoThumbnail || 'None'}`);
-
-        const total_time = (parseInt(prep_time) || 0) + (parseInt(cook_time) || 0) || null;
-
-        // Fetch the source URL from the conversion record if available
-        let sourceUrl = source || 'video_conversion';
+        // 1. Try to get source_url from conversion if available
         if (conversionId) {
-            try {
-                const conversionResult = await pool.query(
-                    `SELECT source_url FROM transcript_conversions WHERE id = $1`,
-                    [conversionId]
-                );
-                if (conversionResult.rows.length > 0 && conversionResult.rows[0].source_url) {
-                    sourceUrl = conversionResult.rows[0].source_url;
-                }
-            } catch (err) {
-                console.warn("Could not fetch source URL from conversion:", err.message);
+            const conv = await client.query(
+                `SELECT source_url FROM transcript_conversions WHERE id = $1`,
+                [conversionId]
+            );
+            if (conv.rows.length > 0 && conv.rows[0].source_url) {
+                sourceUrl = conv.rows[0].source_url;
             }
         }
 
-        console.log(`🔍 Inserting recipe with thumbnail: ${videoThumbnail || 'null'}`);
+        // 2. Insert recipe
+        const recipeRes = await client.query(`
+            INSERT INTO recipes (
+                title, steps, notes, prep_time, cook_time, total_time, difficulty,
+                course_type, meal_type, cuisine_type, public, source, portions, thumbnail_url
+            )
+            VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            RETURNING id, thumbnail_url
+        `, [
+            title,
+            JSON.stringify(steps),
+            notes || null,
+            Number(prep_time) || null,
+            Number(cook_time) || null,
+            total_time,
+            difficulty || 'Medium',
+            course_type || 'Main Course',
+            meal_type || 'Dinner',
+            cuisine_type || 'Homemade',
+            false,
+            sourceUrl,
+            servings || null,
+            videoThumbnail || null
+        ]);
 
-        // Insert recipe WITH thumbnail URL
-        const recipeResult = await pool.query(
-            `INSERT INTO recipes (title, steps, notes, prep_time, cook_time, total_time, difficulty, 
-            course_type, meal_type, cuisine_type, public, source, portions, thumbnail_url)
-            VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
-            RETURNING id`,
-            [
-                title,
-                JSON.stringify(steps),
-                notes || null,
-                parseInt(prep_time) || null,
-                parseInt(cook_time) || null,
-                total_time,
-                difficulty || 'Medium',
-                course_type || 'Main Course',
-                meal_type || 'Dinner',
-                cuisine_type || 'Homemade',
-                false,
-                sourceUrl,
-                servings || null,
-                videoThumbnail || null 
-            ]
-        );
+        const recipeId = recipeRes.rows[0].id;
+        const savedThumbnail = recipeRes.rows[0].thumbnail_url;
 
-        const recipeId = recipeResult.rows[0].id;
-        const savedThumbnail = recipeResult.rows[0].thumbnail_url;
-        
-        console.log(`✅ Recipe inserted with ID: ${recipeId}`);
-        console.log(`✅ Thumbnail saved: ${savedThumbnail || 'None'}`);
-
+        // 3. Save ingredients (if any)
         let savedCount = 0;
-        if (ingredients && ingredients.length > 0) {
-            console.log(`🔗 Linking ${ingredients.length} ingredients...`);
-            for (const ingredient of ingredients) {
-                if (!ingredient.name || ingredient.name.trim().length === 0) continue;
+        if (ingredients.length > 0) {
+            for (const ing of ingredients) {
+                if (!ing?.name?.trim()) continue;
+
+                // Check if ingredient already exists (case-insensitive)
+                let ingRes = await client.query(
+                    `SELECT id FROM ingredients WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+                    [ing.name]
+                );
 
                 let ingredientId;
-                const existingResult = await pool.query(
-                    `SELECT id FROM ingredients WHERE LOWER(name) = LOWER($1)`,
-                    [ingredient.name]
-                );
-
-                if (existingResult.rows.length > 0) {
-                    ingredientId = existingResult.rows[0].id;
+                if (ingRes.rows.length > 0) {
+                    ingredientId = ingRes.rows[0].id;
                 } else {
-                    const newIngredientResult = await pool.query(
+                    const newIng = await client.query(
                         `INSERT INTO ingredients (name) VALUES ($1) RETURNING id`,
-                        [ingredient.name]
+                        [ing.name]
                     );
-                    ingredientId = newIngredientResult.rows[0].id;
+                    ingredientId = newIng.rows[0].id;
                 }
 
-                if (ingredientId) {
-                    const normalizedUnit = normalizeUnit(ingredient.unit) || ingredient.unit;
-                    await pool.query(
-                        `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, section)
-                        VALUES ($1, $2, $3, $4, $5)`,
-                        [recipeId, ingredientId, ingredient.quantity || null, normalizedUnit, ingredient.section || 'Main']
-                    );
-                    savedCount++;
-                }
+                const unit = normalizeUnit(ing.unit) || ing.unit || null;
+
+                await client.query(`
+                    INSERT INTO recipe_ingredients (
+                        recipe_id, ingredient_id, quantity, unit, section
+                    ) VALUES ($1, $2, $3, $4, $5)
+                `, [
+                    recipeId,
+                    ingredientId,
+                    ing.quantity ?? null,
+                    unit,
+                    ing.section || 'Main'
+                ]);
+
+                savedCount++;
             }
         }
 
-        console.log(`✅ ${savedCount} ingredients linked`);
-
-        // Update conversion status
+        // 4. Update conversion status if applicable
         if (conversionId) {
-            await pool.query(
-                `UPDATE transcript_conversions SET recipe_status = $1, status = $2, updated_at = NOW() 
-                 WHERE id = $3`,
-                ['saved', 'recipe_saved', conversionId]
-            );
+            await client.query(`
+                UPDATE transcript_conversions 
+                SET recipe_status = 'saved', 
+                    status = 'recipe_saved', 
+                    updated_at = NOW()
+                WHERE id = $1
+            `, [conversionId]);
         }
 
-        res.json({
+        await client.query('COMMIT');
+
+        return res.json({
             success: true,
-            message: "✅ Recipe saved successfully!",
+            message: "Recipe saved successfully",
             recipeId,
-            conversionId
+            conversionId,
+            thumbnail: savedThumbnail || null,
+            ingredientsSaved: savedCount
         });
 
     } catch (error) {
-        console.error("❌ Error saving recipe:", error);
-        
-        if (req.body?.conversionId) {
+        await client.query('ROLLBACK');
+
+        console.error("Recipe save failed:", {
+            title,
+            conversionId,
+            error: error.message,
+            stack: error.stack?.slice(0, 300)
+        });
+
+        // Optional structured logging
+        if (conversionId) {
             try {
                 const { logConversionError } = require('../services/conversionLogger');
                 await logConversionError(
-                    req.body.conversionId,
+                    conversionId,
                     'RecipeSaveError',
                     error.message,
                     'recipe_save'
                 );
             } catch (logErr) {
-                console.error("Could not log error:", logErr.message);
+                console.error("Failed to log conversion error:", logErr.message);
             }
         }
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: "Error saving recipe",
-            error: error.message
+            message: "Failed to save recipe",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+
+    } finally {
+        client.release();
     }
 };
 
-// Clean ingredient name (remove adjectives and descriptions)
-const cleanIngredientName = (name) => {
-    if (!name) return '';
-    
-    const cleaned = name
-        .toLowerCase()
-        .trim()
-        // Remove common descriptive phrases
-        .replace(/\s*\(.*?\)\s*/g, '') // Remove parentheses content
-        .replace(/\s*\[.*?\]\s*/g, '') // Remove brackets content
-        .replace(/\s+(large|medium|small|fresh|dried|ground|minced|chopped|diced|sliced|grated|melted|room temperature|cold|warm)\s*/gi, '')
-        .replace(/\s+(unsweetened|sweetened|all-purpose|whole wheat|neutral|cooking|light|extra virgin)\s*/gi, '')
-        .replace(/\s+about\s*/gi, '')
-        .replace(/\s+or\s+.+$/gi, '') // Remove "or alternative" suggestions
-        .replace(/\s+–.+$/gi, '') // Remove dashes and descriptions
-        .replace(/\s+[–\-].+$/gi, '')
-        .trim();
-    
-    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-};
-
-
-// __________-------------Normalize Ingredients (Remove Duplicates)-------------__________
+// ________________________--------------Normalize Ingredients-------------__________
 const normalizeIngredients = (ingredients) => {
-    const normalized = new Map();
+    const byKey = new Map();
 
     for (const ing of ingredients) {
-        const key = ing.name
-            .replace(/^\d+\s*/, '')
-            .replace(/^(a|an|the)\s+/i, '')
-            .trim()
-            .toLowerCase();
-
+        const key = normalizeIngredientNameForMatching(ing.name);
         if (key.length < 3) continue;
 
-        if (normalized.has(key)) {
-            const existing = normalized.get(key);
-            if (ing.quantity && !existing.quantity) {
-                existing.quantity = ing.quantity;
-            }
-            if (ing.unit && !existing.unit) {
-                existing.unit = ing.unit;
-            }
+        if (byKey.has(key)) {
+            const prev = byKey.get(key);
+            if (ing.quantity && !prev.quantity) prev.quantity = ing.quantity;
+            if (ing.unit && !prev.unit) prev.unit = ing.unit;
+            if (ing.name < prev.name) prev.name = ing.name;
         } else {
-            normalized.set(key, {
+            byKey.set(key, {
+                name: ing.name,      
                 quantity: ing.quantity,
                 unit: ing.unit,
-                name: ing.name.toLowerCase(),
-                originalName: ing.name
+                section: ing.section || 'Main'
             });
         }
     }
 
-    return Array.from(normalized.values()).map(ing => ({
-        quantity: ing.quantity,
-        unit: ing.unit,
-        name: ing.originalName || ing.name,
-        section: 'Main'
-    }));
+    return Array.from(byKey.values());
 };
-
-// Normalize unit to standard abbreviation
+// ________________________--------------Normalize unit to standard abbreviation-------------__________
 const normalizeUnit = (unit) => {
     if (!unit) return null;
     
@@ -500,14 +476,130 @@ const VALID_UNITS = {
     'cup': { name: 'Cup', abbreviation: 'cup', type: 'quantity' }
 };
 
+// ________________________--------------Normalize ingredient name-----------------________________
+// Common adjectives / modifiers that usually come before the main ingredient
+const INGREDIENT_MODIFIERS = [
+  'large', 'medium', 'small', 'extra large', 'jumbo',
+  'fresh', 'dried', 'frozen', 'canned', 'jarred',
+  'chopped', 'diced', 'minced', 'sliced', 'grated', 'shredded', 'ground', 'crushed',
+  'melted', 'softened', 'room temperature', 'cold', 'warm',
+  'unsweetened', 'sweetened', 'semi sweet', 'bittersweet',
+  'all purpose', 'all-purpose', 'whole wheat', 'whole grain', 'white', 'brown',
+  'light', 'dark', 'extra virgin', 'virgin', 'pure',
+  'organic', 'nonfat', 'low fat', 'fat free',
+  'ground', 'powdered', 'whole', 'hulled',
+  'smoked', 'cured', 'pickled', 'fermented',
+];
 
+// Core normalization for matching / deduplication / database lookup
+const normalizeIngredientNameForMatching = (name) => {
+    if (!name || typeof name !== 'string') return '';
+
+    const cacheKey = name.trim().toLowerCase();
+    if (nameNormalizationCache.has(cacheKey)) {
+        return nameNormalizationCache.get(cacheKey);
+    }
+
+  let cleaned = name
+    .toLowerCase()
+    .trim()
+    // Remove notes, alternatives, quantities that leaked in
+    .replace(/\s*[\(\[][^)\]]+[\)\]]\s*/g, '')           // (notes)
+    .replace(/\s*\[[^\]]+\]\s*/g, '')                     // [notes]
+    .replace(/\s+or\s+.+$/gi, '')                         // or something else
+    .replace(/\s*[–—−-].+$/gi, '')                        // – description
+    .replace(/\s+to taste|optional|for garnish|for serving/gi, '')
+    // Remove numbers (type 00, grade A, 2%, etc.)
+    .replace(/\b\d+(?:\.\d+)?\s*(%|type|grade|proof)?\b/gi, '')
+    // Remove common leading modifiers
+    .replace(
+      new RegExp(`\\b(${INGREDIENT_MODIFIERS.join('|')})\\b\\s+`, 'gi'),
+      ''
+    )
+    // Rough singularization (basic)
+    .replace(/ies$/, 'y')
+    .replace(/(es|x|ch|sh|s)$/, '')
+    // Collapse multiple spaces
+    .replace(/\s+/g, ' ')
+    .trim();
+
+    const result = cleaned.trim();
+    nameNormalizationCache.set(cacheKey, result);
+    return result;
+
+  // ── Reorder: try to put the HEAD noun first ─────────────────────────────
+  const words = cleaned.split(/\s+/);
+
+  if (words.length <= 1) return cleaned;
+
+  // Heuristic: look for known modifiers and move the word after them to front
+  for (let i = 0; i < words.length - 1; i++) {
+    const phrase = words.slice(i, i + 2).join(' ');
+
+    // Common patterns we want to reverse
+    if (
+      // oil-based
+      phrase === 'olive oil' ||
+      phrase === 'coconut oil' ||
+      phrase === 'sesame oil' ||
+      phrase === 'vegetable oil' ||
+      phrase === 'canola oil' ||
+      // vinegar-based
+      phrase === 'white wine vinegar' ||
+      phrase === 'red wine vinegar' ||
+      phrase === 'apple cider vinegar' ||
+      phrase === 'rice vinegar' ||
+      // spice / flour / etc.
+      phrase === 'ground cinnamon' ||
+      phrase === 'ground ginger' ||
+      phrase === 'all purpose flour' ||
+      phrase === 'whole wheat flour' ||
+      phrase.match(/^(white|brown|dark|light)\s+(sugar|chocolate)/)
+    ) {
+      // Move the second word (main) to front
+      const main = words.splice(i + 1, 1)[0];
+      words.unshift(main);
+      cleaned = words.join(' ');
+      break;
+    }
+  }
+
+  // Final cleanup
+  return cleaned.trim();
+};
+
+// Human-readable / display version (gentler cleaning, title case)
+const cleanIngredientNameForDisplay = (name, options = { titleCase: true }) => {
+  if (!name) return '';
+
+  let cleaned = name
+    .trim()
+    .replace(/\s*[\(\[][^)\]]+[\)\]]\s*/g, '')
+    .replace(/\s*[–—−-].+$/gi, '')
+    .replace(/\s+or\s+.+$/gi, '')
+    .replace(
+      /\b(large|medium|small|fresh|dried|chopped|diced|minced|sliced|grated|ground|unsweetened|sweetened|all[ -]purpose|extra virgin)\b\s*/gi,
+      ''
+    )
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (options.titleCase) {
+    cleaned = cleaned.replace(/\w\S*/g, (txt) =>
+      txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+    );
+  }
+
+  return cleaned;
+};
 
 module.exports = {
     saveRecipeFromVideo,
     matchIngredientsWithDatabase,
     mergeIngredients,
-    cleanIngredientName,
     normalizeUnit,
     normalizeIngredients,
+    cleanIngredientNameForDisplay,
+    normalizeIngredientNameForMatching,
     VALID_UNITS
 };

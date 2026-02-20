@@ -3,8 +3,9 @@ const cheerio = require('cheerio');
 
 const pool = require('../config/db');
 
-const {extractIngredientsFromText, generateRecipeWithLLM} = require('../services/videoToRecipeService');
+const {generateRecipeWithLLM} = require('../services/videoToRecipeService');
 const { mergeIngredients, matchIngredientsWithDatabase, } = require('../controllers/videoRecipeController');
+const { extractIngredientsFromText } = require('../services/utils/ingredientExtractor');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
 // __________-------------Extract TikTok Video ID from various URL formats-------------__________
@@ -28,117 +29,6 @@ const extractTikTokVideoId = (url) => {
 
 const isValidTikTokUrl = (url) => {
     return extractTikTokVideoId(url) !== null;
-};
-
-// __________-------------TikTok-Specific Ingredient Extraction-------------__________
-/**
- * Extract ingredients from TikTok description format
- * TikTok descriptions use plain text format with quantities*/
- 
-const extractTikTokIngredients = (text) => {
-    if (!text || text.length === 0) {
-        console.log("⚠️ No text to extract ingredients from");
-        return [];
-    }
-
-    console.log(`📝 Extracting ingredients from ${text.length} characters...`);
-    const ingredients = [];
-    const lines = text.split('\n');
-    let currentSection = 'Main';
-    let ingredientStarted = false;
-    let ingredientEnded = false;
-
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-
-        // Skip empty lines
-        if (!line || line.length === 0) continue;
-
-        // Detect section headers (Ingredients, Chocolate Ganache, Instructions, etc.)
-        if (/^(ingredients?|frosting|ganache|topping|filling|batter|dough|crust|sauce|glaze|base)$/i.test(line)) {
-            currentSection = line.replace(/s?:?$/i, '').trim();
-            ingredientStarted = true;
-            continue;
-        }
-
-        // Stop ingredient extraction when we hit "Instructions"
-        if (/^instructions?$/i.test(line)) {
-            ingredientEnded = true;
-            break;
-        }
-
-        // Skip metadata lines
-        if (/^(serves?|servings?|yields?|makes?)[\s\d]*/i.test(line)) {
-            continue;
-        }
-
-        // Look for ingredient pattern
-        // Matches: "1 1/2 cups (180g) all-purpose flour"
-        const ingredientPattern = /^([\d.]+(?:\s*\/\s*\d+)?(?:\s*-\s*[\d.]+)?)\s+([a-zA-Z\s\(\)]+?)(?:\s+(.+?))?(?:\s*\(([^)]*)\))?$/;
-        
-        const match = line.match(ingredientPattern);
-        
-        if (match) {
-            let quantity = match[1].trim();
-            let unit = match[2].trim();
-            let name = match[3] ? match[3].trim() : '';
-            let notes = match[4] ? `(${match[4]})` : '';
-
-            // Normalize the unit and separate from name if mixed
-            const unitMatch = unit.match(/^([a-zA-Z\s]+?)(?:\s+(.+))?$/);
-            if (unitMatch) {
-                unit = unitMatch[1].trim();
-                if (unitMatch[2]) {
-                    name = unitMatch[2].trim() + ' ' + name;
-                }
-            }
-
-            // Clean up name
-            name = name
-                .replace(/\([^)]*\)/g, '')  // Remove parentheses content
-                .replace(/\s+/g, ' ')       // Normalize spaces
-                .trim();
-
-            // Validate extracted data
-            if (quantity && (unit || name)) {
-                
-                if (name.length > 1 && name.length < 100) {
-                    ingredients.push({
-                        quantity: quantity || null,
-                        unit: unit || null,
-                        name: name,
-                        section: currentSection
-                    });
-                    console.log(`   ✅ Found: ${quantity} ${unit} ${name}`);
-                }
-            }
-        } else if (ingredientStarted && !ingredientEnded) {
-            // Try simpler pattern for lines without units
-            // "2 large eggs" or "salt" (quantity without unit)
-            const simplePattern = /^([\d.]+(?:\s*\/\s*\d+)?)\s+(.+)$/;
-            const simpleMatch = line.match(simplePattern);
-            
-            if (simpleMatch) {
-                const quantity = simpleMatch[1].trim();
-                let name = simpleMatch[2].trim();
-                
-                name = name.replace(/\([^)]*\)/g, '').trim();
-                
-                if (name.length > 1 && name.length < 100) {
-                    ingredients.push({
-                        quantity: quantity,
-                        unit: null,
-                        name: name,
-                        section: currentSection
-                    });
-                    console.log(`   ✅ Found: ${quantity} ${name}`);
-                }
-            }
-        }
-    }
-
-    console.log(`✅ Total ingredients extracted: ${ingredients.length}`);
-    return ingredients;
 };
 
 // __________-------------INTELLIGENT DESCRIPTION EXTRACTION FROM PAGE CONTEXT-------------__________
@@ -762,8 +652,8 @@ const extractRecipeFromTikTok = async (req, res) => {
         let extractedIngredients;
         
         // Use TikTok-specific ingredient extractor
-        const { extractTikTokIngredients } = require('../services/tikTokService');
-        extractedIngredients = extractTikTokIngredients(tikTokMetadata.description);
+        const { extractIngredientsFromText } = require('../services/utils/ingredientExtractor');
+        extractedIngredients = extractIngredientsFromText(tikTokMetadata.description);
         
         console.log(`✅ Extracted ${extractedIngredients.length} ingredients from description`);
          // Step 5: Try to find recipe on creator's website if description is sparse
@@ -921,7 +811,6 @@ module.exports = {
     analyzeTikTokDescription,
     validateTikTokUrl,
     extractDescriptionFromContext,
-    extractTikTokIngredients,
     extractRecipeFromTikTok,
     extractRecipeFromCreatorWebsite
 };

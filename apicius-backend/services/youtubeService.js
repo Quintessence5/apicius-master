@@ -3,13 +3,14 @@ const pool = require('../config/db');
 
 const {
     analyzeDescriptionContent,
-    extractIngredientsFromText,
     generateRecipeWithLLM
 } = require('../services/videoToRecipeService');
 const{
     normalizeIngredients,
-    matchIngredientsWithDatabase} = require('../controllers/videoRecipeController');
+    matchIngredientsWithDatabase,
+    mergeIngredients } = require('../controllers/videoRecipeController');
 const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
+const { extractIngredientsFromText } = require('../services/utils/ingredientExtractor');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
 

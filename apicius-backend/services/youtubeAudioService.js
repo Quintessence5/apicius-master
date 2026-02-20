@@ -3,7 +3,6 @@ const axios = require('axios');
 const { Readable } = require('stream');
 const { transcriptToRecipeService } = require('../services/transcriptService');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
-const { getYouTubeTranscript } = require('../services/youtubeAudioService');
 const { extractVideoId } = require('../services/utils/videoUtils');
 
 // __________-------------Download Audio from YouTube as Buffer-------------__________
