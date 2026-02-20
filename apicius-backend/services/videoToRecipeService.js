@@ -1,223 +1,7 @@
 const axios = require('axios');
+const{normalizeUnit, cleanIngredientName} = require('../controllers/videoRecipeController');
 
-// Standardized units mapping
-const VALID_UNITS = {
-    // Weight
-    'g': { name: 'Gram', abbreviation: 'g', type: 'weight' },
-    'kg': { name: 'Kilogram', abbreviation: 'kg', type: 'weight' },
-    'mg': { name: 'Milligram', abbreviation: 'mg', type: 'weight' },
-    'oz': { name: 'Ounce', abbreviation: 'oz', type: 'weight' },
-    'lb': { name: 'Pound', abbreviation: 'lb', type: 'weight' },
-    't': { name: 'Ton', abbreviation: 't', type: 'weight' },
-    
-    // Volume
-    'ml': { name: 'Milliliter', abbreviation: 'ml', type: 'volume' },
-    'l': { name: 'Liter', abbreviation: 'l', type: 'volume' },
-    'tsp': { name: 'Teaspoon', abbreviation: 'tsp', type: 'volume' },
-    'tbsp': { name: 'Tablespoon', abbreviation: 'tbsp', type: 'volume' },
-    'fl oz': { name: 'Fluid Ounce', abbreviation: 'fl oz', type: 'volume' },
-    'pt': { name: 'Pint', abbreviation: 'pt', type: 'volume' },
-    'qt': { name: 'Quart', abbreviation: 'qt', type: 'volume' },
-    'gal': { name: 'Gallon', abbreviation: 'gal', type: 'volume' },
-    
-    // Quantity
-    'pc': { name: 'Piece', abbreviation: 'pc', type: 'quantity' },
-    'doz': { name: 'Dozen', abbreviation: 'doz', type: 'quantity' },
-    'pinch': { name: 'Pinch', abbreviation: 'pinch', type: 'quantity' },
-    'dash': { name: 'Dash', abbreviation: 'dash', type: 'quantity' },
-    'cup': { name: 'Cup', abbreviation: 'cup', type: 'quantity' }
-};
-
-// Normalize unit to standard abbreviation
-const normalizeUnit = (unit) => {
-    if (!unit) return null;
-    
-    const cleanUnit = unit.toLowerCase().trim();
-    
-    // Direct match
-    if (VALID_UNITS[cleanUnit]) return cleanUnit;
-    
-    // Common aliases
-    const aliases = {
-        'cups': 'cup',
-        'gram': 'g',
-        'grams': 'g',
-        'kilogram': 'kg',
-        'kilograms': 'kg',
-        'ounce': 'oz',
-        'ounces': 'oz',
-        'pound': 'lb',
-        'pounds': 'lb',
-        'milliliter': 'ml',
-        'milliliters': 'ml',
-        'liter': 'l',
-        'liters': 'l',
-        'teaspoon': 'tsp',
-        'teaspoons': 'tsp',
-        'tablespoon': 'tbsp',
-        'tablespoons': 'tbsp',
-        'fluidounce': 'fl oz',
-        'fluidounces': 'fl oz',
-        'pint': 'pt',
-        'pints': 'pt',
-        'quart': 'qt',
-        'quarts': 'qt',
-        'gallon': 'gal',
-        'gallons': 'gal',
-        'piece': 'pc',
-        'pieces': 'pc',
-        'dozen': 'doz',
-        'mg': 'mg'
-    };
-    
-    if (aliases[cleanUnit]) return aliases[cleanUnit];
-    
-    return null;
-};
-
-// Clean ingredient name (remove adjectives and descriptions)
-const cleanIngredientName = (name) => {
-    if (!name) return '';
-    
-    const cleaned = name
-        .toLowerCase()
-        .trim()
-        // Remove common descriptive phrases
-        .replace(/\s*\(.*?\)\s*/g, '') // Remove parentheses content
-        .replace(/\s*\[.*?\]\s*/g, '') // Remove brackets content
-        .replace(/\s+(large|medium|small|fresh|dried|ground|minced|chopped|diced|sliced|grated|melted|room temperature|cold|warm)\s*/gi, '')
-        .replace(/\s+(unsweetened|sweetened|all-purpose|whole wheat|neutral|cooking|light|extra virgin)\s*/gi, '')
-        .replace(/\s+about\s*/gi, '')
-        .replace(/\s+or\s+.+$/gi, '') // Remove "or alternative" suggestions
-        .replace(/\s+–.+$/gi, '') // Remove dashes and descriptions
-        .replace(/\s+[–\-].+$/gi, '')
-        .trim();
-    
-    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-};
-
-// __________-------------Extract ingredients from text with unit normalization-------------__________
-const extractIngredientsFromText = (text) => {
-    if (!text) return [];
-    
-    const ingredients = [];
-    const lines = text.split('\n').filter(line => line.trim().length > 0);
-    
-    let currentSection = 'Main';
-    let inIngredientsSection = false;
-    
-    for (const line of lines) {
-        const trimmed = line.trim();
-        
-        // ✅ DETECT INGREDIENTS SECTION HEADER
-        if (/^ingredients\s*:?\s*$/i.test(trimmed)) {
-            inIngredientsSection = true;
-            console.log(`   📍 Found Ingredients section`);
-            continue;
-        }
-        
-        // Detect other section headers (Cake Batter, Frosting, etc.)
-        const sectionMatch = trimmed.match(/^[✔✓]?\s*([A-Za-z\s]+?)\s*:?\s*$/i);
-        if (sectionMatch && /cake|batter|frosting|glaze|sauce|filling|topping|dough|crust|base|icing|ganache|baking|pan/i.test(trimmed)) {
-            currentSection = trimmed.replace(/[:\s]+$/, '').trim();
-            inIngredientsSection = false;
-            console.log(`   📍 Detected section: "${currentSection}"`);
-            continue;
-        }
-        
-        // ✅ STOP at instruction keywords or empty lines
-        if (/^(instructions|directions|steps|method|procedure|pan\s+size)/i.test(trimmed)) {
-            inIngredientsSection = false;
-            continue;
-        }
-        
-        // Skip empty lines or non-ingredient lines when in ingredients section
-        if (inIngredientsSection && trimmed.length === 0) continue;
-        
-        // Skip pure text lines (section transitions, notes)
-        if (/^[a-z\s]*$/i.test(trimmed) && !trimmed.match(/\d/) && !trimmed.match(/[-•✓✔]/)) {
-            continue;
-        }
-        
-        // ✅ IMPROVED: Multiple regex patterns to handle different formats
-        let match = null;
-        let quantity = null;
-        let rawUnit = null;
-        let rawName = null;
-        
-        // Pattern 1: "Ingredient name - 1 cup (130g)" or "Ingredient - 1cup"
-        // This is the PRIMARY PATTERN for your description format
-        const pattern1 = /^[-•✓✔]?\s*([a-zA-Z\s]+?)\s*-\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s*([a-zA-Z\s]*?)(?:\s*[\(\[]|$)/i;
-        match = trimmed.match(pattern1);
-        if (match) {
-            rawName = match[1];
-            quantity = match[2].replace(/½/, '0.5').replace(/¼/, '0.25').replace(/⅓/, '0.33').replace(/⅔/, '0.67');
-            rawUnit = match[3] || '';
-            console.log(`   [Pattern 1] "${rawName}" - ${quantity} ${rawUnit}`);
-        }
-        
-        // Pattern 2: "1 cup flour" or "½ cup cocoa powder"
-        if (!match) {
-            const pattern2 = /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s+([a-zA-Z\s]+?)\s+(.+?)(?:\s*\[|\s*\(|$)/i;
-            match = trimmed.match(pattern2);
-            if (match) {
-                quantity = match[1].replace(/½/, '0.5').replace(/¼/, '0.25').replace(/⅓/, '0.33').replace(/⅔/, '0.67');
-                rawUnit = match[2];
-                rawName = match[3];
-                console.log(`   [Pattern 2] "${rawName}" - ${quantity} ${rawUnit}`);
-            }
-        }
-        
-        // Pattern 3: "1 cup flour" (simpler format)
-        if (!match) {
-            const pattern3 = /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s+([a-zA-Z\s]+?)$/i;
-            match = trimmed.match(pattern3);
-            if (match) {
-                quantity = match[1].replace(/½/, '0.5').replace(/¼/, '0.25').replace(/⅓/, '0.33').replace(/⅔/, '0.67');
-                rawUnit = '';
-                rawName = match[2];
-                console.log(`   [Pattern 3] "${rawName}" - ${quantity}`);
-            }
-        }
-        
-        // Pattern 4: "Ingredient - 200g" or "Dark Chocolate - 200g"
-        if (!match) {
-            const pattern4 = /^[-•✓✔]?\s*([a-zA-Z\s]+?)\s*-\s*(\d+\.?\d*)\s*([a-zA-Z]+)(?:\s*[\(\[]|$)/i;
-            match = trimmed.match(pattern4);
-            if (match) {
-                rawName = match[1];
-                quantity = match[2];
-                rawUnit = match[3];
-                console.log(`   [Pattern 4] "${rawName}" - ${quantity} ${rawUnit}`);
-            }
-        }
-        
-        // ✅ ONLY PROCESS IF WE FOUND A MATCH
-        if (match && rawName) {
-            const normalizedUnit = normalizeUnit(rawUnit?.toLowerCase()) || rawUnit;
-            const cleanName = cleanIngredientName(rawName);
-            
-            if (cleanName.length > 0 && cleanName.length < 200) {
-                const ingredient = {
-                    name: cleanName,
-                    quantity: quantity || null,
-                    unit: normalizedUnit || rawUnit || 'pc',
-                    section: currentSection,
-                    rawUnit: rawUnit,
-                    matched: !!normalizedUnit
-                };
-                
-                ingredients.push(ingredient);
-                console.log(`   ✅ Extracted: ${quantity} ${ingredient.unit} of ${cleanName}`);
-            }
-        }
-    }
-    
-    console.log(`✅ Total extracted from description: ${ingredients.length} ingredients\n`);
-    return ingredients;
-};
-
-/// __________-------------Analyze description content-------------__________
+// ______________________-------------------Analyze description content-----------------____________________
 const analyzeDescriptionContent = (description) => {
     if (!description) return { hasIngredients: false, hasSteps: false, isEmpty: true, lineCount: 0 };
     
@@ -247,6 +31,154 @@ const analyzeDescriptionContent = (description) => {
         lineCount: lines.length
     };
 };
+
+// __________-------------Extract ingredients from text with unit normalization-------------__________
+const extractIngredientsFromText = (text) => {
+    if (!text) return [];
+    
+    const ingredients = [];
+    const seen = new Set();
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    
+    let currentSection = 'Main';
+    let inIngredientsSection = false;
+    
+    for (const line of lines) {
+        const trimmed = line.trim();
+        
+        // Skip empty or very long lines
+        if (trimmed.length === 0 || trimmed.length > 500) continue;
+        
+        // Detect ingredients section header
+        if (/^ingredients\s*:?\s*$/i.test(trimmed)) {
+            inIngredientsSection = true;
+            currentSection = 'Ingredients';
+            continue;
+        }
+        
+        // Detect other section headers (e.g., Cake Batter, Frosting)
+        const sectionMatch = trimmed.match(/^[✔✓]?\s*([A-Za-z\s]+?)\s*:?\s*$/i);
+        if (sectionMatch && /cake|batter|frosting|glaze|sauce|filling|topping|dough|crust|base|icing|ganache|baking|pan/i.test(trimmed)) {
+            currentSection = sectionMatch[1].trim();
+            inIngredientsSection = false;
+            continue;
+        }
+        
+        // Stop at instruction keywords
+        if (/^(instructions|directions|steps|method|procedure|pan\s+size|mix|bake|heat|cook|fold|whisk|preheat|batter|baking|oven|temperature|°|degrees|step|instruction|direction)/i.test(trimmed)) {
+            inIngredientsSection = false;
+            continue;
+        }
+        
+        // Skip pure text lines without numbers, bullets, or ingredient keywords
+        if (/^[a-z\s]*$/i.test(trimmed) && !trimmed.match(/\d/) && !trimmed.match(/[-•✓✔]/) && !trimmed.match(/egg|flour|sugar|butter|milk|oil|powder|salt|soda|cream|chocolate|cocoa/i)) {
+            continue;
+        }
+        
+        // Skip header-like lines (all caps)
+        if (/^[A-Z\s\-]+$/.test(trimmed)) continue;
+        
+        // Combined patterns from both functions, expanded for more coverage
+        const patterns = [
+            // Pattern 1 from #1: "Ingredient name - 1 cup (130g)" or "Ingredient - 1cup"
+            /^[-•✓✔]?\s*([a-zA-Z\s]+?)\s*-\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s*([a-zA-Z\s]*?)(?:\s*[\(\[]|$)/i,
+            // Pattern 2 from #1: "1 cup flour" or "½ cup cocoa powder"
+            /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s+([a-zA-Z\s]+?)\s+(.+?)(?:\s*\[|\s*\(|$)/i,
+            // Pattern 3 from #1: "1 cup flour" (simple)
+            /^[-•✓✔]?\s*(\d+\.?\d*|\d+\/\d+|½|¼|⅓|⅔)\s+([a-zA-Z\s]+?)$/i,
+            // Pattern 4 from #1: "Ingredient - 200g" or "Dark Chocolate - 200g"
+            /^[-•✓✔]?\s*([a-zA-Z\s]+?)\s*-\s*(\d+\.?\d*)\s*([a-zA-Z]+)(?:\s*[\(\[]|$)/i,
+            // Pattern from #2: "123 g ingredient" or "123ml ingredient"
+            /(\d+(?:\.\d+)?)\s*(g|mg|kg|ml|l|litre|liter|tbsp|tsp|cup|cups|oz|lb|lbs|tablespoon|teaspoon|pinch|dash|handful)\s+([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
+            // Pattern from #2: "1/2 teaspoon baking powder" or "3/4 cup flour"
+            /(\d+\/\d+)\s+(teaspoon|tablespoon|tsp|tbsp|cup|cups|g|ml|oz|lb)\s+([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
+            // Pattern from #2: "2 large eggs" or "1 egg"
+            /(\d+(?:\/\d+)?)\s+(large|small|medium)?\s*([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
+        ];
+        
+        let matched = false;
+        for (const pattern of patterns) {
+            let match = trimmed.match(pattern);
+            if (!match && pattern.global) {
+                while ((match = pattern.exec(trimmed)) !== null) {
+                    // Handle global patterns
+                    let quantity = match[1];
+                    let rawUnit = match[2] || '';
+                    let rawName = match[3]?.trim() || '';
+                    
+                    processMatch(quantity, rawUnit, rawName, trimmed);
+                }
+            } else if (match) {
+                // Handle non-global patterns
+                let quantity = null;
+                let rawUnit = null;
+                let rawName = null;
+                
+                // Assign based on pattern type (adjust indices per pattern)
+                if (pattern === patterns[0]) {
+                    rawName = match[1];
+                    quantity = match[2];
+                    rawUnit = match[3] || '';
+                } else if (pattern === patterns[1]) {
+                    quantity = match[1];
+                    rawUnit = match[2];
+                    rawName = match[3];
+                } else if (pattern === patterns[2]) {
+                    quantity = match[1];
+                    rawUnit = '';
+                    rawName = match[2];
+                } else if (pattern === patterns[3]) {
+                    rawName = match[1];
+                    quantity = match[2];
+                    rawUnit = match[3];
+                }
+                
+                if (quantity && rawName) {
+                    processMatch(quantity, rawUnit, rawName, trimmed);
+                    matched = true;
+                    break;
+                }
+            }
+        }
+        
+        function processMatch(quantity, rawUnit, rawName, original) {
+            // Convert special fractions to decimals
+            quantity = quantity.replace(/½/g, '0.5').replace(/¼/g, '0.25').replace(/⅓/g, '0.33').replace(/⅔/g, '0.67');
+            
+            // Clean name: remove parentheses, trim
+            const cleanName = cleanIngredientName(rawName)
+                .replace(/\([^)]*\)/g, '')
+                .replace(/^\s+|\s+$/g, '')
+                .trim()
+                .toLowerCase();
+            
+            // Skip invalid names
+            if (cleanName.length < 2 || cleanName.length > 100) return;
+            
+            // Normalize unit
+            const normalizedUnit = normalizeUnit(rawUnit.toLowerCase()) || rawUnit || 'pc';
+            
+            // Deduplication key
+            const key = `${quantity}-${normalizedUnit}-${cleanName}`.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            
+            // Push ingredient
+            ingredients.push({
+                name: cleanName,
+                quantity: quantity || null,
+                unit: normalizedUnit,
+                section: currentSection,
+                rawUnit: rawUnit,
+                original: original,
+                matched: !!normalizedUnit
+            });
+        }
+    }
+    
+    return ingredients;
+};
+
 // __________-------------Generate complete recipe with LLM (with unit constraints)-------------__________
 const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients, topCommentsText = "") => {
     try {
@@ -258,44 +190,66 @@ const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extr
         
         const systemPrompt = `You are an expert professional Chef and recipe editor specializing in creating detailed, structured recipes. KEEP THE EXISTING SYSTEM PROMPT - DON'T CHANGE IT
         
+Your job is to extract a complete, human-friendly, and structured recipe from transcripts of cooking videos.
+
+INPUT CONTEXT:
+- You receive an automatic transcription of a short cooking video (may have repeated phrases, filler words, or missing words)
+- You may also receive: video title, channel name, video description
+- Your goal: Extract ingredients, steps, timing, temperature, and other cooking parameters
 
 CRITICAL REQUIREMENTS:
 
 1. **UNIT CONSTRAINT - USE METRIC SYSTEM BY DEFAULT:**
    Use ONLY: g, kg, ml, l, tsp, tbsp, pc (pieces), pinch, dash
+   - Separate quantity from unit: 
+     * quantity: "1", "1/2", "2-3", or number
+     * unit: "kg", "g", "ml", "tbsp", "tsp", "pc", "pinch", etc.
+   
 
-2. **STEPS MUST BE COMPREHENSIVE AND SECTIONED:**
-   - Group steps into logical sections (e.g., "Prepare the pan and oven", "Make the cake batter", "Bake", "Make the ganache", "Assemble and serve")
-   - Each section should have a descriptive title
-   - Each step within a section should be 2-4 sentences with actionable details
-   - Include specific techniques and warnings (e.g., "Don't overmix", "until smooth and lump-free")
-   - Include timing/duration when relevant (stored in "duration_minutes" field)
-   - Include temperature ranges when applicable
-   - Provide sub-details using bullet points within step instructions
+2. **Title & Description**
+   - Infer a clear, concise recipe title (max 255 characters)
+   - Write a short description if possible (max 1000 characters)
 
-3. **INGREDIENTS MUST HAVE SECTIONS:**
-   - Group ingredients by component (e.g., "Cake Batter", "Ganache", "Topping")
-   - If single-component, use "Main"
-   - Include quantities in metric units
+3. **STEPS MUST BE COMPREHENSIVE AND SECTIONED:**
+    - Write clear, numbered, chronological cooking steps
+    - Group steps into logical sections (for example, "Prepare", "Assemble", "Cook", "Finish", "Garnish")
+    - Each section should have a descriptive title
+    - Each step within a section should be 2-4 sentences with actionable details
+    - Include specific techniques and warnings (e.g., "Don't overmix", "until smooth and lump-free")
+    - Include timing/duration when relevant (stored in "duration_minutes" field)
+    - Include temperature ranges when applicable
+    - Provide sub-details using bullet points within step instructions
 
-4. **JSON OUTPUT STRUCTURE:**
-   Your MUST return ONLY a valid JSON object with this EXACT structure:
+4. **INGREDIENTS MUST HAVE SECTIONS:**
+    - Extract ALL ingredients mentioned, even if quantities are unclear
+    - Normalize ingredient names (Keep only the core ingredient name, remove adjectives and preparation details)
+    - Group ingredients by component, that will have the same name as the steps (for example, "Prepare", "Assemble", "Cook", "Finish", "Garnish")
+    - If single-component, use "Main"
+    - Include quantities in metric units
+    - Always put the main ingredient first in the ingredient name (e.g., olive oil should be oil olive, white wignegar should be vinegar white wine, etc.)
 
-5 **CUISINE TYPE:**
-   For video-based recipes converted from online sources, ALWAYS use cuisine_type: "Homemade"
+5. **Metadata**
+    - servings or portions: number of servings (or null)
+    - difficulty: "Very Easy", "Easy", "Medium", "Hard", "Very Hard"
+    - course_type: "Appetizer", "Main Course", "Dessert", "Snack", or "Beverage"
+    - meal_type: "Breakfast", "Lunch", "Dinner", or "Snack"
+    - cuisine_type: e.g., "Italian", "Asian Fusion", etc. (or null), For video-based recipes converted from online sources, ALWAYS use cuisine_type: "Homemade" if the cuisine type is not clearly mentioned.
    Do NOT attempt to guess cuisine type from video title alone.
+
+6. **JSON OUTPUT STRUCTURE:**
+    - Your MUST return ONLY a valid JSON object with this EXACT structure:
 
 {
   "title": "Recipe Name",
   "description": "Brief professional description",
-  "servings": 4,
+  "portions": 4,
   "prep_time": 20,
   "cook_time": 35,
   "total_time": 55,
   "difficulty": "Medium",
   "course_type": "Dessert",
   "meal_type": "Dinner",
-  "cuisine_type": "Western",
+  "cuisine_type": "Italian",
   "ingredients": [
     {
       "name": "ingredient name",
@@ -306,59 +260,74 @@ CRITICAL REQUIREMENTS:
   ],
   "steps": [
     {
-      "section": "Preparations",
+      "section": "Prepare",
       "step_number": 1,
       "instruction": "Preheat your oven to 170–180°C (340–355°F). While preheating, grease an 8-inch round or square cake pan with butter or cooking spray. Line the bottom with baking/parchment paper for easy removal.",
       "duration_minutes": 10,
       "sub_steps": ["Ensure oven temperature reaches target", "Paper should cover entire bottom", "Light dusting of flour on sides helps (optional)"]
     },
     {
-      "section": "Preparations",
+      "section": "Prepare",
       "step_number": 2,
       "instruction": "Lightly dust the sides with flour if you want easier unmolding. Set the pan aside.",
       "duration_minutes": null,
       "sub_steps": []
     },
     {
-      "section": "Cake batter",
+      "section": "Assemble",
       "step_number": 3,
       "instruction": "In a large bowl, whisk together the DRY ingredients: flour, cocoa powder, sugar, salt, baking soda, and baking powder. Mix thoroughly to combine the leavening agents evenly.",
       "duration_minutes": 3,
       "sub_steps": ["Sift dry ingredients if possible to remove lumps", "Ensure baking soda and powder are evenly distributed"]
     },
     {
-      "section": "Cake batter",
+      "section": "Assemble",
       "step_number": 4,
       "instruction": "In a separate bowl or large jug, whisk the WET ingredients: eggs, vanilla extract, white vinegar, neutral oil, and milk until smooth and combined. The vinegar will react with the baking soda to help leaven the cake.",
       "duration_minutes": 3,
       "sub_steps": ["Whisk until eggs are fully incorporated", "Mixture should be homogeneous", "Vinegar activates baking soda"]
     },
     {
-      "section": "Cake batter",
+      "section": "Assemble",
       "step_number": 5,
       "instruction": "Pour the wet mixture into the dry ingredients. Using a spatula or whisk, fold together just until you have a smooth, lump-free batter. AVOID OVERMIXING – overmixing develops gluten and results in a tough cake.",
       "duration_minutes": 2,
       "sub_steps": ["Mix gently with minimum strokes", "Stop when no visible dry streaks remain", "Do NOT beat or whisk vigorously"]
     },
     {
-      "section": "Cake batter",
+      "section": "Assemble",
       "step_number": 6,
       "instruction": "Pour the batter into the prepared pan and tap gently on the counter 2-3 times to release large air bubbles. This helps ensure an even crumb structure.",
       "duration_minutes": 1,
       "sub_steps": ["Tap firmly but not violently", "Surface should appear relatively smooth"]
+    },
+    {
+      "section": "Cook",
+      "step_number": 7,
+      "instruction": "Bake in the preheated oven for 30-35 minutes, or until a toothpick inserted into the center comes out clean. The cake is done when it springs back when lightly touched.",
+      "duration_minutes": 35,
+      "sub_steps": ["Check doneness with toothpick", "Cake should be firm and springy", "Do not overcook – can dry out"]
+    },
+    {
+      "section": "Garnish",
+      "step_number": 8,
+      "instruction": "Once the cake is done baking and cooled, you can garnish it with powdered sugar, fresh berries, or a drizzle of glaze for presentation.",
+      "duration_minutes": 5,
+      "sub_steps": ["Cool completely before garnishing", "Ensure surface is dry for glaze adherence", "Garnish with decorative touches"]
     }
   ]
 }
 
-5. **CRITICAL NOTES:**
-   - Always use CELSIUS for temperatures with Fahrenheit in parentheses
-   - Use in priority the metric units system for all ingredient quantities (g, kg, ml, l) pieces (pc), unless the original recipe explicitly uses, imperial unit in which case you can retain those units.
-   - Never use Fractions in quantities (like 1/2 or 3/4) always use decimals (0.5, 0.75) for clarity and consistency
-   - Steps must be logical, chronological, and detailed
-   - Include warnings, tips, and techniques
-   - Each section should have 2-7 steps with clear progression
-   - Duration should be in minutes (or null if unknown) but it must alway be realistic.
-   - sub_steps should be an array of brief bullet points with extra tips
+7. **VERY IMPORTANT CRITICAL NOTES:**
+    - Always use CELSIUS for temperatures with Fahrenheit in parentheses (if mentionned)
+    - Use in priority the metric units system for all ingredient quantities (g, kg, ml, l) pieces (pc), unless the original recipe only uses imperial units, in which case you can retain those units.
+    - Never use Fractions in quantities (like 1/2 or 3/4) always use decimals (0.5, 0.75) for clarity and consistency
+    - Steps must be logical, chronological, and detailed
+    - Include warnings, tips, and techniques
+    - Each section should have 1-7 steps with clear progression
+    - Duration should be in minutes (or null if unknown) but it must alway be realistic, and complete minutes (not around 2min).
+    - sub_steps should be an array of brief bullet points with extra tips
+    - Do NOT include any text outside the JSON object
 
 OUTPUT: Return ONLY valid JSON. No markdown, no explanations, no backticks.`;
 
@@ -377,15 +346,6 @@ OUTPUT: Return ONLY valid JSON. No markdown, no explanations, no backticks.`;
                 userMessage += `- ${ing.quantity || '?'} ${ing.unit} ${ing.name} (${ing.section})\n`;
             });
         }
-        
-        userMessage += `\n\nCREATE A COMPREHENSIVE, DETAILED RECIPE with:
-- Multiple step sections with clear titles
-- Detailed instructions (2-4 sentences each)
-- Duration estimates for each step
-- Specific techniques and warnings
-- Sub-steps with tips
-- Metric units (grams, ml, celsius)
-- Grouped ingredients by component`;
 
         const response = await axios.post(
             'https://api.groq.com/openai/v1/chat/completions',
@@ -537,7 +497,5 @@ module.exports = {
     analyzeDescriptionContent,
     generateRecipeWithLLM,
     sanitizeRecipe,
-    normalizeUnit,
-    cleanIngredientName,
     extractSections,
 };

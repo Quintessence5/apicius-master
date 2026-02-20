@@ -3,10 +3,7 @@ const router = express.Router();
 const {extractRecipeFromYoutube} = require('../services/youtubeService');
 const {extractRecipeFromTikTok} = require('../services/tikTokService');
 const {saveRecipeFromVideo} = require('../controllers/videoRecipeController');
-const {
-    getConversionHistory,
-    getConversionDetails
-} = require('../controllers/transcriptController');
+const {getConversionHistory, getConversionDetails} = require('../services/conversionLogger');
 
 // Route logging
 router.use((req, res, next) => {

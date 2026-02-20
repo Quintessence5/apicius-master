@@ -103,8 +103,115 @@ const getConversionStats = async (userId = null, daysBack = 7) => {
     }
 };
 
+// __________-------------Get Conversion History with Advanced Filtering-------------__________
+const getConversionHistory = async (req, res) => {
+    try {
+        const { userId, limit = 20, offset = 0, status, source_type, dateFrom, dateTo } = req.query;
+
+        let query = `SELECT * FROM transcript_conversions WHERE 1=1`;
+        const values = [];
+        let paramIndex = 1;
+
+        // User filter
+        if (userId) {
+            query += ` AND user_id = $${paramIndex}`;
+            values.push(parseInt(userId));
+            paramIndex++;
+        }
+
+        // Status filter
+        if (status) {
+            query += ` AND status = $${paramIndex}`;
+            values.push(status);
+            paramIndex++;
+        }
+
+        // Source type filter
+        if (source_type) {
+            query += ` AND source_type = $${paramIndex}`;
+            values.push(source_type);
+            paramIndex++;
+        }
+
+        // Date range filter
+        if (dateFrom) {
+            query += ` AND created_at >= $${paramIndex}`;
+            values.push(new Date(dateFrom));
+            paramIndex++;
+        }
+
+        if (dateTo) {
+            query += ` AND created_at <= $${paramIndex}`;
+            values.push(new Date(dateTo));
+            paramIndex++;
+        }
+
+        query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+        values.push(parseInt(limit), parseInt(offset));
+
+        const result = await pool.query(query, values);
+
+        res.json({
+            success: true,
+            conversions: result.rows,
+            count: result.rows.length,
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching conversion history:", error);
+        res.status(500).json({ 
+            success: false,
+            message: "Server error fetching history",
+            error: error.message 
+        });
+    }
+};
+
+// __________-------------Get Conversion Details by ID-------------__________
+const getConversionDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if (!id || isNaN(id)) {
+            return res.status(400).json({ 
+                success: false,
+                message: "Valid conversion ID is required" 
+            });
+        }
+
+        const result = await pool.query(
+            `SELECT * FROM transcript_conversions WHERE id = $1`,
+            [parseInt(id)]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ 
+                success: false,
+                message: "Conversion not found" 
+            });
+        }
+
+        res.json({
+            success: true,
+            conversion: result.rows[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching conversion details:", error);
+        res.status(500).json({ 
+            success: false,
+            message: "Server error",
+            error: error.message 
+        });
+    }
+};
+
 module.exports = {
     logConversion,
     logConversionError,
-    getConversionStats
+    getConversionStats,
+    getConversionHistory,
+    getConversionDetails
 };

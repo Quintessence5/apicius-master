@@ -3,9 +3,11 @@ const pool = require('../config/db');
 
 const {
     analyzeDescriptionContent,
+    extractIngredientsFromText,
     generateRecipeWithLLM
 } = require('../services/videoToRecipeService');
 const{
+    normalizeIngredients,
     matchIngredientsWithDatabase} = require('../controllers/videoRecipeController');
 const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
@@ -14,9 +16,6 @@ const { logConversion, logConversionError } = require('../services/conversionLog
 // __________-------------Get YouTube Video Thumbnail-------------__________
 const getYouTubeThumbnail = (videoId) => {
     try {
-        // YouTube provides several thumbnail quality options
-        // maxresdefault is highest quality, but not always available
-        // sddefault is usually available for most videos
         const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/sddefault.jpg`;
         return thumbnailUrl;
     } catch (error) {
@@ -345,75 +344,6 @@ const fetchYouTubeComments = async (videoId, maxResults = 100) => {
     }
 };
 
-
-// __________-------------Extract Ingredients with BETTER PARSING-------------__________
-const extractIngredientsFromText = (text) => {
-    const ingredients = [];
-    
-    // Better regex patterns for ingredient detection
-    const patterns = [
-        // Pattern: "123 g ingredient" or "123ml ingredient" 
-        /(\d+(?:\.\d+)?)\s*(g|mg|kg|ml|l|litre|liter|tbsp|tsp|cup|cups|oz|lb|lbs|tablespoon|teaspoon|pinch|dash|handful)\s+([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
-        // Pattern: "1/2 teaspoon baking powder" or "3/4 cup flour"
-        /(\d+\/\d+)\s+(teaspoon|tablespoon|tsp|tbsp|cup|cups|g|ml|oz|lb)\s+([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
-        // Pattern: "2 large eggs" or "1 egg"
-        /(\d+(?:\/\d+)?)\s+(large|small|medium)?\s*([a-zA-Z\s\-\(\)]+?)(?:\n|,|;|$)/gi,
-    ];
-
-    // Split text into lines and process
-    const lines = text.split('\n');
-    const seen = new Set();
-    
-    for (const line of lines) {
-        // Skip empty, header lines, or very long lines
-        if (!line.trim() || line.match(/^[A-Z\s\-]+$/) || line.length > 500) continue;
-        
-        // Skip instruction lines
-        if (/^(mix|bake|heat|cook|fold|whisk|preheat|batter|baking|oven|temperature|°|degrees|step|instruction|direction)/i.test(line.trim())) {
-            continue;
-        }
-
-        // Skip lines without numbers or ingredient keywords
-        if (!line.match(/\d|\(|\)/) && !line.match(/egg|flour|sugar|butter|milk|oil|powder|salt|soda|cream|chocolate|cocoa/i)) {
-            continue;
-        }
-
-        // Apply patterns
-        for (const pattern of patterns) {
-            let match;
-            while ((match = pattern.exec(line)) !== null) {
-                let quantity = match[1];
-                let unit = match[2] || '';
-                let name = match[3]?.trim().toLowerCase() || '';
-
-                // Clean up name
-                name = name
-                    .replace(/\([^)]*\)/g, '')
-                    .replace(/^\s+|\s+$/g, '')
-                    .trim();
-
-                // Skip very short or very long names
-                if (name.length < 2 || name.length > 100) continue;
-
-                // Create unique key
-                const key = `${quantity}-${unit}-${name}`.toLowerCase();
-                if (seen.has(key)) continue;
-                seen.add(key);
-
-                ingredients.push({
-                    quantity: quantity,
-                    unit: unit || null,
-                    name: name,
-                    original: line.trim()
-                });
-                break;
-            }
-        }
-    }
-
-    return ingredients;
-};
-
 // __________-------------Mine Comments for Recipe Data-------------__________
 const mineRecipeFromComments = (commentTexts) => {
     console.log(`\n🔍 Step 2: Analyzing top comments for recipe content...\n`);
@@ -539,50 +469,11 @@ const mineRecipeFromComments = (commentTexts) => {
     };
 };
 
-// __________-------------Normalize Ingredients (Remove Duplicates)-------------__________
-const normalizeIngredients = (ingredients) => {
-    const normalized = new Map();
-
-    for (const ing of ingredients) {
-        const key = ing.name
-            .replace(/^\d+\s*/, '')
-            .replace(/^(a|an|the)\s+/i, '')
-            .trim()
-            .toLowerCase();
-
-        if (key.length < 3) continue;
-
-        if (normalized.has(key)) {
-            const existing = normalized.get(key);
-            if (ing.quantity && !existing.quantity) {
-                existing.quantity = ing.quantity;
-            }
-            if (ing.unit && !existing.unit) {
-                existing.unit = ing.unit;
-            }
-        } else {
-            normalized.set(key, {
-                quantity: ing.quantity,
-                unit: ing.unit,
-                name: ing.name.toLowerCase(),
-                originalName: ing.name
-            });
-        }
-    }
-
-    return Array.from(normalized.values()).map(ing => ({
-        quantity: ing.quantity,
-        unit: ing.unit,
-        name: ing.originalName || ing.name,
-        section: 'Main'
-    }));
-};
 
 module.exports = {
     getYouTubeDescription,
     getYouTubeThumbnail,
     extractRecipeFromYoutube,
     fetchYouTubeComments,
-    mineRecipeFromComments,
-    normalizeIngredients
+    mineRecipeFromComments
 };

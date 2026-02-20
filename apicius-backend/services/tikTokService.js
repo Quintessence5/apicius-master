@@ -3,12 +3,9 @@ const cheerio = require('cheerio');
 
 const pool = require('../config/db');
 
-const { mergeIngredients } = require('../controllers/videoRecipeController');
+const {extractIngredientsFromText, generateRecipeWithLLM} = require('../services/videoToRecipeService');
+const { mergeIngredients, matchIngredientsWithDatabase, } = require('../controllers/videoRecipeController');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
-const {
-    extractIngredientsFromText,
-    generateRecipeWithLLM
-} = require('../services/videoToRecipeService');
 
 // __________-------------Extract TikTok Video ID from various URL formats-------------__________
 const extractTikTokVideoId = (url) => {
@@ -77,7 +74,6 @@ const extractTikTokIngredients = (text) => {
 
         // Look for ingredient pattern
         // Matches: "1 1/2 cups (180g) all-purpose flour"
-        //          "1.5 tbsp salt"
         const ingredientPattern = /^([\d.]+(?:\s*\/\s*\d+)?(?:\s*-\s*[\d.]+)?)\s+([a-zA-Z\s\(\)]+?)(?:\s+(.+?))?(?:\s*\(([^)]*)\))?$/;
         
         const match = line.match(ingredientPattern);

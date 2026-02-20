@@ -1,12 +1,5 @@
 const pool = require('../config/db');
-const {
-    extractIngredientsFromText,
-    analyzeDescriptionContent,
-    generateRecipeWithLLM,
-    normalizeUnit
-} = require('../services/videoToRecipeService');
-const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
-const { logConversion, logConversionError } = require('../services/conversionLogger');
+
 // __________-------------Match ingredients with database-------------__________
 const matchIngredientsWithDatabase = async (ingredients) => {
     try {
@@ -371,8 +364,150 @@ const saveRecipeFromVideo = async (req, res) => {
     }
 };
 
+// Clean ingredient name (remove adjectives and descriptions)
+const cleanIngredientName = (name) => {
+    if (!name) return '';
+    
+    const cleaned = name
+        .toLowerCase()
+        .trim()
+        // Remove common descriptive phrases
+        .replace(/\s*\(.*?\)\s*/g, '') // Remove parentheses content
+        .replace(/\s*\[.*?\]\s*/g, '') // Remove brackets content
+        .replace(/\s+(large|medium|small|fresh|dried|ground|minced|chopped|diced|sliced|grated|melted|room temperature|cold|warm)\s*/gi, '')
+        .replace(/\s+(unsweetened|sweetened|all-purpose|whole wheat|neutral|cooking|light|extra virgin)\s*/gi, '')
+        .replace(/\s+about\s*/gi, '')
+        .replace(/\s+or\s+.+$/gi, '') // Remove "or alternative" suggestions
+        .replace(/\s+–.+$/gi, '') // Remove dashes and descriptions
+        .replace(/\s+[–\-].+$/gi, '')
+        .trim();
+    
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+};
+
+
+// __________-------------Normalize Ingredients (Remove Duplicates)-------------__________
+const normalizeIngredients = (ingredients) => {
+    const normalized = new Map();
+
+    for (const ing of ingredients) {
+        const key = ing.name
+            .replace(/^\d+\s*/, '')
+            .replace(/^(a|an|the)\s+/i, '')
+            .trim()
+            .toLowerCase();
+
+        if (key.length < 3) continue;
+
+        if (normalized.has(key)) {
+            const existing = normalized.get(key);
+            if (ing.quantity && !existing.quantity) {
+                existing.quantity = ing.quantity;
+            }
+            if (ing.unit && !existing.unit) {
+                existing.unit = ing.unit;
+            }
+        } else {
+            normalized.set(key, {
+                quantity: ing.quantity,
+                unit: ing.unit,
+                name: ing.name.toLowerCase(),
+                originalName: ing.name
+            });
+        }
+    }
+
+    return Array.from(normalized.values()).map(ing => ({
+        quantity: ing.quantity,
+        unit: ing.unit,
+        name: ing.originalName || ing.name,
+        section: 'Main'
+    }));
+};
+
+// Normalize unit to standard abbreviation
+const normalizeUnit = (unit) => {
+    if (!unit) return null;
+    
+    const cleanUnit = unit.toLowerCase().trim();
+    
+    // Direct match
+    if (VALID_UNITS[cleanUnit]) return cleanUnit;
+    
+    // Common aliases
+    const aliases = {
+        'cups': 'cup',
+        'gram': 'g',
+        'grams': 'g',
+        'kilogram': 'kg',
+        'kilograms': 'kg',
+        'ounce': 'oz',
+        'ounces': 'oz',
+        'pound': 'lb',
+        'pounds': 'lb',
+        'milliliter': 'ml',
+        'milliliters': 'ml',
+        'liter': 'l',
+        'liters': 'l',
+        'teaspoon': 'tsp',
+        'teaspoons': 'tsp',
+        'tablespoon': 'tbsp',
+        'tablespoons': 'tbsp',
+        'fluidounce': 'fl oz',
+        'fluidounces': 'fl oz',
+        'pint': 'pt',
+        'pints': 'pt',
+        'quart': 'qt',
+        'quarts': 'qt',
+        'gallon': 'gal',
+        'gallons': 'gal',
+        'piece': 'pc',
+        'pieces': 'pc',
+        'dozen': 'doz',
+        'mg': 'mg'
+    };
+    
+    if (aliases[cleanUnit]) return aliases[cleanUnit];
+    
+    return null;
+};
+
+// Standardized units mapping
+const VALID_UNITS = {
+    // Weight
+    'g': { name: 'Gram', abbreviation: 'g', type: 'weight' },
+    'kg': { name: 'Kilogram', abbreviation: 'kg', type: 'weight' },
+    'mg': { name: 'Milligram', abbreviation: 'mg', type: 'weight' },
+    'oz': { name: 'Ounce', abbreviation: 'oz', type: 'weight' },
+    'lb': { name: 'Pound', abbreviation: 'lb', type: 'weight' },
+    't': { name: 'Ton', abbreviation: 't', type: 'weight' },
+    
+    // Volume
+    'ml': { name: 'Milliliter', abbreviation: 'ml', type: 'volume' },
+    'l': { name: 'Liter', abbreviation: 'l', type: 'volume' },
+    'tsp': { name: 'Teaspoon', abbreviation: 'tsp', type: 'volume' },
+    'tbsp': { name: 'Tablespoon', abbreviation: 'tbsp', type: 'volume' },
+    'fl oz': { name: 'Fluid Ounce', abbreviation: 'fl oz', type: 'volume' },
+    'pt': { name: 'Pint', abbreviation: 'pt', type: 'volume' },
+    'qt': { name: 'Quart', abbreviation: 'qt', type: 'volume' },
+    'gal': { name: 'Gallon', abbreviation: 'gal', type: 'volume' },
+    
+    // Quantity
+    'pc': { name: 'Piece', abbreviation: 'pc', type: 'quantity' },
+    'doz': { name: 'Dozen', abbreviation: 'doz', type: 'quantity' },
+    'pinch': { name: 'Pinch', abbreviation: 'pinch', type: 'quantity' },
+    'dash': { name: 'Dash', abbreviation: 'dash', type: 'quantity' },
+    'cup': { name: 'Cup', abbreviation: 'cup', type: 'quantity' }
+};
+
+
+
 module.exports = {
     saveRecipeFromVideo,
     matchIngredientsWithDatabase,
-    mergeIngredients
+    mergeIngredients,
+    cleanIngredientName,
+    normalizeUnit,
+    normalizeIngredients,
+    VALID_UNITS
 };
