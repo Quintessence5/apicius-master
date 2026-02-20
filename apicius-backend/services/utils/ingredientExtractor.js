@@ -9,6 +9,7 @@ const extractIngredientsFromText = (text) => {
     
     let currentSection = 'Main';
     let inIngredientsSection = false;
+    let foundIngredientsHeader = false;
     
     for (const line of lines) {
         const trimmed = line.trim();
@@ -17,11 +18,12 @@ const extractIngredientsFromText = (text) => {
         if (trimmed.length === 0 || trimmed.length > 500) continue;
         
         // Skip metadata lines (serves, yields, etc.)
-        if (/^(serves?|servings?|yields?|makes?)[\s\d]*/i.test(trimmed)) continue;
+        if (/^(serves?|servings?|yields?|portions?|makes?)[\s\d]*/i.test(trimmed)) continue;
         
         // Detect ingredients section header
         if (/^(ingredients?\s*:?\s*)$/i.test(trimmed)) {
             inIngredientsSection = true;
+            foundIngredientsHeader = true;
             currentSection = trimmed.replace(/s?:?\s*$/i, '').trim();
             continue;
         }
@@ -36,21 +38,33 @@ const extractIngredientsFromText = (text) => {
                 continue;
             }
         }
+
+
         
         // Stop at instruction keywords (set flag but continue for potential later sections)
-        if (/^(instructions|directions|steps|method|procedure|pan\s+size|mix|bake|heat|cook|fold|whisk|preheat|batter|baking|oven|temperature|°|degrees|step|instruction|direction)/i.test(trimmed)) {
+        const isInstructionLine =  /^(instructions|directions|steps|method|procedure|pan\s+size|mix|bake|heat|cook|fold|whisk|preheat|batter|baking|oven|temperature|°|degrees|step|instruction|direction)/i.test(trimmed) 
+        if (isInstructionLine) {
             inIngredientsSection = false;
             continue;
         }
         
+        
         // Skip pure text lines without numbers, bullets, or ingredient keywords
-        if (/^[a-z\s]*$/i.test(trimmed) && !trimmed.match(/\d/) && !trimmed.match(/[-•✓✔]/) && !trimmed.match(/egg|flour|sugar|butter|milk|oil|powder|salt|soda|cream|chocolate|cocoa/i)) {
+        if (/^[a-z\s]*$/i.test(trimmed) && !trimmed.match(/\d/) && !trimmed.match(/[-•✓✔]/) && !trimmed.match(/egg|flour|sugar|butter|milk|oil|powder|salt|soda|cream|chocolate|cocoa|baking|vanilla|lemon|cake|batter|frosting|ganache/i)) {
             continue;
         }
         
         // Skip header-like lines (all caps)
         if (/^[A-Z\s\-]+$/.test(trimmed)) continue;
         
+         if (!foundIngredientsHeader && !isInstructionLine) {
+            inIngredientsSection = true;
+        }
+        
+        if (!inIngredientsSection && foundIngredientsHeader) {
+            continue;
+        }
+
         // Expanded patterns support for mixed fractions (e.g., 1 1/2)
         const patterns = [
             // Pattern 0: "Ingredient name - 1 cup (130g)" or "Ingredient - 1cup"
