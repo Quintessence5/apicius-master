@@ -1,12 +1,13 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 
+const pool = require('../config/db');
+
+const { mergeIngredients } = require('../controllers/videoRecipeController');
+const { logConversion, logConversionError } = require('../services/conversionLogger');
 const {
-    getYouTubeDescription,
     extractIngredientsFromText,
-    analyzeDescriptionContent,
-    generateRecipeWithLLM,
-    normalizeUnit
+    generateRecipeWithLLM
 } = require('../services/videoToRecipeService');
 
 // __________-------------Extract TikTok Video ID from various URL formats-------------__________

@@ -1,11 +1,12 @@
 const axios = require('axios');
+const pool = require('../config/db');
+
 const {
-    extractIngredientsFromText,
     analyzeDescriptionContent,
     generateRecipeWithLLM
 } = require('../services/videoToRecipeService');
-const{saveRecipeFromVideo,
-    matchIngredientsWithDatabase} = require('../controller/videoRecipeController');
+const{
+    matchIngredientsWithDatabase} = require('../controllers/videoRecipeController');
 const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
@@ -162,7 +163,6 @@ const extractRecipeFromYoutube = async (req, res) => {
         if (extractedIngredients.length < 4 && process.env.YOUTUBE_API_KEY) {
             try {
                 // Fetch comments first
-                const { fetchYouTubeComments } = require('../services/youtubeCommentsService');
                 const allComments = await fetchYouTubeComments(videoId);
 
                 if (allComments.length > 0) {
