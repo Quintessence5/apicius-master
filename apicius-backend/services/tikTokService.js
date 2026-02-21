@@ -3,9 +3,8 @@ const cheerio = require('cheerio');
 
 const pool = require('../config/db');
 
-const {generateRecipeWithLLM} = require('../services/videoToRecipeService');
+const {extractIngredientsFromText, generateRecipeWithLLM} = require('../services/videoToRecipeService');
 const { mergeIngredients, matchIngredientsWithDatabase, } = require('../controllers/videoRecipeController');
-const { extractIngredientsFromText } = require('../services/utils/ingredientExtractor');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
 // __________-------------Extract TikTok Video ID from various URL formats-------------__________
@@ -652,7 +651,7 @@ const extractRecipeFromTikTok = async (req, res) => {
         let extractedIngredients;
         
         // Use TikTok-specific ingredient extractor
-        const { extractIngredientsFromText } = require('../services/utils/ingredientExtractor');
+        const { extractIngredientsFromText } = require('../services/videoToRecipeService');
         extractedIngredients = extractIngredientsFromText(tikTokMetadata.description);
         
         console.log(`✅ Extracted ${extractedIngredients.length} ingredients from description`);

@@ -5,13 +5,11 @@ const {
     analyzeDescriptionContent,
     generateRecipeWithLLM
 } = require('../services/videoToRecipeService');
+const {extractIngredientsFromText} = require('../services/utils/ingredientExtractor');
 const{
     normalizeIngredients,
-    normalizeIngredientNameForMatching,
-    matchIngredientsWithDatabase,
-    mergeIngredients } = require('../controllers/videoRecipeController');
+    matchIngredientsWithDatabase, mergeIngredients} = require('../controllers/videoRecipeController');
 const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
-const { extractIngredientsFromText } = require('../services/utils/ingredientExtractor');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
 
@@ -161,7 +159,7 @@ const extractRecipeFromYoutube = async (req, res) => {
         console.log("\n📼 Step 5: Parsing Comments...");
         let topCommentsText = ""; // Store top comment texts for LLM
         
-        if (extractedIngredients.length < 3 && process.env.YOUTUBE_API_KEY) {
+        if (extractedIngredients.length < 4 && process.env.YOUTUBE_API_KEY) {
             try {
                 // Fetch comments first
                 const allComments = await fetchYouTubeComments(videoId);
@@ -173,11 +171,10 @@ const extractRecipeFromYoutube = async (req, res) => {
                     if (minedData.found && minedData.ingredients.length > 0) {
                         console.log(`✅ Mined ${minedData.ingredients.length} ingredients from ${minedData.sourceCommentCount} comments`);
                         console.log(`   Quality Score: ${minedData.qualityScore}/100`);
-                        console.log(`✅ Mined ${minedData.ingredients.length} ingredients from consensus recipe (Quality: ${minedData.qualityScore}/100)`);
                         
                         // Store top comments for LLM reference
                         if (minedData.topComments && minedData.topComments.length > 0) {
-                            topCommentsText = minedData.topComments[0];
+                            topCommentsText = minedData.topComments.slice(0, 5).join('\n\n---\n\n');
                         }
                         
                         // Merge mined ingredients with description ingredients
@@ -190,7 +187,7 @@ const extractRecipeFromYoutube = async (req, res) => {
             } catch (miningError) {
                 console.warn("⚠️ Comment mining failed (continuing with description only):", miningError.message);
             }
-        } else if (extractedIngredients.length >= 3) {
+        } else if (extractedIngredients.length >= 4) {
             console.log("✅ Sufficient ingredients in description, skipping comment mining");
         } else {
             console.warn("⚠️ YOUTUBE_API_KEY not configured");
@@ -308,7 +305,7 @@ const extractRecipeFromYoutube = async (req, res) => {
 const fetchYouTubeComments = async (videoId, maxResults = 100) => {
     try {
         console.log(`\n⛏️ ========== MINING YOUTUBE COMMENTS FOR RECIPE DATA ==========\n`);
-        console.log(`⛏️ Step 5.1: Fetching up to ${maxResults} comments...`);
+        console.log(`⛏️ Step 1: Fetching up to ${maxResults} comments...`);
 
        if (!process.env.YOUTUBE_API_KEY) {
             throw new Error("YOUTUBE_API_KEY not configured");
@@ -349,7 +346,7 @@ const fetchYouTubeComments = async (videoId, maxResults = 100) => {
 
 // __________-------------Mine Comments for Recipe Data-------------__________
 const mineRecipeFromComments = (commentTexts) => {
-    console.log(`\n🔍 Step 5.2: Analyzing top comments for recipe content...\n`);
+    console.log(`\n🔍 Step 2: Analyzing top comments for recipe content...\n`);
     
     if (!commentTexts || commentTexts.length === 0) {
         console.warn("⚠️ No comments to analyze");
@@ -362,7 +359,7 @@ const mineRecipeFromComments = (commentTexts) => {
         };
     }
 
-    // STEP 5.1: Score comments based on recipe relevance
+    // STEP 1: Score comments based on recipe relevance
     console.log(`📊 Scoring ${Math.min(commentTexts.length, 20)} comments for recipe relevance...`);
     
     const scoredComments = commentTexts.slice(0, 20).map((comment, index) => {
@@ -387,11 +384,7 @@ const mineRecipeFromComments = (commentTexts) => {
         }
         
         // Has cooking instructions
-        if (comment.match(/mix|heat|cook|oven|temperature|preheat|fold|whisk/i)) {
-            score += 15;
-        }
-
-        if (comment.match(/bake|rest|cook|degrees|temperature|farenheit|cut|slice/i)) {
+        if (comment.match(/bake|mix|heat|cook|oven|temperature|preheat|fold|whisk/i)) {
             score += 10;
         }
         
@@ -410,7 +403,7 @@ const mineRecipeFromComments = (commentTexts) => {
         };
     });
 
-    // STEP 5.2: Get top 5-10 comments
+    // STEP 2: Get top 5-10 comments
     const topScored = scoredComments
         .sort((a, b) => b.score - a.score)
         .slice(0, 10);
@@ -420,13 +413,12 @@ const mineRecipeFromComments = (commentTexts) => {
         console.log(`   - Comment ${c.index + 1}: Score ${c.score}`);
     });
 
-    // STEP 5.3: Extract ingredients from top comments
+    // STEP 3: Extract ingredients from top comments
     console.log(`\n🥘 Extracting ingredients from top comments...`);
     
     let allIngredients = [];
     let commentSources = [];
-    
-    const commentRecipes = [];
+
     for (const scored of topScored) {
         if (scored.score < 5) continue;
 
@@ -434,17 +426,12 @@ const mineRecipeFromComments = (commentTexts) => {
         
         if (extracted.length > 0) {
             console.log(`   - Comment ${scored.index + 1}: Found ${extracted.length} ingredients`);
-            commentRecipes.push({
-                commentIndex: scored.index,
-                score: scored.score,
-                text: scored.text,
-                ingredients: extracted,
-                ingredientCount: extracted.length
-            });
+            allIngredients = allIngredients.concat(extracted);
+            commentSources.push(scored.text);
         }
     }
 
-    if (commentRecipes.length === 0) {
+    if (allIngredients.length === 0) {
         console.warn("⚠️ No ingredients extracted from comments");
         return {
             found: false,
@@ -455,73 +442,18 @@ const mineRecipeFromComments = (commentTexts) => {
         };
     }
 
-    // STEP 5.4: Normalize and deduplicate
-    console.log(`\n🔍 Step 5.3: Finding consensus recipe by comparing ${commentRecipes.length} recipes...`);
+    // STEP 4: Normalize and deduplicate
+    console.log(`\n🔄 Normalizing ${allIngredients.length} ingredient entries...`);
     
-    let bestRecipe = null;
-    let bestScore = 0;
-
-    // Compare each recipe with others to find consensus
-    for (let i = 0; i < commentRecipes.length; i++) {
-        let consensusScore = 0;
-        const recipe1 = commentRecipes[i];
-        const recipe1Normalized = new Set(
-            recipe1.ingredients.map(ing => normalizeIngredientNameForMatching(ing.name))
-        );
-
-        // Count how many other recipes have matching ingredients
-        for (let j = 0; j < commentRecipes.length; j++) {
-            if (i === j) continue;
-            
-            const recipe2 = commentRecipes[j];
-            const recipe2Normalized = recipe2.ingredients.map(ing => 
-                normalizeIngredientNameForMatching(ing.name)
-            );
-
-            // Count matching ingredients
-            const matches = recipe2Normalized.filter(ing => recipe1Normalized.has(ing)).length;
-            
-            // Higher score if many ingredients match
-            if (matches >= 5) {
-                consensusScore += matches * 10;
-                consensusScore += recipe2.score * 0.5; // Also consider comment score
-            }
-        }
-
-        // Bonus for longer recipes (more ingredients)
-        consensusScore += recipe1.ingredientCount * 2;
-        
-        // Bonus for high comment score
-        consensusScore += recipe1.score * 2;
-
-        console.log(`   Comment ${recipe1.commentIndex + 1}: Consensus score ${consensusScore}`);
-
-        if (consensusScore > bestScore) {
-            bestScore = consensusScore;
-            bestRecipe = recipe1;
-        }
-    }
-
-    if (!bestRecipe) {
-        // Fallback: take the recipe from highest-scored comment
-        console.log(`   ⚠️ No consensus found, using highest-scored comment`);
-        commentRecipes.sort((a, b) => b.score - a.score);
-        bestRecipe = commentRecipes[0];
-    }
-
-    // STEP 5.5: Calculate quality score
-    console.log(`\n🔄 Normalizing ${bestRecipe.ingredients.length} ingredients from consensus recipe...`);
-    
-    const normalized = normalizeIngredients(bestRecipe.ingredients);
+    const normalized = normalizeIngredients(allIngredients);
     
     console.log(`✅ Final count: ${normalized.length} unique ingredients`);
-    console.log(`📝 Best recipe from Comment ${bestRecipe.commentIndex + 1} (Consensus Score: ${bestScore})`);
 
-    // STEP 6: Calculate quality score
+    // STEP 5: Calculate quality score
     const qualityScore = Math.min(100, Math.round(
         (normalized.length / 25) * 40 +          // Ingredient count (0-40)
-        (bestRecipe.score / 100) * 30 +          // Comment quality (0-30)
-        (bestScore / 500) * 30                   // Consensus strength (0-30)
+        (topScored.length / 10) * 30 +           // Comment count (0-30)
+        (topScored.reduce((a, b) => a + b.score, 0) / topScored.length / 2) // Avg score (0-30)
     ));
 
     console.log(`📊 Mining quality score: ${qualityScore}/100\n`);
@@ -529,12 +461,11 @@ const mineRecipeFromComments = (commentTexts) => {
     return {
         found: true,
         ingredientCount: normalized.length,
-        sourceCommentCount: 1,
+        sourceCommentCount: commentSources.length,
         commentQuality: qualityScore,
         ingredients: normalized,
-        topComments: [bestRecipe.text], // Only return the best recipe comment
-        qualityScore: qualityScore,
-        consensusScore: bestScore
+        topComments: commentSources, // Array of full comment texts
+        qualityScore: qualityScore
     };
 };
 
