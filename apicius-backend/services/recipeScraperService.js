@@ -2,12 +2,6 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { generateRecipeWithLLM } = require('./videoToRecipeService');
 
-/**
- * Recipe Scraper Service
- * Extracts structured recipe data from various recipe websites
- * Supports multilingual sources (FR, EN, DE, ES, etc.)
- */
-
 // ==================== DOMAIN REGISTRY ====================
 // Map domains to their extraction handlers
 const DOMAIN_HANDLERS = {
@@ -16,15 +10,11 @@ const DOMAIN_HANDLERS = {
   'allrecipes.com': extractAllRecipesRecipe,
   'seriouseats.com': extractSeriousEatsRecipe,
   'pinchofyum.com': extractPinchOfYumRecipe,
-  'default': extractGenericRecipe, // Fallback for unknown sites
+  'default': extractGenericRecipe,
 };
 
 // ==================== UTILITY FUNCTIONS ====================
 
-/**
- * Normalize unit to a standard format
- * Handles various languages and abbreviations
- */
 const normalizeUnit = (unit) => {
   if (!unit) return null;
   

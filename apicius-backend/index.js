@@ -21,8 +21,7 @@ const countryRoutes = require('./routes/countryRoutes');
 const seasonalityRoutes = require('./routes/seasonalityRoutes');
 const userInteractionRoutes = require('./routes/userInteractionRoutes');
 const cartRoutes = require('./routes/cartRoutes');
-const recipeScraperRoutes = require('./routes/recipeScraperRoutes');
-
+const recipeScraperRoutes = require('./routes/transcriptRoutes');
 
 // Middleware setup
 app.use(cors({
