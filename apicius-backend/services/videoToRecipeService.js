@@ -214,7 +214,8 @@ CRITICAL REQUIREMENTS:
     - Write clear, numbered, chronological cooking steps
     - Group steps into logical sections (for example, "Prepare", "Assemble", "Cook", "Finish", "Garnish")
     - Each section should have a descriptive title
-    - Each step within a section should be 2-4 sentences with actionable details
+    - Each step within a section should be 2-3 sentences with actionable details.
+    - If the description given is more than 2 sentences divide it more to keep each step short and actionnable.
     - Include specific techniques and warnings (e.g., "Don't overmix", "until smooth and lump-free")
     - Include timing/duration when relevant (stored in "duration_minutes" field)
     - Include temperature ranges when applicable

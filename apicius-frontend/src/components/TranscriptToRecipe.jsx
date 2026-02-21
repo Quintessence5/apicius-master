@@ -16,12 +16,13 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     const [success, setSuccess] = useState('');
     const [generatedRecipe, setGeneratedRecipe] = useState(null);
     const [ingredientMatches, setIngredientMatches] = useState(null);
-    const [step, setStep] = useState('input'); // input, extracting, converting, ready
+    const [step, setStep] = useState('input'); 
     const [progress, setProgress] = useState(0);
     const [statusMessage, setStatusMessage] = useState('');
     const [conversionId, setConversionId] = useState(null);
     const [videoTitle, setVideoTitle] = useState('');
     const [videoThumbnail, setVideoThumbnail] = useState('');
+    const [recipeUrl, setRecipeUrl] = useState(''); 
     
     const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5010/api';
 
@@ -178,6 +179,78 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
         }
     };
 
+    // __________-------------Extract Recipe from Website URL-------------__________
+const handleExtractFromURL = async (e) => {
+    e.preventDefault();
+    
+    if (!recipeUrl.trim()) {
+        setError('❌ Please enter a valid recipe URL');
+        return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    setProgress(0);
+    setStep('extracting');
+
+    try {
+        console.log(`🌐 Extracting recipe from URL: ${recipeUrl}`);
+        setStatusMessage('📡 Connecting to website...');
+        setProgress(20);
+
+        const response = await axios.post(`${API_BASE_URL}/scraper/extract`, {
+            url: recipeUrl.trim(),
+        });
+
+        setProgress(60);
+        setStatusMessage('🔄 Processing recipe data...');
+
+        if (!response.data.success) {
+            setError(`❌ ${response.data.error || 'Failed to extract recipe from URL'}`);
+            setStep('input');
+            setLoading(false);
+            return;
+        }
+
+        const recipe = response.data.recipe;
+        
+        setProgress(90);
+        setStatusMessage('✨ Recipe extracted successfully!');
+
+        // Store the extracted recipe
+        setGeneratedRecipe(recipe);
+        
+        // Create basic ingredient matches for URL-sourced recipes
+        const basicMatches = {
+            all: recipe.ingredients.map(ing => ({
+                ...ing,
+                dbId: null,
+                found: false,
+                icon: '⚠️'
+            })),
+            matched: [],
+            unmatched: recipe.ingredients,
+            matchPercentage: 0
+        };
+        setIngredientMatches(basicMatches);
+        setConversionId(null);
+        setVideoTitle(`From: ${new URL(recipeUrl).hostname}`);
+        
+        setSuccess(`✅ Successfully extracted "${recipe.title}"`);
+        setProgress(100);
+        setStep('ready');
+        
+    } catch (err) {
+        console.error('❌ Error extracting recipe from URL:', err);
+        const errorMsg = err.response?.data?.error || err.message || 'Failed to extract recipe from URL';
+        setError(`❌ ${errorMsg}`);
+        setStep('input');
+    } finally {
+        setLoading(false);
+    }
+};
+
     // __________-------------Convert Manual Transcript to Recipe-------------__________
     const handleManualTranscriptSubmit = async (e) => {
     e.preventDefault();
@@ -273,6 +346,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     const handleReset = () => {
         setActiveTab('youtube');
         setVideoUrl('');
+        setRecipeUrl(''); 
         setManualTranscript('');
         setTranscript('');
         setError('');
@@ -297,6 +371,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                         { id: 'youtube', label: '▶️ YouTube', icon: '▶️' },
                         { id: 'tiktok', label: '🎵 TikTok', icon: '🎵' },
                         { id: 'instagram', label: '📷 Instagram', icon: '📷' },
+                        { id: 'url', label: '🔗 Website', icon: '🔗' },
                         { id: 'manual', label: '✍️ Manual', icon: '✍️' }
                     ].map(tab => (
                         <button
@@ -349,6 +424,25 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
                     <p className="tab-info">💡 Tip: If automatic extraction fails, you can paste the transcript manually below</p>
                 </form>
             )}
+
+            {/* Website URL Input */}
+                {activeTab === 'url' && step === 'input' && (
+                    <form onSubmit={handleExtractFromURL} className="transcript-form">
+                        <input
+                            type="url"
+                            placeholder="https://www.750g.com/recettes/... or any recipe website URL"
+                            value={recipeUrl}
+                            onChange={(e) => setRecipeUrl(e.target.value)}
+                            required
+                            disabled={loading}
+                            className="transcript-input"
+                        />
+                        <button type="submit" disabled={loading} className="transcript-submit-btn">
+                            {loading ? '🔄 Extracting...' : '🔗 Extract Recipe'}
+                        </button>
+                        <p className="tab-info">💡 Supports: 750g.com, Marmiton.org, AllRecipes.com, SeriousEats.com, PinchOfYum.com, and more!</p>
+                    </form>
+                )}
 
             {/* Instagram/Manual Input */}
             {(activeTab === 'instagram' || activeTab === 'manual') && step === 'input' && (
