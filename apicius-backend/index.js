@@ -21,7 +21,7 @@ const countryRoutes = require('./routes/countryRoutes');
 const seasonalityRoutes = require('./routes/seasonalityRoutes');
 const userInteractionRoutes = require('./routes/userInteractionRoutes');
 const cartRoutes = require('./routes/cartRoutes');
-const recipeScraperRoutes = require('./routes/transcriptRoutes');
+const extractRecipeFromWebsiteHandler = require('./routes/transcriptRoutes');
 
 // Middleware setup
 app.use(cors({
@@ -51,7 +51,7 @@ app.use('/api/seasonality', seasonalityRoutes);
 app.use('/api/interactions', userInteractionRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/transcripts', transcriptRoutes);
-app.use('/api/scraper', recipeScraperRoutes);
+app.use('/api/extract-recipe-website', extractRecipeFromWebsiteHandler);
 
 
 // Serve uploaded images

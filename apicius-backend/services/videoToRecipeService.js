@@ -196,6 +196,7 @@ INPUT CONTEXT:
 - You receive an automatic transcription of a short cooking video (may have repeated phrases, filler words, or missing words)
 - You may also receive: video title, channel name, video description
 - Your goal: Extract ingredients, steps, timing, temperature, and other cooking parameters
+- If the recipe is not in english, make sure you translate it to english before processing it, and set the "transcript_language" field to the correct language code (e.g., "fr" for French, "es" for Spanish, etc.)
 
 CRITICAL REQUIREMENTS:
 
@@ -215,7 +216,7 @@ CRITICAL REQUIREMENTS:
     - Group steps into logical sections (for example, "Prepare", "Assemble", "Cook", "Finish", "Garnish")
     - Each section should have a descriptive title
     - Each step within a section should be 2-3 sentences with actionable details.
-    - If the description given is more than 2 sentences divide it more to keep each step short and actionnable.
+    - If the description given is more than 2 sentences divide it more to keep each step short and actionna
     - Include specific techniques and warnings (e.g., "Don't overmix", "until smooth and lump-free")
     - Include timing/duration when relevant (stored in "duration_minutes" field)
     - Include temperature ranges when applicable
@@ -404,7 +405,7 @@ const sanitizeRecipe = (data) => {
         return {
             title: data.title ? String(data.title).substring(0, 255) : "Untitled Recipe",
             description: data.description ? String(data.description).substring(0, 1000) : null,
-            servings: data.servings ? parseInt(data.servings) || null : null,
+            servings: data.servings ? parseInt(data.servings) || null : (data.portions ? parseInt(data.portions) || null : null),
             prep_time: data.prep_time ? parseInt(data.prep_time) || null : null,
             cook_time: data.cook_time ? parseInt(data.cook_time) || null : null,
             total_time: data.total_time ? parseInt(data.total_time) || null : null,
@@ -492,6 +493,58 @@ const extractSections = (text) => {
     return sections;
 };
 
+// Translate recipe in english
+const translateRecipeToEnglish = async (recipe) => {
+    try {
+        if (!process.env.GROQ_API_KEY) {
+            throw new Error("GROQ_API_KEY not set in environment");
+        }
+
+        const systemPrompt = `You are a professional translator specializing in recipes. 
+        You will receive a recipe JSON object. Your task is to translate any non-English 
+        text fields to English. Preserve all numbers, quantities, units, and the JSON structure exactly. 
+        Only translate the following fields if they contain text: title, description, ingredient names, 
+        step instructions. For ingredient names, translate the core ingredient (e.g., "beurre" -> "butter") 
+        but keep any preparation notes like "melted" if they are part of the name. For step instructions, 
+        translate the full text naturally. If the recipe is already in English, return it unchanged. 
+        Output ONLY the translated JSON object, no additional text.`;
+
+        const userMessage = `Translate this recipe to English if needed:\n${JSON.stringify(recipe, null, 2)}`;
+
+        const response = await axios.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userMessage }
+                ],
+                temperature: 0.3,
+                max_tokens: 4000,
+                response_format: { type: "json_object" }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 30000
+            }
+        );
+
+        if (!response.data.choices?.[0]?.message?.content) {
+            throw new Error("Invalid translation response");
+        }
+
+        const translatedRecipe = JSON.parse(response.data.choices[0].message.content);
+        return translatedRecipe;
+    } catch (error) {
+        console.error("❌ Translation error:", error.message);
+        // If translation fails, return original recipe (don't block)
+        return recipe;
+    }
+};
+
 
 module.exports = {
     extractIngredientsFromText,
@@ -499,4 +552,5 @@ module.exports = {
     generateRecipeWithLLM,
     sanitizeRecipe,
     extractSections,
+    translateRecipeToEnglish
 };

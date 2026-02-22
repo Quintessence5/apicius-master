@@ -3,7 +3,8 @@ const cheerio = require('cheerio');
 
 const pool = require('../config/db');
 
-const {extractIngredientsFromText, generateRecipeWithLLM} = require('../services/videoToRecipeService');
+const {extractIngredientsFromText} = require('../services/utils/ingredientExtractor');
+const {generateRecipeWithLLM} = require('../services/videoToRecipeService');
 const { mergeIngredients, matchIngredientsWithDatabase, } = require('../controllers/videoRecipeController');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 
@@ -277,7 +278,6 @@ const validateTikTokUrl = (url) => {
     };
 };
 
-// __________-------------Extract Recipe from Creator's Website-------------__________
 // __________-------------Extract Recipe from Creator's Website-------------__________
 const extractRecipeFromCreatorWebsite = async (description, creatorName) => {
     try {
