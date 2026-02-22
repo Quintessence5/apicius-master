@@ -194,7 +194,7 @@ const handleExtractWebsite = async (e) => {
       url: websiteUrl,
     });
 
-    const { recipe, conversionId, ingredientMatches, sourceTitle } = response.data;
+    const { recipe, conversionId, ingredientMatches, sourceTitle, videoThumbnail  } = response.data;
 
     // Navigate to the same review page as YouTube
     navigate('/recipe-review', {
@@ -203,7 +203,7 @@ const handleExtractWebsite = async (e) => {
         conversionId,
         ingredientMatches,
         videoTitle: sourceTitle,        // map to the field the review page expects
-        videoThumbnail: null,           // no thumbnail for websites
+        videoThumbnail,           // no thumbnail for websites
       },
     });
   } catch (err) {
