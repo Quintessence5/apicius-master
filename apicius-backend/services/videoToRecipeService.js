@@ -180,7 +180,7 @@ const extractIngredientsFromText = (text) => {
 };
 
 // __________-------------Generate complete recipe with LLM (with unit constraints)-------------__________
-const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients, topCommentsText = "") => {
+const generateRecipeWithLLM = async (description, videoTitle, channelTitle, extractedIngredients, topCommentsText, supplementalText = "") => {
     try {
         console.log("📤 Sending all data to Groq for recipe generation...");
         
@@ -341,6 +341,13 @@ OUTPUT: Return ONLY valid JSON. No markdown, no explanations, no backticks.`;
             console.log(`📝 Including top YouTube comments as recipe reference (${topCommentsText.length} chars)`);
             userMessage += `⭐ TOP YOUTUBE COMMENTS WITH RECIPE DETAILS:\n${topCommentsText}\n\n`;
         }
+
+        // Include supplemental text if available
+        if (supplementalText && supplementalText.trim().length > 50) {
+        console.log(`🎤 Including audio transcript as supplemental text (${supplementalText.length} chars)`);
+        userMessage += `🎤 SUPPLEMENTAL TEXT FROM VIDEO AUDIO TRANSCRIPT:\n${supplementalText}\n\n`;
+        }
+
 
         if (extractedIngredients && extractedIngredients.length > 0) {
             userMessage += `Pre-extracted ingredients (already cleaned and standardized):\n`;
