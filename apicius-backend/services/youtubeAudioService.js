@@ -1,6 +1,5 @@
 const ytdl = require('ytdl-core');
 const axios = require('axios');
-const { Readable } = require('stream');
 const { transcriptToRecipeService } = require('../services/transcriptService');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 const { extractVideoId } = require('../services/utils/videoUtils');
@@ -14,63 +13,70 @@ const util = require('util');
 const execPromise = util.promisify(exec);
 const { google } = require('googleapis');
 
-// ---------- Configuration des chemins pour les credentials YouTube (optionnel) ----------
+// ---------- Helper: parse duration from yt-dlp (e.g., "5:30" -> 330 seconds) ----------
+const parseDuration = (durationStr) => {
+    if (!durationStr) return null;
+    const parts = durationStr.split(':').map(Number);
+    if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    } else if (parts.length === 2) {
+        return parts[0] * 60 + parts[1];
+    } else if (parts.length === 1) {
+        return parts[0];
+    }
+    return null;
+};
+
+// ---------- Configuration des chemins pour les credentials YouTube ----------
 const CREDENTIALS_PATH = path.join(__dirname, '../credentials/client_secret.json');
 const TOKEN_PATH = path.join(__dirname, '../credentials/token.json');
 
-// ---------- Conversion audio en MP3 (inchangée, déjà fonctionnelle) ----------
-async function convertToMp3File(inputBuffer) {
+// ---------- Téléchargement audio avec yt-dlp (direct MP3) ----------
+const downloadYouTubeAudioWithYtDlp = async (videoUrl) => {
+    const { execa } = await import('execa');
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audio-'));
-    const inputPath = path.join(tempDir, 'input.webm');
-    const outputPath = path.join(tempDir, 'output.mp3');
+    const outputPath = path.join(tempDir, 'audio.%(ext)s');
 
     try {
-        await fs.writeFile(inputPath, inputBuffer);
-        await execPromise(
-            `"${ffmpegStatic}" -y -f webm -i "${inputPath}" -vn -acodec libmp3lame -ab 192k "${outputPath}"`
-        );
-        const mp3Buffer = await fs.readFile(outputPath);
-        if (!mp3Buffer || mp3Buffer.length < 1000) {
-            throw new Error("MP3 conversion produced empty file");
-        }
-        console.log(`✅ MP3 conversion successful. Size: ${mp3Buffer.length} bytes`);
-        return mp3Buffer;
+        // Download best audio and convert to mp3
+        await execa('yt-dlp', [
+            videoUrl,
+            '--extract-audio',
+            '--audio-format', 'mp3',
+            '--output', outputPath,
+            '--quiet',
+            '--no-warnings'
+        ]);
+
+        // Find the generated mp3 file
+        const files = await fs.readdir(tempDir);
+        const mp3File = files.find(f => f.endsWith('.mp3'));
+        if (!mp3File) throw new Error('No audio file generated');
+
+        const filePath = path.join(tempDir, mp3File);
+        const buffer = await fs.readFile(filePath);
+        const { stdout: title } = await execa('yt-dlp', [
+            '--get-title',
+            videoUrl,
+            '--quiet'
+        ]);
+        const { stdout: duration } = await execa('yt-dlp', [
+            '--get-duration',
+            videoUrl,
+            '--quiet'
+        ]);
+
+        return {
+            buffer,
+            title: title.trim(),
+            duration: parseDuration(duration.trim())
+        };
     } finally {
         await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
     }
-}
-
-// ---------- Téléchargement audio avec ytdl-core ----------
-const downloadYouTubeAudio = async (videoUrl) => {
-    try {
-        console.log("🎬 Downloading audio with ytdl-core...");
-        const info = await ytdl.getInfo(videoUrl);
-        console.log(`✅ Video found: "${info.videoDetails.title}"`);
-
-        const audioStream = ytdl(videoUrl, {
-            quality: 'highestaudio',
-            filter: 'audioonly'
-        });
-
-        const chunks = [];
-        for await (const chunk of audioStream) {
-            chunks.push(chunk);
-        }
-        const buffer = Buffer.concat(chunks);
-
-        console.log(`✅ Audio downloaded. Size: ${buffer.length} bytes`);
-        return {
-            buffer,
-            title: info.videoDetails.title,
-            duration: info.videoDetails.lengthSeconds
-        };
-    } catch (error) {
-        console.error("❌ ytdl-core error:", error.message);
-        throw new Error(`Audio download failed: ${error.message}`);
-    }
 };
 
-// ---------- Transcription avec AssemblyAI ----------
+// ---------- Transcription avec AssemblyAI (auto‑detect language) ----------
 const transcribeAudioWithAssemblyAI = async (audioBuffer) => {
     try {
         console.log("📝 Transcribing audio using AssemblyAI...");
@@ -96,14 +102,14 @@ const transcribeAudioWithAssemblyAI = async (audioBuffer) => {
         const audioUrl = uploadResponse.data.upload_url;
         console.log("✅ Audio uploaded:", audioUrl);
 
-        // Demander la transcription
-        console.log("📨 Requesting transcription...");
+        // Request transcription – let AssemblyAI auto‑detect language
+        console.log("📨 Requesting transcription (language auto‑detection)...");
         const transcriptResponse = await axios.post(
             "https://api.assemblyai.com/v2/transcript",
             {
                 audio_url: audioUrl,
-                speech_models: ["universal"],
-                language_code: "en"
+                speech_models: ["universal"]
+                // language_code omitted → auto‑detect
             },
             {
                 headers: {
@@ -115,7 +121,7 @@ const transcribeAudioWithAssemblyAI = async (audioBuffer) => {
         const transcriptId = transcriptResponse.data.id;
         console.log("🆔 Transcript ID:", transcriptId);
 
-        // Attendre le résultat
+        // Poll for result
         let transcriptText = null;
         let attempts = 0;
         while (!transcriptText && attempts < 40) {
@@ -127,6 +133,10 @@ const transcribeAudioWithAssemblyAI = async (audioBuffer) => {
             const status = pollingResponse.data.status;
             if (status === "completed") {
                 transcriptText = pollingResponse.data.text;
+                // Log detected language if available
+                if (pollingResponse.data.language_code) {
+                    console.log(`🌐 Detected language: ${pollingResponse.data.language_code}`);
+                }
                 break;
             } else if (status === "error") {
                 throw new Error(pollingResponse.data.error);
@@ -153,7 +163,6 @@ const getYouTubeTranscript = async (videoUrl) => {
     try {
         console.log("🎬 Attempting to download auto-generated subtitles with yt-dlp...");
 
-        // Dynamically import execa (ESM)
         const { execa } = await import('execa');
 
         const languages = ['fr', 'en', 'es', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh-Hans'];
@@ -216,53 +225,26 @@ const getYouTubeTranscript = async (videoUrl) => {
         console.error("❌ Subtitle download failed:", subError.message);
         console.log("⚠️ Falling back to audio transcription...");
     }
-    
-    // ---------- Step 2 : Secours audio ----------
+
+    // ---------- Step 2 : Try audio transcription with AssemblyAI ----------
     try {
-        console.log("🎬 Downloading audio for transcription...");
-        const audioData = await downloadYouTubeAudio(videoUrl); // votre fonction existante
-
-        console.log("🎵 Converting audio to MP3...");
-        const mp3Buffer = await convertToMp3File(audioData.buffer);
-
-        const transcript = await transcribeAudioWithAssemblyAI(mp3Buffer);
-
+        console.log("🎬 Attempting audio transcription with AssemblyAI...");
+        const audioData = await downloadYouTubeAudioWithYtDlp(videoUrl);
+        const transcript = await transcribeAudioWithAssemblyAI(audioData.buffer);
         return {
             success: true,
             transcript,
             videoTitle: audioData.title,
             duration: audioData.duration,
-            method: 'audio'
+            method: 'assemblyai'
         };
     } catch (audioError) {
-        console.error("❌ Error in audio transcription:", audioError.message);
+        console.error("❌ AssemblyAI transcription failed:", audioError.message);
         throw new Error("No transcript available from any source.");
     }
 };
 
-// ---------- Fonctions pour l'authentification YouTube (optionnelles) ----------
-async function getYouTubeAuthClient() {
-    const credentials = JSON.parse(await fs.readFile(CREDENTIALS_PATH, 'utf8'));
-    const key = credentials.installed ? 'installed' : (credentials.web ? 'web' : null);
-    if (!key) throw new Error('Invalid credentials file');
-
-    const { client_secret, client_id, redirect_uris } = credentials[key];
-    let redirectUri = 'http://localhost';
-    if (redirect_uris && Array.isArray(redirect_uris) && redirect_uris.length > 0) {
-        redirectUri = redirect_uris[0];
-    }
-    const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirectUri);
-    const token = JSON.parse(await fs.readFile(TOKEN_PATH, 'utf8'));
-    oAuth2Client.setCredentials(token);
-    oAuth2Client.on('tokens', async (newToken) => {
-        if (newToken.refresh_token) token.refresh_token = newToken.refresh_token;
-        await fs.writeFile(TOKEN_PATH, JSON.stringify(token));
-        console.log('Token refreshed and saved.');
-    });
-    return oAuth2Client;
-}
-
-// __________-------------Extract YouTube Transcript with Enhanced Error Handling-------------__________
+// __________-------------Extract YouTube Transcript (main endpoint)-------------__________
 const extractYouTubeTranscript = async (req, res) => {
     const startTime = Date.now();
     let conversionId = null;
@@ -277,9 +259,8 @@ const extractYouTubeTranscript = async (req, res) => {
             });
         }
 
-        console.log("🎬 Starting YouTube audio extraction and transcription...");
+        console.log("🎬 Starting YouTube transcript extraction...");
 
-        // Validate URL format
         const videoId = extractVideoId(videoUrl);
         if (!videoId) {
             return res.status(400).json({ 
@@ -297,12 +278,10 @@ const extractYouTubeTranscript = async (req, res) => {
         console.log("✅ URL validated. Video ID:", videoId);
 
         try {
-            // Download audio and transcribe
             const result = await getYouTubeTranscript(videoUrl);
 
             console.log("✅ Transcript extracted successfully");
 
-            // Log successful extraction
             conversionId = await logConversion({
                 user_id: userId,
                 source_type: 'youtube',
@@ -318,16 +297,16 @@ const extractYouTubeTranscript = async (req, res) => {
                 success: true,
                 conversionId,
                 transcript: result.transcript,
-                videoId: videoId,
+                videoId,
                 videoTitle: result.videoTitle,
                 duration: result.duration,
-                method: 'audio-download-and-transcribe',
+                method: result.method,   // 'ytdlp' or 'assemblyai'
                 processingTime: Date.now() - startTime,
-                message: "✅ YouTube audio downloaded and transcribed"
+                message: "✅ Transcript extracted successfully"
             });
 
         } catch (transcriptError) {
-            console.error("❌ Error in audio extraction/transcription:", transcriptError.message);
+            console.error("❌ Error in transcript extraction:", transcriptError.message);
             
             conversionId = await logConversion({
                 user_id: userId,
@@ -345,15 +324,14 @@ const extractYouTubeTranscript = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 conversionId,
-                message: "Could not extract and transcribe audio",
+                message: "Could not extract transcript",
                 error: transcriptError.message,
-                videoId: videoId,
+                videoId,
                 troubleshooting: [
                     "Ensure the YouTube URL is valid and public",
                     "Check that the video has audio content",
                     "Try a different video with better audio quality",
-                    "Make sure your server can access YouTube",
-                    "Check AssemblyAI or Puter API keys"
+                    "Verify your AssemblyAI API key"
                 ]
             });
         }
@@ -374,7 +352,7 @@ const extractYouTubeTranscript = async (req, res) => {
     }
 };
 
-// __________-------------Convert Transcript to Recipe via Groq LLM with Better Validation-------------__________
+// __________-------------Convert Transcript to Recipe via Groq-------------__________
 const convertTranscriptToRecipe = async (req, res) => {
     const startTime = Date.now();
     let conversionId = null;
@@ -382,7 +360,6 @@ const convertTranscriptToRecipe = async (req, res) => {
     try {
         const { transcript, videoUrl, source, userId = null, videoTitle = null, videoDescription = null, channelName = null } = req.body;
 
-        // Validation
         if (!transcript || transcript.trim().length === 0) {
             return res.status(400).json({ 
                 success: false,
@@ -400,7 +377,6 @@ const convertTranscriptToRecipe = async (req, res) => {
         console.log(`🔄 Converting ${source} transcript to recipe using Groq...`);
 
         try {
-            // Call Groq API through our service with metadata
             const { recipe: recipeData, processingTime, rawResponse } = await transcriptToRecipeService(
                 transcript,
                 { videoTitle, videoDescription, channelName }
@@ -412,7 +388,6 @@ const convertTranscriptToRecipe = async (req, res) => {
 
             console.log("✅ Recipe generated successfully");
 
-            // Log successful conversion
             conversionId = await logConversion({
                 user_id: userId,
                 source_type: source,
@@ -477,10 +452,8 @@ const convertTranscriptToRecipe = async (req, res) => {
     }
 };
 
-
-
 module.exports = {
-    downloadYouTubeAudio,
+    downloadYouTubeAudioWithYtDlp,
     transcribeAudioWithAssemblyAI,
     getYouTubeTranscript,
     extractYouTubeTranscript,

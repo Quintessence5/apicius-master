@@ -2,3 +2,4 @@ node_modules/
 config/apicius05-firebase-adminsdk-w5v1o-505d701e82.json
 config/db.js
 credentials/
+.env

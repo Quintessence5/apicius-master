@@ -210,7 +210,7 @@ const extractRecipeFromYoutube = async (req, res) => {
         } else {
             console.log("✅ Sufficient ingredients/steps already, skipping audio transcription");
         }
-        
+
         // ______Step 7: Generate recipe with LLM
         console.log("\n📼 Step 7: Generating complete recipe with Groq LLM...");
         let finalRecipe;
@@ -324,7 +324,7 @@ const extractRecipeFromYoutube = async (req, res) => {
 const fetchYouTubeComments = async (videoId, maxResults = 100) => {
     try {
         console.log(`\n⛏️ ========== MINING YOUTUBE COMMENTS FOR RECIPE DATA ==========\n`);
-        console.log(`⛏️ Step 1: Fetching up to ${maxResults} comments...`);
+        console.log(`⛏️ Step 5.1: Fetching up to ${maxResults} comments...`);
 
        if (!process.env.YOUTUBE_API_KEY) {
             throw new Error("YOUTUBE_API_KEY not configured");
@@ -365,7 +365,7 @@ const fetchYouTubeComments = async (videoId, maxResults = 100) => {
 
 // __________-------------Mine Comments for Recipe Data-------------__________
 const mineRecipeFromComments = (commentTexts) => {
-    console.log(`\n🔍 Step 2: Analyzing top comments for recipe content...\n`);
+    console.log(`\n🔍 Step 5.2: Analyzing top comments for recipe content...\n`);
     
     if (!commentTexts || commentTexts.length === 0) {
         console.warn("⚠️ No comments to analyze");
