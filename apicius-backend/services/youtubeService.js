@@ -3,7 +3,8 @@ const pool = require('../config/db');
 
 const {
     analyzeDescriptionContent,
-    generateRecipeWithLLM
+    generateRecipeWithLLM,
+    generateRecipeFromTranscript
 } = require('../services/videoToRecipeService');
 const {extractIngredientsFromText} = require('../services/utils/ingredientExtractor');
 const{
@@ -215,19 +216,34 @@ const extractRecipeFromYoutube = async (req, res) => {
         console.log("\n📼 Step 7: Generating complete recipe with Groq LLM...");
         let finalRecipe;
         try {
-            finalRecipe = await generateRecipeWithLLM(
+            // If we have a substantial audio/caption transcript, use the transcript‑optimized version
+            if (audioTranscriptText && audioTranscriptText.trim().length > 50) {
+                console.log("🎤 Using transcript-based recipe generation (with quantity inference)...");
+                finalRecipe = await generateRecipeFromTranscript(
+                audioTranscriptText,
+                youtubeMetadata.title,
+                youtubeMetadata.channelTitle,
+                extractedIngredients,
+                youtubeMetadata.description,
+                topCommentsText
+            );
+            } else {
+                console.log("📄 Using description-based recipe generation...");
+                finalRecipe = await generateRecipeWithLLM(
                 youtubeMetadata.description,
                 youtubeMetadata.title,
                 youtubeMetadata.channelTitle,
                 extractedIngredients,
-                topCommentsText,           
-                audioTranscriptText         
-             );
-            
+                topCommentsText,
+                audioTranscriptText
+                );
+            }
+    
             console.log(`\n✅ RECIPE GENERATED!`);
             console.log(`   Title: "${finalRecipe.title}"`);
             console.log(`   Ingredients: ${finalRecipe.ingredients.length}`);
             console.log(`   Steps: ${finalRecipe.steps.length}`);
+    
             
         } catch (groqError) {
             console.error("\n❌ LLM Error:", groqError.message);

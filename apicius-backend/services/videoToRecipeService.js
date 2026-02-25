@@ -552,11 +552,145 @@ const translateRecipeToEnglish = async (recipe) => {
     }
 };
 
+// __________-------------Generate recipe from audio/caption transcript (with quantity inference)-------------__________
+const generateRecipeFromTranscript = async (transcript, videoTitle, channelTitle, extractedIngredients, description = "", topCommentsText = "") => {
+    try {
+        console.log("📤 Sending transcript to Groq for recipe generation (with quantity inference)...");
+        
+        if (!process.env.GROQ_API_KEY) {
+            throw new Error("GROQ_API_KEY not set in environment");
+        }
+        
+        const systemPrompt = `You are an expert professional Chef and recipe editor. Your task is to create a detailed, structured recipe from a transcript of a cooking video (which may be from a transcript or captions). The transcript may contain filler words, repetitions, and might be in a foreign language. Follow these steps:
+
+1. If the transcript is not in English, translate it to English carefully, preserving all cooking details.
+2. Extract all ingredients mentioned. For each ingredient, if a quantity is explicitly given, use it. If not, infer a reasonable quantity based on common culinary knowledge and best practices (e.g., for a typical cake, flour might be 200g, sugar 150g, a person eats around 150-200g of protein or 100 to 150g of carbohydrate etc.). Ensure quantities are in metric units (g, kg, ml, l, tsp, tbsp, pc, pinch, dash). Use decimal numbers (e.g., 0.5 instead of 1/2).
+3. Extract all cooking steps in chronological order. Group them into logical sections (e.g., "Prepare", "Assemble", "Cook", "Finish", "Garnish"). Each step should be 2-3 sentences with actionable details, including techniques and warnings.
+4. Estimate metadata: portions (number of servings), prep_time, cook_time, total_time (in minutes), difficulty (Very Easy, Easy, Medium, Hard, Very Hard), course_type (Appetizer, Main Course, Dessert, Snack, Beverage), meal_type (Breakfast, Lunch, Dinner, Snack). Base these on clues in the transcript or your best judgment. For cuisine type if it's not mentionned, just use "Homemade".
+5. Output ONLY a valid JSON object with the exact structure below.
+
+CRITICAL REQUIREMENTS:
+- Always use metric units: g, kg, ml, l, tsp, tbsp, pc, pinch, dash.
+- Never use fractions; use decimals (e.g., 0.5).
+- For temperatures, use Celsius with Fahrenheit in parentheses if mentioned.
+- Ingredient names should be normalized (core ingredient first, e.g., "olive oil" -> "oil olive").
+- Steps must be detailed, include sub_steps as bullet points.
+- Do not include any text outside the JSON.
+
+JSON OUTPUT STRUCTURE:
+{
+  "title": "Recipe Name",
+  "description": "Brief professional description",
+  "portions": 4,
+  "prep_time": 20,
+  "cook_time": 35,
+  "total_time": 55,
+  "difficulty": "Medium",
+  "course_type": "Dessert",
+  "meal_type": "Dinner",
+  "cuisine_type": "Italian",
+  "ingredients": [
+    {
+      "name": "ingredient name",
+      "quantity": "2",
+      "unit": "pc",
+      "section": "Cake Batter"
+    }
+  ],
+  "steps": [
+    {
+      "section": "Prepare",
+      "step_number": 1,
+      "instruction": "...",
+      "duration_minutes": 10,
+      "sub_steps": ["...", "..."]
+    }
+  ]
+    **VERY IMPORTANT CRITICAL NOTES:**
+    - Always use CELSIUS for temperatures with Fahrenheit in parentheses (if mentionned)
+    - Use in priority the metric units system for all ingredient quantities (g, kg, ml, l) pieces (pc), unless the original recipe only uses imperial units, in which case you can retain those units.
+    - Never use Fractions in quantities (like 1/2 or 3/4) always use decimals (0.5, 0.75) for clarity and consistency
+    - Steps must be logical, chronological, and detailed
+    - Include warnings, tips, and techniques
+    - Each section should have 1-7 steps with clear progression
+    - Duration should be in minutes (or null if unknown) but it must alway be realistic, and complete minutes (not around 2min).
+    - sub_steps should be an array of brief bullet points with extra tips
+    - Do NOT include any text outside the JSON object
+
+OUTPUT: Return ONLY valid JSON. No markdown, no explanations, no backticks.
+}`;
+
+        let userMessage = `Video Title: "${videoTitle || 'Unknown'}"\n`;
+        userMessage += `Channel: ${channelTitle || 'Unknown'}\n\n`;
+        if (description && description.trim().length > 0) {
+            userMessage += `Video Description (may contain additional hints):\n${description}\n\n`;
+        }
+        userMessage += `TRANSCRIPT (from video audio/captions):\n${transcript}\n\n`;
+        if (topCommentsText && topCommentsText.trim().length > 50) {
+            userMessage += `⭐ TOP COMMENTS (additional context):\n${topCommentsText}\n\n`;
+        }
+        if (extractedIngredients && extractedIngredients.length > 0) {
+            userMessage += `Pre-extracted ingredients (for reference):\n`;
+            extractedIngredients.forEach(ing => {
+                userMessage += `- ${ing.quantity || '?'} ${ing.unit} ${ing.name} (${ing.section})\n`;
+            });
+        }
+
+        const response = await axios.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+                model: "llama-3.3-70b-versatile",
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userMessage }
+                ],
+                temperature: 0.5,
+                max_tokens: 4000,
+                response_format: { type: "json_object" }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 30000
+            }
+        );
+        
+        if (!response.data.choices?.[0]?.message?.content) {
+            throw new Error("Invalid response from Groq API");
+        }
+        
+        const responseText = response.data.choices[0].message.content;
+        console.log("📥 Raw LLM Response received, parsing JSON...");
+        
+        let recipeData;
+        try {
+            recipeData = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error("JSON Parse Error, attempting to extract JSON...");
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                recipeData = JSON.parse(jsonMatch[0]);
+            } else {
+                throw new Error("Failed to extract JSON from LLM response");
+            }
+        }
+        
+        console.log("✅ JSON parsed successfully");
+        return sanitizeRecipe(recipeData);
+        
+    } catch (error) {
+        console.error("❌ Error in generateRecipeFromTranscript:", error.message);
+        throw error;
+    }
+};
 
 module.exports = {
     extractIngredientsFromText,
     analyzeDescriptionContent,
     generateRecipeWithLLM,
+    generateRecipeFromTranscript, 
     sanitizeRecipe,
     extractSections,
     translateRecipeToEnglish
