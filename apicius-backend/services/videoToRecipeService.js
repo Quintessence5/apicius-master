@@ -417,7 +417,6 @@ const sanitizeRecipe = (data) => {
             cook_time: data.cook_time ? parseInt(data.cook_time) || null : null,
             total_time: data.total_time ? parseInt(data.total_time) || null : null,
             baking_temperature: data.baking_temperature ? parseInt(data.baking_temperature) || null : null,
-            baking_time: data.baking_time ? parseInt(data.baking_time) || null : null,
             difficulty: ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'].includes(data.difficulty)
                 ? data.difficulty
                 : "Medium",
@@ -686,6 +685,217 @@ OUTPUT: Return ONLY valid JSON. No markdown, no explanations, no backticks.
     }
 };
 
+// ---------- Complete missing metadata using a second LLM pass ----------
+async function completeMissingMetadata(recipe, originalText, titleHint, explicitServings = null) {
+    // Helper to extract explicit times from text
+    function extractExplicitTimes(text) {
+        const times = { prep: null, cook: null, total: null };
+        const prepMatch = text.match(/(?:prep\s*time\s*:?\s*)(\d+)\s*(?:min|minutes?)/i);
+        if (prepMatch) times.prep = parseInt(prepMatch[1], 10);
+        const cookMatch = text.match(/(?:cook\s*time\s*:?\s*)(\d+)\s*(?:min|minutes?)/i);
+        if (cookMatch) times.cook = parseInt(cookMatch[1], 10);
+        const totalMatch = text.match(/(?:total\s*time\s*:?\s*)(\d+)\s*(?:hr|hour|min)/i);
+        if (totalMatch) {
+            if (totalMatch[0].includes('hr')) {
+                times.total = parseInt(totalMatch[1], 10) * 60;
+            } else {
+                times.total = parseInt(totalMatch[1], 10);
+            }
+        }
+        return times;
+    }
+
+    // Calculate total and per‑section step durations
+    function calculateStepDurations(steps) {
+        let prepSum = 0, cookSum = 0, otherSum = 0;
+        for (const step of steps) {
+            const dur = step.duration_minutes || 0;
+            const section = (step.section || '').toLowerCase();
+            if (section.includes('prep') || section.includes('prepare') || section.includes('assemble')) {
+                prepSum += dur;
+            } else if (section.includes('cook') || section.includes('bake') || section.includes('roast')) {
+                cookSum += dur;
+            } else {
+                otherSum += dur; // includes cooling, resting, etc.
+            }
+        }
+        return { prepSum, cookSum, otherSum };
+    }
+
+    // Extract baking temperature from text
+function extractBakingTemperature(text) {
+    const match = text.match(/(\d{2,3})\s*°[CF]|\b(\d{2,3})\s*(?:degrees?|°)\s*(?:C|F|Celsius|Fahrenheit)\b/i);
+    if (match) {
+        // If Celsius, return as is; if Fahrenheit, convert?
+        // For now, just return the number and let the LLM decide
+        return parseInt(match[1] || match[2], 10);
+    }
+    return null;
+}
+
+    // Estimate servings based on key ingredients
+    function estimateServings(ingredients) {
+        let servings = null;
+        // Look for flour (weight-based)
+        const flour = ingredients.find(i => i.name.toLowerCase().includes('flour') && (i.unit === 'g' || i.unit === 'gram'));
+        if (flour) {
+            const qty = parseFloat(flour.quantity) || 0;
+            if (qty > 0) {
+                // Assume 30-40g flour per serving, take middle 35
+                servings = Math.round(qty / 35);
+            }
+        }
+        // If no flour, try eggs
+        const eggs = ingredients.find(i => i.name.toLowerCase().includes('egg') && i.unit === 'pc');
+        if (!servings && eggs) {
+            const count = parseInt(eggs.quantity) || 0;
+            if (count > 0) {
+                // Rough estimate: 1 egg per 2-3 servings
+                servings = count * 3;
+            }
+        }
+        // Fallback: use number of ingredients
+        if (!servings) {
+            const count = ingredients.length;
+            servings = Math.min(12, Math.max(4, Math.round(count * 0.5)));
+        }
+        console.log(`   Estimated servings from ingredients: ${servings}`);
+        return servings;
+    }
+
+    // If all metadata fields are already present, skip
+    if (recipe.portions && recipe.prep_time && recipe.cook_time && recipe.total_time &&
+        recipe.difficulty !== 'Medium' && recipe.course_type && recipe.meal_type && recipe.cuisine_type &&
+        recipe.baking_temperature) {
+        return recipe;
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+        console.warn("⚠️ GROQ_API_KEY not set, skipping metadata completion");
+        return recipe;
+    }
+
+    // Compute hints
+    const explicitTimes = extractExplicitTimes(originalText);
+    const stepDurations = calculateStepDurations(recipe.steps || []);
+    const estimatedServings = estimateServings(recipe.ingredients || []);
+    const bakingTemp = extractBakingTemperature(originalText);
+
+    // Inferred total time (prep + cook only, no cooling) – prioritize explicit prep+cook over explicit total
+    let inferredTotal = null;
+    if (!recipe.total_time) {
+        if (explicitTimes.prep && explicitTimes.cook) {
+            inferredTotal = explicitTimes.prep + explicitTimes.cook;
+        } else if (stepDurations.prepSum && stepDurations.cookSum) {
+            inferredTotal = stepDurations.prepSum + stepDurations.cookSum;
+        } else if (explicitTimes.total) {
+            inferredTotal = explicitTimes.total;
+        } else if (explicitTimes.prep || explicitTimes.cook) {
+            inferredTotal = (explicitTimes.prep || 0) + (explicitTimes.cook || 0);
+        } else {
+            inferredTotal = stepDurations.prepSum + stepDurations.cookSum || null;
+        }
+    }
+
+    const systemPrompt = `You are a recipe metadata expert. Given a recipe object and the original webpage text, fill in any missing metadata fields. Use the provided hints and your own reasoning.
+
+**Hints (extracted from the recipe and text):**
+- Explicit times in text: prep=${explicitTimes.prep}, cook=${explicitTimes.cook}, total=${explicitTimes.total}
+- Sum of step durations by section: prep steps total = ${stepDurations.prepSum} min, cook steps total = ${stepDurations.cookSum} min, other steps (cooling/rest) total = ${stepDurations.otherSum} min
+- Explicit servings from metadata: ${explicitServings ? explicitServings : 'unknown'}
+- Estimated servings based on ingredients: ${estimatedServings ? estimatedServings : 'unknown'}
+- Inferred total time (prep + cook only): ${inferredTotal ? inferredTotal : 'unknown'}
+
+**Rules for filling missing fields:**
+
+- **Servings (portions):** If not present, use the estimated servings hint. If that's not available, look for explicit "Yield:" or "Servings:" in the text. If still unclear, make an educated guess based on typical serving sizes (e.g., a cake with 2-3 eggs usually serves 6-8).
+- **Prep time:** If not present, use explicit prep time from text, or the sum of prep step durations. If both missing, estimate from the complexity of ingredients (e.g., many ingredients → longer prep).
+- **Cook time:** Similarly, use explicit cook time or sum of cook step durations.
+- **Total time:** If not present, use the inferred total time hint (prep + cook only). Do NOT include cooling/resting steps. If that's not available, fall back to explicit total from text.
+- **Difficulty:** Infer from words like "easy", "simple" → "Easy"; "medium", "intermediate" → "Medium"; "hard", "difficult" → "Hard". Default to "Medium".
+- **Course type:** Infer from recipe title and ingredients (e.g., "Dessert", "Main Course", "Appetizer").
+- **Meal type:** Infer from title and course type (e.g., "Dinner", "Lunch", "Breakfast", "Snack").
+- **Cuisine type:** Infer from ingredients and recipe name (e.g., "Italian", "Mexican"). If unclear, use "Homemade".
+
+**Important:** 
+- Do **not** change fields that already have values.
+- Return the updated recipe object with the same structure, filling only missing fields (use null if cannot determine).
+- The output must be a valid JSON object matching the recipe structure.
+
+Original recipe: ${JSON.stringify(recipe, null, 2)}
+
+Webpage text (first 3000 chars): ${originalText.substring(0, 3000)}
+
+Output ONLY the updated recipe JSON.`;
+
+    try {
+        const response = await axios.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            {
+                model: 'llama-3.3-70b-versatile',
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: "Please complete the missing metadata." }
+                ],
+                temperature: 0.2,
+                max_tokens: 2000,
+                response_format: { type: 'json_object' }
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 20000
+            }
+        );
+
+        if (!response.data.choices?.[0]?.message?.content) {
+            throw new Error('Invalid completion response');
+        }
+
+        const content = response.data.choices[0].message.content;
+        let updated;
+        try {
+            updated = JSON.parse(content);
+        } catch (e) {
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (jsonMatch) updated = JSON.parse(jsonMatch[0]);
+            else throw e;
+        }
+
+        console.log(`   Updated portions from LLM: ${updated.portions}`);
+
+        // Merge updated fields, preferring our inferred total if the LLM didn't provide one or gave an unreasonably large value
+        let finalTotal = recipe.total_time;
+        if (!finalTotal) {
+            if (updated.total_time && updated.total_time <= (inferredTotal + 10)) { // if LLM total is close to our inference, trust it
+                finalTotal = updated.total_time;
+            } else if (inferredTotal) {
+                finalTotal = inferredTotal; // use our more accurate prep+cook total
+            } else {
+                finalTotal = updated.total_time;
+            }
+        }
+
+        return {
+            ...recipe,
+            servings: updated.servings || recipe.servings || explicitServings || estimatedServings,
+            prep_time: updated.prep_time || recipe.prep_time,
+            cook_time: updated.cook_time || recipe.cook_time,
+            total_time: finalTotal,
+            difficulty: updated.difficulty || recipe.difficulty,
+            course_type: updated.course_type || recipe.course_type,
+            meal_type: updated.meal_type || recipe.meal_type,
+            cuisine_type: updated.cuisine_type || recipe.cuisine_type,
+            baking_temperature: updated.baking_temperature || recipe.baking_temperature || bakingTemp
+        };
+    } catch (error) {
+        console.warn("⚠️ Metadata completion failed:", error.message);
+        return recipe;
+    }
+}
+
 module.exports = {
     extractIngredientsFromText,
     analyzeDescriptionContent,
@@ -693,5 +903,6 @@ module.exports = {
     generateRecipeFromTranscript, 
     sanitizeRecipe,
     extractSections,
-    translateRecipeToEnglish
+    translateRecipeToEnglish,
+    completeMissingMetadata
 };

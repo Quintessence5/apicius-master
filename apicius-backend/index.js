@@ -23,6 +23,8 @@ const userInteractionRoutes = require('./routes/userInteractionRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const extractRecipeFromWebsiteHandler = require('./routes/transcriptRoutes');
 
+const extractRecipeFromUrl = require('./routes/transcriptRoutes');
+
 // Middleware setup
 app.use(cors({
     origin: 'http://localhost:3000',
@@ -52,6 +54,9 @@ app.use('/api/interactions', userInteractionRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/transcripts', transcriptRoutes);
 app.use('/api/extract-recipe-website', extractRecipeFromWebsiteHandler);
+
+
+app.use('/api/extract-url', extractRecipeFromUrl);
 
 
 // Serve uploaded images

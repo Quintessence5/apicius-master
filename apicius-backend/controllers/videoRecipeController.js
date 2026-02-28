@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { synonymMap } = require('../services/utils/synonymMap');
 
 // __________-------------Match ingredients with database-------------__________
 const matchIngredientsWithDatabase = async (ingredients) => {
@@ -39,29 +40,39 @@ const matchIngredientsWithDatabase = async (ingredients) => {
 const matchSingleIngredient = async (ingredient) => {
     try {
         const searchName = ingredient.name.toLowerCase().trim();
-        
+
+        // Strategy 0: Synonym mapping
+        const canonicalName = synonymMap[searchName];
+        if (canonicalName) {
+            console.log(`   🔍 Synonym found: "${searchName}" → "${canonicalName}"`);
+            let result = await pool.query(
+                `SELECT id, name FROM ingredients WHERE LOWER(TRIM(name)) = $1 LIMIT 1`,
+                [canonicalName.toLowerCase().trim()]
+            );
+            if (result.rows.length > 0) {
+                return {
+                    ...ingredient,
+                    dbId: result.rows[0].id,
+                    dbName: result.rows[0].name,
+                    found: true,
+                    icon: '✅',
+                    matchType: 'synonym'
+                };
+            }
+        }
+
         // Strategy 1: Exact case-insensitive match
         console.log(`   🔍 Searching for: "${searchName}"`);
-        
         let result = await pool.query(
             `SELECT id, name FROM ingredients WHERE LOWER(TRIM(name)) = $1 LIMIT 1`,
             [searchName]
         );
-        
         if (result.rows.length > 0) {
-            return {
-                ...ingredient,
-                dbId: result.rows[0].id,
-                dbName: result.rows[0].name,
-                found: true,
-                icon: '✅',
-                matchType: 'exact'
-            };
+            return { ...ingredient, dbId: result.rows[0].id, dbName: result.rows[0].name, found: true, icon: '✅', matchType: 'exact' };
         }
-        
-        // Strategy 2: Partial/substring match (e.g., "eggs" matches "egg")
+
+        // Strategy 2: Partial/substring match
         console.log(`   🔍 Trying substring match...`);
-        
         result = await pool.query(
             `SELECT id, name FROM ingredients 
              WHERE LOWER(name) LIKE $1 OR LOWER($2) LIKE '%' || LOWER(name) || '%'
@@ -69,23 +80,13 @@ const matchSingleIngredient = async (ingredient) => {
              LIMIT 1`,
             [`%${searchName}%`, searchName]
         );
-        
         if (result.rows.length > 0) {
-            return {
-                ...ingredient,
-                dbId: result.rows[0].id,
-                dbName: result.rows[0].name,
-                found: true,
-                icon: '✅',
-                matchType: 'partial'
-            };
+            return { ...ingredient, dbId: result.rows[0].id, dbName: result.rows[0].name, found: true, icon: '✅', matchType: 'partial' };
         }
-        
-        // Strategy 3: Fuzzy matching (remove common suffixes/prefixes)
+
+        // Strategy 3: Fuzzy matching (cleaned name)
         console.log(`   🔍 Trying fuzzy match...`);
-        
         const cleanedName = cleanIngredientForMatching(searchName);
-        
         result = await pool.query(
             `SELECT id, name FROM ingredients 
              WHERE LOWER(name) LIKE $1 OR LOWER(name) LIKE $2
@@ -93,21 +94,12 @@ const matchSingleIngredient = async (ingredient) => {
              LIMIT 1`,
             [`%${cleanedName}%`, `${cleanedName}%`]
         );
-        
         if (result.rows.length > 0) {
-            return {
-                ...ingredient,
-                dbId: result.rows[0].id,
-                dbName: result.rows[0].name,
-                found: true,
-                icon: '✅',
-                matchType: 'fuzzy'
-            };
+            return { ...ingredient, dbId: result.rows[0].id, dbName: result.rows[0].name, found: true, icon: '✅', matchType: 'fuzzy' };
         }
-        
-        // Strategy 4: Similar ingredients (like "flour type 55" for "flour")
+
+        // Strategy 4: Similar ingredients (starts with / contains)
         console.log(`   🔍 Trying similar ingredient match...`);
-        
         result = await pool.query(
             `SELECT id, name FROM ingredients 
              WHERE LOWER(name) LIKE $1
@@ -120,26 +112,30 @@ const matchSingleIngredient = async (ingredient) => {
                END,
                LENGTH(name) ASC
              LIMIT 1`,
-            [
-                `${searchName}%`,  // Starts with search name
-                searchName,         // Exact match
-                `${searchName}%`,   // Starts with search name (for "flour" -> "flour type 55")
-                `%${searchName}%`   // Contains search name
-            ]
+            [`${searchName}%`, searchName, `${searchName}%`, `%${searchName}%`]
         );
-        
         if (result.rows.length > 0) {
-            return {
-                ...ingredient,
-                dbId: result.rows[0].id,
-                dbName: result.rows[0].name,
-                found: true,
-                icon: '✅',
-                matchType: 'similar'
-            };
+            return { ...ingredient, dbId: result.rows[0].id, dbName: result.rows[0].name, found: true, icon: '✅', matchType: 'similar' };
         }
-        
-        // No match found - will be created
+
+        // --- No match found ---
+        // Check if this ingredient already has a pending submission
+        const pendingCheck = await pool.query(
+            `SELECT id FROM ingredient_submissions WHERE LOWER(name) = $1 AND status = 'pending' LIMIT 1`,
+            [searchName]
+        );
+        if (pendingCheck.rows.length === 0) {
+            // Insert into submissions table for admin review
+            await pool.query(
+                `INSERT INTO ingredient_submissions (name, category, status, created_at)
+                 VALUES ($1, $2, 'pending', NOW())`,
+                [ingredient.name, ingredient.section || 'Uncategorized']
+            );
+            console.log(`   📝 Added "${ingredient.name}" to submissions for review.`);
+        } else {
+            console.log(`   ⏳ "${ingredient.name}" already pending approval.`);
+        }
+
         return {
             ...ingredient,
             dbId: null,
@@ -148,19 +144,10 @@ const matchSingleIngredient = async (ingredient) => {
             icon: '⚠️',
             matchType: 'none'
         };
-        
+
     } catch (error) {
         console.error(`❌ Error matching ingredient "${ingredient.name}":`, error);
-        
-        // Return unmatched on error (don't fail the whole process)
-        return {
-            ...ingredient,
-            dbId: null,
-            dbName: null,
-            found: false,
-            icon: '⚠️',
-            matchType: 'error'
-        };
+        return { ...ingredient, dbId: null, dbName: null, found: false, icon: '⚠️', matchType: 'error' };
     }
 };
 
@@ -289,38 +276,29 @@ const saveRecipeFromVideo = async (req, res) => {
 
         let savedCount = 0;
         if (ingredients && ingredients.length > 0) {
-            console.log(`🔗 Linking ${ingredients.length} ingredients...`);
-            for (const ingredient of ingredients) {
-                if (!ingredient.name || ingredient.name.trim().length === 0) continue;
+    console.log(`🔗 Linking ${ingredients.length} ingredients...`);
+    for (const ingredient of ingredients) {
+        if (!ingredient.name || ingredient.name.trim().length === 0) continue;
 
-                let ingredientId;
-                const existingResult = await pool.query(
-                    `SELECT id FROM ingredients WHERE LOWER(name) = LOWER($1)`,
-                    [ingredient.name]
-                );
-
-                if (existingResult.rows.length > 0) {
-                    ingredientId = existingResult.rows[0].id;
-                } else {
-                    const newIngredientResult = await pool.query(
-                        `INSERT INTO ingredients (name) VALUES ($1) RETURNING id`,
-                        [ingredient.name]
-                    );
-                    ingredientId = newIngredientResult.rows[0].id;
-                }
-
-                if (ingredientId) {
-                    const normalizedUnit = normalizeUnit(ingredient.unit) || ingredient.unit;
-                    await pool.query(
-                        `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, section)
-                        VALUES ($1, $2, $3, $4, $5)`,
-                        [recipeId, ingredientId, ingredient.quantity || null, normalizedUnit, ingredient.section || 'Main']
-                    );
-                    savedCount++;
-                }
-            }
+        let ingredientId = null;
+        // Try to match the ingredient (reuse matchSingleIngredient or a simpler lookup)
+        const match = await matchSingleIngredient(ingredient); // careful: this may insert submission again
+        if (match.found) {
+            ingredientId = match.dbId;
+        } else {
+            // No match – we still want to save the ingredient text in recipe_ingredients
+            console.log(`   ℹ️ "${ingredient.name}" will be stored as text (no DB link).`);
         }
 
+        const normalizedUnit = normalizeUnit(ingredient.unit) || ingredient.unit;
+        await pool.query(
+            `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, name, quantity, unit, section)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [recipeId, ingredientId, ingredient.name, ingredient.quantity || null, normalizedUnit, ingredient.section || 'Main']
+        );
+        savedCount++;
+    }
+}
         console.log(`✅ ${savedCount} ingredients linked`);
 
         // Update conversion status

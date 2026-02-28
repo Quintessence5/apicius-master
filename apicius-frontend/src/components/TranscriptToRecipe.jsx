@@ -190,22 +190,51 @@ const handleExtractWebsite = async (e) => {
   setStatusMessage('🌐 Fetching website recipe...');
 
   try {
-    const response = await axios.post(`${API_BASE_URL}/transcripts/extract-recipe-website`, {
+    const response = await axios.post(`${API_BASE_URL}/transcripts/extract-url`, {
       url: websiteUrl,
     });
 
-    const { recipe, conversionId, ingredientMatches, sourceTitle, videoThumbnail  } = response.data;
+    if (response.data.redirect && response.data.recipeId) {
+      // Recipe already exists - redirect directly to recipe page
+      setSuccess('✅ Recipe already exists! Redirecting...');
+      setTimeout(() => {
+        navigate(`/recipe/${response.data.recipeId}`);
+      }, 1500);
+      return;
+    }
 
-    // Navigate to the same review page as YouTube
-    navigate('/recipe-review', {
-      state: {
-        recipe,
-        conversionId,
-        ingredientMatches,
-        videoTitle: sourceTitle,        // map to the field the review page expects
-        videoThumbnail,           // no thumbnail for websites
-      },
-    });
+    if (response.data.success) {
+      console.log("✅ Website recipe extracted successfully");
+      setProgress(90);
+      setStatusMessage('📊 Processing...');
+      
+      setGeneratedRecipe(response.data.recipe);
+      setIngredientMatches(response.data.ingredientMatches || null);
+      setConversionId(response.data.conversionId);
+      setVideoTitle(response.data.videoTitle || 'Website Recipe');
+      setVideoThumbnail(response.data.videoThumbnail);
+      setSuccess('✅ Recipe extracted! Redirecting to review page...');
+      setProgress(100);
+      setStatusMessage('✨ Complete!');
+      setStep('review');
+      
+      // Wait a moment then redirect
+      setTimeout(() => {
+        console.log("🔀 Redirecting to review page...");
+        navigate('/recipe-review', {
+          state: {
+            recipe: response.data.recipe,
+            ingredientMatches: response.data.ingredientMatches,
+            conversionId: response.data.conversionId,
+            videoTitle: response.data.videoTitle,
+            videoThumbnail: response.data.videoThumbnail
+          }
+        });
+      }, 1000);
+    } else {
+      setError(response.data.message || 'Failed to extract recipe from website');
+      setStep('input');
+    }
   } catch (err) {
     console.error('Website extraction error:', err);
     const errorMsg = err.response?.data?.message || err.message || 'Failed to extract recipe from website';

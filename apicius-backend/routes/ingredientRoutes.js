@@ -21,6 +21,10 @@ router.get('/:id', ingredientController.getIngredientById);
 router.put('/prices/:ingredient_id', ingredientController.updatePrice);
 router.delete('/:id', ingredientController.deleteIngredient);
 
+router.get('/submissions/pending', ingredientController.getPendingSubmissions);
+router.post('/submissions/:id/approve', ingredientController.approveSubmission);
+router.delete('/submissions/:id/reject', ingredientController.rejectSubmission);
+
 router.post('/:id/image', uploadImage.single('image'), ingredientController.uploadImage );
 
 module.exports = router;

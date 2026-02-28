@@ -5,6 +5,7 @@ const {extractRecipeFromTikTok} = require('../services/tikTokService');
 const {saveRecipeFromVideo} = require('../controllers/videoRecipeController');
 const {getConversionHistory, getConversionDetails} = require('../services/conversionLogger');
 const { extractRecipeFromWebsiteHandler } = require('../controllers/websiteRecipeController');
+const { extractRecipeFromUrl } = require('../services/urlRecipeExtractor');
 
 // Route logging
 router.use((req, res, next) => {
@@ -30,5 +31,7 @@ router.get('/history/:id', getConversionDetails);
 // __________-------------URL extract-------------__________
 // New website endpoint
 router.post('/extract-recipe-website', extractRecipeFromWebsiteHandler);
+
+router.post('/extract-url', extractRecipeFromUrl);
 
 module.exports = router;

@@ -15,8 +15,8 @@ const ffmpegStatic = require('ffmpeg-static');
 const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
+const { completeMissingMetadata } = require('./videoToRecipeService');
 
-// Import all utilities from the new extractor
 const {
     extractTikTokVideoId,
     isValidTikTokUrl,
@@ -437,6 +437,22 @@ try {
             console.warn("⚠️ Ingredient matching error (continuing anyway):", matchError.message);
             ingredientMatches = { all: finalRecipe.ingredients.map(ing => ({ ...ing, dbId: null, found: false, icon: '⚠️' })), matched: [], unmatched: finalRecipe.ingredients, matchPercentage: 0 };
         }
+
+        // ----- Step 9a: Complete missing metadata -----
+console.log("\n📼 Step 9a: Completing missing metadata...");
+const combinedText = [
+    tikTokMetadata.description,
+    subtitleText,
+    audioTranscriptText,
+    websiteRecipeContent
+].filter(Boolean).join('\n\n');
+finalRecipe = await completeMissingMetadata(
+    finalRecipe,
+    combinedText,
+    tikTokMetadata.title,
+    null // no explicit servings from TikTok
+);
+console.log("✅ Metadata completion done");
 
         // Step 10: Log conversion
         console.log("\n📼 Step 10: Logging conversion to database...");

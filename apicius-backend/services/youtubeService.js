@@ -13,6 +13,8 @@ const{
 const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 const { getYouTubeTranscript } = require('./youtubeAudioService');
+const { extractRecipeFromCreatorWebsite } = require('./utils/tiktokExtractor');
+const { completeMissingMetadata } = require('./videoToRecipeService');
 
 // __________-------------Get YouTube Video Thumbnail-------------__________
 const getYouTubeThumbnail = (videoId) => {
@@ -185,8 +187,43 @@ const extractRecipeFromYoutube = async (req, res) => {
             console.log("✅ Sufficient ingredients/steps, skipping comment mining");
         }
 
-        // 5b: If still insufficient, try audio transcription (more expensive)
-        console.log("\n📼 Step 5b: Checking if audio transcription is needed...");
+        // ----- NEW STEP 5b: Try creator's website -----
+        console.log("\n📼 Step 5b: Attempting to extract recipe from creator's website...");
+        let websiteRecipeContent = "";
+        if (extractedIngredients.length < 4 || !analysis.hasSteps) {
+            try {
+                // Use the same function as TikTok, passing description and channel title as creator name
+                const websiteResult = await extractRecipeFromCreatorWebsite(
+                    youtubeMetadata.description,
+                    youtubeMetadata.channelTitle // channel name as creator
+                );
+                if (websiteResult && websiteResult.recipe) {
+                    console.log(`✅ Found recipe on creator website: "${websiteResult.recipe.title}"`);
+                    // Store the full recipe content for LLM reference
+                    websiteRecipeContent = websiteResult.recipe.description || JSON.stringify(websiteResult.recipe);
+                    if (websiteResult.recipe.ingredients && websiteResult.recipe.ingredients.length > 0) {
+                        const websiteIngredients = websiteResult.recipe.ingredients.map(ing => ({
+                            name: ing.name,
+                            quantity: ing.quantity,
+                            unit: ing.unit,
+                            section: ing.section || 'Main'
+                        }));
+                        console.log(`✅ Extracted ${websiteIngredients.length} ingredients from website`);
+                        extractedIngredients = mergeIngredients(extractedIngredients, websiteIngredients);
+                        console.log(`✅ Ingredients after merging website: ${extractedIngredients.length}`);
+                    }
+                } else {
+                    console.log("⚠️ No recipe found on creator website");
+                }
+            } catch (websiteError) {
+                console.warn(`⚠️ Website extraction failed (continuing): ${websiteError.message}`);
+            }
+        } else {
+            console.log("✅ Sufficient ingredients/steps, skipping website search");
+        }
+
+        // 5c: If still insufficient, try audio transcription (more expensive)
+        console.log("\n📼 Step 5c: Checking if audio transcription is needed...");
         if (extractedIngredients.length < 4 || !analysis.hasSteps) {
             try {
                 console.log("   Downloading and transcribing audio...");
@@ -229,12 +266,17 @@ const extractRecipeFromYoutube = async (req, res) => {
             );
             } else {
                 console.log("📄 Using description-based recipe generation...");
+                // Combine website content with other supplements
+                let supplemental = "";
+                if (websiteRecipeContent) supplemental += `WEBSITE RECIPE CONTENT:\n${websiteRecipeContent}\n\n`;
+                if (topCommentsText) supplemental += `⭐ TOP COMMENTS:\n${topCommentsText}\n\n`;
                 finalRecipe = await generateRecipeWithLLM(
                 youtubeMetadata.description,
                 youtubeMetadata.title,
                 youtubeMetadata.channelTitle,
                 extractedIngredients,
                 topCommentsText,
+                supplemental,
                 audioTranscriptText
                 );
             }
@@ -290,6 +332,22 @@ const extractRecipeFromYoutube = async (req, res) => {
                 matchPercentage: 0
             };
         }
+
+        // ----- Step 8a: Complete missing metadata -----
+console.log("\n📼 Step 8a: Completing missing metadata...");
+const combinedText = [
+    youtubeMetadata.description,
+    audioTranscriptText,
+    topCommentsText,
+    websiteRecipeContent
+].filter(Boolean).join('\n\n');
+finalRecipe = await completeMissingMetadata(
+    finalRecipe,
+    combinedText,
+    youtubeMetadata.title,
+    youtubeMetadata.servings // explicit servings if available (from getYouTubeDescription)
+);
+console.log("✅ Metadata completion done");
 
         //________Step 9: Log conversion
         console.log("\n📼 Step 9: Logging conversion to database...");

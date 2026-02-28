@@ -9,8 +9,7 @@ const { exec } = require('child_process');
 const util = require('util');
 const execPromise = util.promisify(exec);
 
-// Needed for website extraction
-const { extractRecipeFromWebsite } = require('../websiteRecipeService');
+const { extractRecipeSimple } = require('../utils/urlExtractor');
 
 // ---------- Extract TikTok Video ID ----------
 const extractTikTokVideoId = (url) => {
@@ -330,32 +329,49 @@ const validateTikTokUrl = (url) => {
 };
 
 // ---------- Extract from creator's website ----------
+/**
+ * @param {string} description - TikTok video description
+ * @param {string} creatorName - TikTok username (without @)
+ * @returns {Promise<Object|null>} Recipe object or null
+ */
 const extractRecipeFromCreatorWebsite = async (description, creatorName) => {
     try {
         console.log(`🔗 Attempting to extract website URL from description...`);
+        
+        // 1. Find all URLs in description
         const urlPattern = /(https?:\/\/[^\s)]+)/g;
         let urls = description.match(urlPattern) || [];
-        if (urls.length === 0) return null;
+        if (urls.length === 0) {
+            console.log('   ⚠️ No URLs found in description');
+            return null;
+        }
 
+        // 2. Clean and normalise URLs
         urls = urls.map(url => {
+            // Remove trailing punctuation
             url = url.split('(')[0];
             url = url.replace(/[,;:)}\s]+$/, '');
-            url = url.split('?')[0];
-            url = url.split('#')[0];
+            // Remove query parameters and fragments (optional, keep if needed for recipe pages)
+            // url = url.split('?')[0];
+            // url = url.split('#')[0];
             if (!url.endsWith('/') && !url.match(/\.[a-z]{2,4}$/i)) url = url + '/';
             return url.trim();
         });
-        urls = [...new Set(urls)];
+        urls = [...new Set(urls)]; // deduplicate
 
+        // 3. Filter out obvious non‑recipe URLs
         const recipeUrls = urls.filter(url => {
             const lowerUrl = url.toLowerCase();
+            // Skip domain‑only URLs (likely homepage)
             if (/\.(com|org|net|co|io)(\/)?$/.test(lowerUrl)) return false;
+            // Skip social media platforms
             if (lowerUrl.includes('tiktok.com') ||
                 lowerUrl.includes('instagram.com') ||
                 lowerUrl.includes('youtube.com') ||
                 lowerUrl.includes('facebook.com') ||
                 lowerUrl.includes('twitter.com') ||
                 lowerUrl.includes('pinterest.com')) return false;
+            // Skip common non‑recipe paths
             if (lowerUrl.includes('/contact') ||
                 lowerUrl.includes('/about') ||
                 lowerUrl.includes('/shop') ||
@@ -366,27 +382,45 @@ const extractRecipeFromCreatorWebsite = async (description, creatorName) => {
                 lowerUrl.includes('/search')) return false;
             return true;
         });
-        if (recipeUrls.length === 0) return null;
 
+        if (recipeUrls.length === 0) {
+            console.log('   ⚠️ No suitable recipe URLs found');
+            return null;
+        }
+
+        // 4. Score remaining URLs to find the most likely recipe page
         const scoredUrls = recipeUrls.map(url => {
             let score = 0;
             const lowerUrl = url.toLowerCase();
             const lowerCreator = creatorName.toLowerCase();
+
+            // URL contains creator name? Very likely their own site
             if (lowerUrl.includes(lowerCreator)) score += 10;
+            // Contains recipe‑related words
             if (lowerUrl.includes('recipe')) score += 8;
             if (lowerUrl.includes('food') || lowerUrl.includes('cook')) score += 5;
             if (lowerUrl.includes('cake') || lowerUrl.includes('dessert') || lowerUrl.includes('chocolate')) score += 4;
+            // Shorter, more specific URLs are better (e.g., /recipe-name rather than long path)
             const slashCount = (url.match(/\//g) || []).length;
             if (slashCount <= 4) score += 3;
+            // Penalise extremely long URLs
             if (url.length > 100) score -= 2;
             return { url, score };
         });
+
         scoredUrls.sort((a, b) => b.score - a.score);
         const targetUrl = scoredUrls[0].url;
-        console.log(`🎯 Selected best URL: ${targetUrl}`);
+        console.log(`   🎯 Selected best URL: ${targetUrl}`);
 
-        const { recipe, imageUrl } = await extractRecipeFromWebsite(targetUrl);
-        return { recipe, imageUrl };
+        // ✅ Use extractRecipeSimple instead of extractRecipeFromUrl
+        const recipe = await extractRecipeSimple(targetUrl);
+        if (!recipe || !recipe.ingredients || recipe.ingredients.length === 0) {
+            console.log('   ⚠️ No recipe found at selected URL');
+            return null;
+        }
+
+        console.log(`   ✅ Successfully extracted recipe from ${targetUrl}`);
+        return { recipe };
     } catch (error) {
         console.error(`❌ Error extracting recipe from creator website:`, error.message);
         return null;

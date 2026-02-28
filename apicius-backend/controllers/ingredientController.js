@@ -378,3 +378,69 @@ exports.uploadImage = async (req, res) => {
     res.status(500).json({ message: 'Failed to upload image' });
   }
 };
+
+// Get pending submissions
+exports.getPendingSubmissions = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM ingredient_submissions WHERE status = 'pending' ORDER BY created_at DESC`
+        );
+        res.status(200).json(result.rows);
+    } catch (error) {
+        console.error('Error fetching submissions:', error);
+        res.status(500).json({ message: 'Failed to fetch submissions' });
+    }
+};
+
+// Approve submission (create ingredient and update status)
+exports.approveSubmission = async (req, res) => {
+    const { id } = req.params;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // Get submission
+        const submission = await client.query(
+            `SELECT * FROM ingredient_submissions WHERE id = $1`,
+            [id]
+        );
+        if (submission.rows.length === 0) {
+            throw new Error('Submission not found');
+        }
+        const sub = submission.rows[0];
+        // Insert into ingredients
+        const newIng = await client.query(
+            `INSERT INTO ingredients (name, category) VALUES ($1, $2) RETURNING id`,
+            [sub.name, sub.category || 'Uncategorized']
+        );
+        // Update submission status
+        await client.query(
+            `UPDATE ingredient_submissions SET status = 'approved', approved_at = NOW(), ingredient_id = $1 WHERE id = $2`,
+            [newIng.rows[0].id, id]
+        );
+        // Optionally, update any recipe_ingredients that used this submission? 
+        // For now, we just mark approved.
+        await client.query('COMMIT');
+        res.status(200).json({ message: 'Ingredient approved', ingredientId: newIng.rows[0].id });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error approving submission:', error);
+        res.status(500).json({ message: 'Approval failed' });
+    } finally {
+        client.release();
+    }
+};
+
+// Reject submission (delete or mark rejected)
+exports.rejectSubmission = async (req, res) => {
+    const { id } = req.params;
+    try {
+        await pool.query(
+            `UPDATE ingredient_submissions SET status = 'rejected' WHERE id = $1`,
+            [id]
+        );
+        res.status(200).json({ message: 'Submission rejected' });
+    } catch (error) {
+        console.error('Error rejecting submission:', error);
+        res.status(500).json({ message: 'Rejection failed' });
+    }
+};
