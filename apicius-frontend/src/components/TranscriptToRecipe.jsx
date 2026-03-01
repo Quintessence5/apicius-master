@@ -23,161 +23,141 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     const [videoTitle, setVideoTitle] = useState('');
     const [videoThumbnail, setVideoThumbnail] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
+    const [imageFile, setImageFile] = useState(null);
     
     const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5010/api';
 
-    // __________-------------Extract YouTube Video and Recipe-------------__________
-    const handleExtractYouTube = async (e) => {
+
+    // Platform detection
+    const detectPlatform = (url) => {
+        if (url.match(/(youtube\.com|youtu\.be)/i)) return 'youtube';
+        if (url.match(/(tiktok\.com)/i)) return 'tiktok';
+        if (url.match(/(instagram\.com|instagr\.am)/i)) return 'instagram';
+        return null;
+    };
+
+    // Unified video extraction handler
+    const handleExtractVideo = async (e) => {
     e.preventDefault();
+    const platform = detectPlatform(videoUrl);
+    if (!platform) {
+        setError('❌ Unsupported platform. Please use YouTube, TikTok, or Instagram.');
+        return;
+    }
+
     setLoading(true);
     setError('');
     setSuccess('');
     setProgress(0);
     setStep('extracting');
 
+    // Define progress steps with messages
+    const progressSteps = [
+        { progress: 10, message: '✅ Validating URL...' },
+        { progress: 20, message: `🎬 Extracting from ${platform}...` },
+        { progress: 40, message: `📡 Getting Metadata from ${platform}...` },
+        { progress: 50, message: `🔍 Testing Solution 1 for ${platform} ...` },
+        { progress: 65, message: `🌐 Testing Solution 2 for ${platform} ...` },
+        { progress: 80, message: `🎤 Testing Solution 3 for ${platform} ...` },
+        { progress: 90, message: '📊 Matching ingredients with database...' },
+    ];
+
+    // Set up timers for each step
+    const timers = [];
+    let currentStepIndex = 0;
+
+    const scheduleNext = () => {
+        if (currentStepIndex < progressSteps.length) {
+            const step = progressSteps[currentStepIndex];
+            const timer = setTimeout(() => {
+                setProgress(step.progress);
+                setStatusMessage(step.message);
+                currentStepIndex++;
+                scheduleNext();
+            }, 2000); // 2 seconds between steps – adjust as needed
+            timers.push(timer);
+        }
+    };
+
+    // Start the first timer immediately (progress 10%)
+    setProgress(10);
+    setStatusMessage(progressSteps[0].message);
+    currentStepIndex = 1;
+    scheduleNext();
+
     try {
-        console.log("🎬 Step 1: Extracting recipe from YouTube...");
-        setStatusMessage('🎬 Downloading and analyzing video...');
-        setProgress(20);
+        let response;
+        switch (platform) {
+            case 'youtube':
+                response = await axios.post(`${API_BASE_URL}/transcripts/extract-youtube`, { videoUrl });
+                break;
+            case 'tiktok':
+                response = await axios.post(`${API_BASE_URL}/transcripts/extract-tiktok`, { videoUrl });
+                break;
+            case 'instagram':
+                response = await axios.post(`${API_BASE_URL}/transcripts/extract-instagram`, { videoUrl });
+                break;
+            default:
+                throw new Error('Unsupported platform');
+        }
 
-        const response = await axios.post(`${API_BASE_URL}/transcripts/extract-youtube`, {
-            videoUrl
-        });
+        // Clear all timers – request finished
+        timers.forEach(timer => clearTimeout(timer));
 
-        console.log("Response received:", response.data);
+        const data = response.data;
 
-        if (response.data.redirect && response.data.recipeId) {
-            // Recipe already exists - redirect directly to recipe page
-            console.log("🔄 Redirecting to existing recipe...");
+        if (data.redirect && data.recipeId) {
             setSuccess('✅ Recipe already exists! Redirecting...');
-            setTimeout(() => {
-                navigate(`/recipe/${response.data.recipeId}`);
-            }, 1500);
+            setTimeout(() => navigate(`/recipe/${data.recipeId}`), 1500);
             return;
         }
 
-        if (response.data.success) {
-            console.log("✅ Recipe extracted successfully");
+        if (data.requiresManualInput) {
+            setError(`${data.message}. Please paste the video transcript manually below.`);
+            setStep('input');
+            setLoading(false);
+            return;
+        }
+
+        if (data.success) {
             setProgress(90);
             setStatusMessage('📊 Matching ingredients with database...');
-            
-            setGeneratedRecipe(response.data.recipe);
-            setIngredientMatches(response.data.ingredientMatches || null);
-            setConversionId(response.data.conversionId);
-            setVideoTitle(response.data.videoTitle || 'YouTube Video');
-            setSuccess('✅ Recipe extracted! Redirecting to review page...');
+
+            setGeneratedRecipe(data.recipe);
+            setIngredientMatches(data.ingredientMatches || null);
+            setConversionId(data.conversionId);
+            setVideoTitle(data.videoTitle || `${platform} Video`);
+            setVideoThumbnail(data.videoThumbnail);
+            setSuccess(`✅ Recipe extracted from ${platform}! Redirecting to review page...`);
             setProgress(100);
             setStatusMessage('✨ Complete!');
             setStep('review');
-            
-            // Wait a moment then redirect
+
             setTimeout(() => {
-                console.log("🔀 Redirecting to review page...");
                 navigate('/recipe-review', {
                     state: {
-                        recipe: response.data.recipe,
-                        ingredientMatches: response.data.ingredientMatches,
-                        conversionId: response.data.conversionId,
-                        videoTitle: response.data.videoTitle,
-                        videoThumbnail: response.data.videoThumbnail 
+                        recipe: data.recipe,
+                        ingredientMatches: data.ingredientMatches,
+                        conversionId: data.conversionId,
+                        videoTitle: data.videoTitle,
+                        videoThumbnail: data.videoThumbnail
                     }
                 });
             }, 1000);
         } else {
-            setError(response.data.message || 'Failed to extract recipe');
+            setError(data.message || 'Failed to extract recipe');
             setStep('input');
+            setLoading(false);
         }
     } catch (err) {
-        console.error('YouTube extraction error:', err);
-        const errorMsg = err.response?.data?.message || err.message || 'Failed to extract recipe from YouTube';
+        console.error('Extraction error:', err);
+        timers.forEach(timer => clearTimeout(timer));
+        const errorMsg = err.response?.data?.message || err.message || 'Failed to extract recipe';
         setError(`❌ ${errorMsg}`);
         setStep('input');
-    } finally {
         setLoading(false);
     }
 };
-
-// __________-------------Extract TikTok Video and Recipe-------------__________
-    const handleExtractTikTok = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        setSuccess('');
-        setProgress(0);
-        setStep('extracting');
-
-        try {
-            console.log("🎵 Step 1: Extracting recipe from TikTok...");
-            setStatusMessage('🎵 Analyzing TikTok video...');
-            setProgress(20);
-
-            const response = await axios.post(`${API_BASE_URL}/transcripts/extract-tiktok`, {
-                videoUrl
-            });
-
-            console.log("Response received:", response.data);
-
-            if (response.data.redirect && response.data.recipeId) {
-                // Recipe already exists - redirect directly to recipe page
-                console.log("🔄 Redirecting to existing recipe...");
-                setSuccess('✅ Recipe already exists! Redirecting...');
-                setTimeout(() => {
-                    navigate(`/recipe/${response.data.recipeId}`);
-                }, 1500);
-                return;
-            }
-
-            if (response.data.requiresManualInput) {
-                // Metadata fetch failed - prompt user for manual input
-                console.warn("⚠️ Automatic extraction failed, switching to manual input...");
-                setError(`${response.data.message}. Please paste the video transcript below.`);
-                setStep('input');
-                setActiveTab('tiktok');
-                setLoading(false);
-                return;
-            }
-
-            if (response.data.success) {
-                console.log("✅ Recipe extracted from TikTok successfully");
-                setProgress(90);
-                setStatusMessage('📊 Matching ingredients with database...');
-                
-                setGeneratedRecipe(response.data.recipe);
-                setIngredientMatches(response.data.ingredientMatches || null);
-                setConversionId(response.data.conversionId);
-                setVideoTitle(response.data.videoTitle || 'TikTok Video');
-                setVideoThumbnail(response.data.videoThumbnail);
-                setSuccess('✅ Recipe extracted from TikTok! Redirecting to review page...');
-                setProgress(100);
-                setStatusMessage('✨ Complete!');
-                setStep('review');
-                
-                // Wait a moment then redirect
-                setTimeout(() => {
-                    console.log("🔀 Redirecting to review page...");
-                    navigate('/recipe-review', {
-                        state: {
-                            recipe: response.data.recipe,
-                            ingredientMatches: response.data.ingredientMatches,
-                            conversionId: response.data.conversionId,
-                            videoTitle: response.data.videoTitle,
-                            videoThumbnail: response.data.videoThumbnail 
-                        }
-                    });
-                }, 1000);
-            } else {
-                setError(response.data.message || 'Failed to extract recipe from TikTok');
-                setStep('input');
-            }
-        } catch (err) {
-            console.error('TikTok extraction error:', err);
-            const errorMsg = err.response?.data?.message || err.message || 'Failed to extract recipe from TikTok';
-            setError(`❌ ${errorMsg}`);
-            setStep('input');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     // __________-------------Extract Recipe from Website URL-------------__________
 const handleExtractWebsite = async (e) => {
@@ -245,80 +225,94 @@ const handleExtractWebsite = async (e) => {
   }
 };
 
-    // __________-------------Convert Manual Transcript to Recipe-------------__________
-    const handleManualTranscriptSubmit = async (e) => {
-    e.preventDefault();
-    if (!manualTranscript.trim()) {
-        setError('Please enter a transcript');
-        return;
+   // Manual tab – redirect to Add Recipe page
+    const handleManualRedirect = () => {
+        navigate('/add-recipe');
+    };
+
+// Add handleImageUpload function:
+const handleImageUpload = async (e) => {
+  e.preventDefault();
+  if (!imageFile) {
+    setError('Please select an image file');
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+  setSuccess('');
+  setProgress(0);
+  setStep('extracting');
+  setStatusMessage('📤 Uploading image...');
+
+  const progressSteps = [
+    { progress: 10, message: '📤 Uploading image...' },
+    { progress: 40, message: '🔍 Analyzing image with AI...' },
+    { progress: 70, message: '📊 Matching ingredients with database...' },
+    { progress: 90, message: '✨ Finalizing recipe...' },
+  ];
+
+  let currentStepIndex = 0;
+  const timers = [];
+
+  const scheduleNext = () => {
+    if (currentStepIndex < progressSteps.length) {
+      const step = progressSteps[currentStepIndex];
+      const timer = setTimeout(() => {
+        setProgress(step.progress);
+        setStatusMessage(step.message);
+        currentStepIndex++;
+        scheduleNext();
+      }, 2000);
+      timers.push(timer);
     }
+  };
 
-    setLoading(true);
-    setError('');
-    setSuccess('');
-    setProgress(0);
-    setStep('extracting');
+  setProgress(10);
+  setStatusMessage(progressSteps[0].message);
+  currentStepIndex = 1;
+  scheduleNext();
 
-    try {
-        console.log("📝 Converting manual transcript to recipe...");
-        setStatusMessage('🤖 Generating recipe from transcript...');
-        setProgress(30);
+  try {
+    const formData = new FormData();
+    formData.append('image', imageFile);
 
-        // For manual input, use the convert-to-recipe endpoint
-        const response = await axios.post(`${API_BASE_URL}/transcripts/convert-to-recipe`, {
-            transcript: manualTranscript,
-            source: activeTab,
-            videoUrl: null
+    const response = await axios.post(`${API_BASE_URL}/transcripts/extract-from-image`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    timers.forEach(timer => clearTimeout(timer));
+
+    const data = response.data;
+
+    if (data.success) {
+      setProgress(100);
+      setStatusMessage('✅ Complete!');
+      setSuccess('✅ Recipe extracted! Redirecting to review...');
+
+      setTimeout(() => {
+        navigate('/recipe-review', {
+          state: {
+            recipe: data.recipe,
+            ingredientMatches: data.ingredientMatches,
+            conversionId: data.conversionId,
+            videoTitle: data.videoTitle,
+            videoThumbnail: data.videoThumbnail,
+          },
         });
-
-        if (response.data.success) {
-            console.log("✅ Recipe created successfully");
-            setProgress(90);
-            setStatusMessage('📊 Matching ingredients...');
-
-            setGeneratedRecipe(response.data.recipe);
-            // For manual input, create a basic match response
-            const basicMatches = {
-                all: response.data.recipe.ingredients.map(ing => ({
-                    ...ing,
-                    dbId: null,
-                    found: false,
-                    icon: '⚠️'
-                })),
-                matched: [],
-                unmatched: response.data.recipe.ingredients,
-                matchPercentage: 0
-            };
-            setIngredientMatches(basicMatches);
-            setConversionId(response.data.conversionId);
-            setVideoTitle(activeTab === 'manual' ? 'Manual Recipe Input' : `${activeTab} Video`);
-            setSuccess('✅ Recipe created! Redirecting to review page...');
-            setProgress(100);
-            setStatusMessage('✨ Complete!');
-
-            // Redirect to review page
-            setTimeout(() => {
-                navigate('/recipe-review', {
-                    state: {
-                        recipe: response.data.recipe,
-                        ingredientMatches: basicMatches,
-                        conversionId: response.data.conversionId,
-                        videoTitle: activeTab === 'manual' ? 'Manual Recipe Input' : `${activeTab} Video`
-                    }
-                });
-            }, 1500);
-        } else {
-            setError(response.data.message || 'Failed to create recipe');
-            setStep('input');
-        }
-    } catch (err) {
-        console.error('Conversion error:', err);
-        const errorMsg = err.response?.data?.message || err.message || 'Failed to convert transcript to recipe';
-        setError(`❌ ${errorMsg}`);
-        setStep('input');
-    } finally {
-        setLoading(false);
+      }, 1500);
+    } else {
+      setError(data.message || 'Failed to extract recipe');
+      setStep('input');
     }
+  } catch (err) {
+    timers.forEach(timer => clearTimeout(timer));
+    console.error('Image upload error:', err);
+    setError(err.response?.data?.message || err.message || 'Failed to process image');
+    setStep('input');
+  } finally {
+    setLoading(false);
+  }
 };
 
     // __________-------------Navigate to Review Page-------------__________
@@ -355,16 +349,15 @@ const handleExtractWebsite = async (e) => {
 
     return (
         <div className="transcript-to-recipe-container">
-            <h2>🎥 Video to Recipe Converter</h2>
+            <h2>Add a new recipe 🥙</h2>
 
             {/* Tabs */}
             {step === 'input' && (
                 <div className="transcript-tabs">
                     {[
-                        { id: 'youtube', label: '▶️ YouTube', icon: '▶️' },
-                        { id: 'tiktok', label: '🎵 TikTok', icon: '🎵' },
-                        { id: 'instagram', label: '📷 Instagram', icon: '📷' },
+                        { id: 'video', label: '🎥 Video Upload', icon: '🎥' },
                         { id: 'url', label: '🔗 Website', icon: '🔗' },
+                        { id: 'image', label: '📸 Image', icon: '📸' },
                         { id: 'manual', label: '✍️ Manual', icon: '✍️' }
                     ].map(tab => (
                         <button
@@ -382,12 +375,12 @@ const handleExtractWebsite = async (e) => {
             {error && <div className="transcript-error-message">❌ {error}</div>}
             {success && <div className="transcript-success-message">✅ {success}</div>}
 
-            {/* YouTube Input */}
-            {activeTab === 'youtube' && step === 'input' && (
-                <form onSubmit={handleExtractYouTube} className="transcript-form">
+             {/* Video Upload Tab */}
+            {activeTab === 'video' && step === 'input' && (
+                <form onSubmit={handleExtractVideo} className="transcript-form">
                     <input
                         type="url"
-                        placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                        placeholder="Paste YouTube, TikTok, or Instagram video URL..."
                         value={videoUrl}
                         onChange={(e) => setVideoUrl(e.target.value)}
                         required
@@ -395,66 +388,59 @@ const handleExtractWebsite = async (e) => {
                         className="transcript-input"
                     />
                     <button type="submit" disabled={loading} className="transcript-submit-btn">
-                        {loading ? '🔄 Extracting...' : '▶️ Extract Recipe'}
+                        {loading ? '🔄 Extracting...' : '🎥 Extract Recipe'}
                     </button>
+                    <p className="tab-info">💡 Supports YouTube, TikTok, and Instagram videos</p>
                 </form>
             )}
 
-            {/* TikTok URL Input */}
-            {activeTab === 'tiktok' && step === 'input' && (
-                <form onSubmit={handleExtractTikTok} className="transcript-form">
-                    <input
-                        type="url"
-                        placeholder="https://www.tiktok.com/@username/video/... or https://vt.tiktok.com/..."
-                        value={videoUrl}
-                        onChange={(e) => setVideoUrl(e.target.value)}
-                        disabled={loading}
-                        className="transcript-input"
-                    />
-                    <button type="submit" disabled={loading} className="transcript-submit-btn">
-                        {loading ? '🔄 Extracting...' : '🎵 Extract Recipe'}
-                    </button>
-                    <p className="tab-info">💡 Tip: If automatic extraction fails, you can paste the transcript manually below</p>
-                </form>
-            )}
-
-            {activeTab === 'url' && step === 'input' && (
-  <form onSubmit={handleExtractWebsite} className="transcript-form">
+            {/* Image Tab – Placeholder */}
+            {activeTab === 'image' && step === 'input' && (
+  <form onSubmit={handleImageUpload} className="transcript-form">
     <input
-      type="url"
-      placeholder="Enter recipe website URL (e.g., https://www.750g.com/...)"
-      value={websiteUrl}
-      onChange={(e) => setWebsiteUrl(e.target.value)}
-      required
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      onChange={(e) => setImageFile(e.target.files[0])}
       disabled={loading}
       className="transcript-input"
     />
     <button type="submit" disabled={loading} className="transcript-submit-btn">
-      {loading ? '🔄 Extracting...' : '🌐 Extract from Website'}
+      {loading ? '🔄 Processing...' : '📸 Extract from Image'}
     </button>
-    <p className="tab-info">
-      💡 Supports: 750g.com, Marmiton.org, AllRecipes.com, SeriousEats.com, PinchOfYum.com, and many more!
-    </p>
+    <p className="tab-info">📸 Upload a clear image of a recipe (cookbook page, handwritten note, screenshot)</p>
   </form>
 )}
-            {/* Instagram/Manual Input */}
-            {(activeTab === 'instagram' || activeTab === 'manual') && step === 'input' && (
-                <form onSubmit={handleManualTranscriptSubmit} className="transcript-form">
-                    <textarea
-                        placeholder={`Paste ${activeTab === 'instagram' ? 'Instagram' : 'cooking'} video transcript or recipe text here...\nTip: Copy from video captions, description, or comments`}
-                        value={manualTranscript}
-                        onChange={(e) => setManualTranscript(e.target.value)}
+
+            {/* Website Input */}
+            {activeTab === 'url' && step === 'input' && (
+                <form onSubmit={handleExtractWebsite} className="transcript-form">
+                    <input
+                        type="url"
+                        placeholder="Enter recipe website URL (e.g., https://www.recipe.com/...)"
+                        value={websiteUrl}
+                        onChange={(e) => setWebsiteUrl(e.target.value)}
                         required
                         disabled={loading}
-                        rows="8"
-                        className="transcript-textarea"
+                        className="transcript-input"
                     />
                     <button type="submit" disabled={loading} className="transcript-submit-btn">
-                        {loading ? '🔄 Converting...' : '🍳 Convert to Recipe'}
+                        {loading ? '🔄 Extracting...' : '🌐 Extract from Website'}
                     </button>
+                    <p className="tab-info">
+                        💡 Supports: 750g.com, Marmiton.org, AllRecipes.com, SeriousEats.com, PinchOfYum.com, and many more!
+                    </p>
                 </form>
             )}
 
+            {/* Manual Tab – Redirect to Add Recipe */}
+            {activeTab === 'manual' && step === 'input' && (
+                <div className="transcript-form">
+                    <p>Create a recipe from scratch using our manual entry form.</p>
+                    <button onClick={handleManualRedirect} className="transcript-submit-btn">
+                        ✍️ Go to Manual Recipe Entry
+                    </button>
+                </div>
+            )}
 
             {/* Progress Indicator */}
             {loading && step === 'extracting' && (

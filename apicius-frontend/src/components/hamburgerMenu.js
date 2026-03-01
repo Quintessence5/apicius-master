@@ -46,13 +46,8 @@ const HamburgerMenu = ({ user, handleLogout }) => {
                                 </Link>
                             </li>
                             <li>
-                                <Link to="/add-recipe" onClick={toggleMenu}>
-                                    Add Recipe
-                                </Link>
-                            </li>
-                            <li>
                                 <Link to="/transcript" onClick={toggleMenu}>
-                                    🎥 Video to Recipe
+                                    Add a new recipe 🥙
                                 </Link>
                             </li>
                             <li>

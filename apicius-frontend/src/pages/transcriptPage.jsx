@@ -6,8 +6,8 @@ const TranscriptPage = () => {
     return (
         <div className="transcript-page-container">
             <div className="transcript-page-header">
-                <h1>🎥 Video to Recipe Converter</h1>
-                <p>Extract structured recipes from YouTube videos, paste transcripts, or manually enter cooking instructions</p>
+                <h1>Add a new recipe 🥙</h1>
+                <p>Extract structured recipes from videos, images, urls or manually enter the recipe details</p>
             </div>
 
             <div className="transcript-page-content">

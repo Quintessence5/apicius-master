@@ -30,7 +30,8 @@ const {
     analyzeTikTokDescription,
     validateTikTokUrl,
     extractRecipeFromCreatorWebsite
-} = require('./utils/tiktokExtractor');
+} = require('./utils/tikTokExtractor');
+const { getVideoDuration } = require('./utils/duration');
 
 // __________-------------GET TIKTOK METADATA WITH IMPROVED EXTRACTION-------------__________
 const getTikTokMetadata = async (videoUrl) => {
@@ -329,28 +330,33 @@ const extractRecipeFromTikTok = async (req, res) => {
             }
 
             // Step 6: Try audio transcription
-            console.log("\n📼 Step 6: Checking if audio transcription is needed...");
-            if (extractedIngredients.length < 4) {
-                try {
-                    console.log("   Downloading and transcribing audio...");
-                    const audioResult = await getTikTokAudioTranscript(videoUrl);
-                    if (audioResult.success && audioResult.transcript) {
-                        audioTranscriptText = audioResult.transcript;
-                        console.log(`✅ Audio transcript obtained. Length: ${audioTranscriptText.length} chars`);
-                        const audioIngredients = extractIngredientsFromText(audioTranscriptText);
-                        if (audioIngredients.length > 0) {
-                            console.log(`✅ Extracted ${audioIngredients.length} ingredients from audio transcript`);
-                            extractedIngredients = mergeIngredients(extractedIngredients, audioIngredients);
-                        }
-                    } else {
-                        console.warn("⚠️ Audio transcription returned no text");
-                    }
-                } catch (audioError) {
-                    console.warn(`⚠️ Audio transcription failed (continuing): ${audioError.message}`);
+console.log("\n📼 Step 6: Checking if audio transcription is needed...");
+if (extractedIngredients.length < 4) {
+    try {
+        const duration = await getVideoDuration(videoUrl);
+        if (duration && duration > 180) {
+            console.log(`⏱️ Video duration ${duration}s > 180s, skipping audio transcription.`);
+        } else {
+            console.log("   Downloading and transcribing audio...");
+            const audioResult = await getTikTokAudioTranscript(videoUrl);
+            if (audioResult.success && audioResult.transcript) {
+                audioTranscriptText = audioResult.transcript;
+                console.log(`✅ Audio transcript obtained. Length: ${audioTranscriptText.length} chars`);
+                const audioIngredients = extractIngredientsFromText(audioTranscriptText);
+                if (audioIngredients.length > 0) {
+                    console.log(`✅ Extracted ${audioIngredients.length} ingredients from audio transcript`);
+                    extractedIngredients = mergeIngredients(extractedIngredients, audioIngredients);
                 }
             } else {
-                console.log("✅ Sufficient ingredients already, skipping audio transcription");
+                console.warn("⚠️ Audio transcription returned no text");
             }
+        }
+    } catch (audioError) {
+        console.warn(`⚠️ Audio transcription failed (continuing): ${audioError.message}`);
+    }
+} else {
+    console.log("✅ Sufficient ingredients already, skipping audio transcription");
+}
         } else {
             console.log("✅ Sufficient ingredients from description, skipping website/subtitle/audio steps.");
         }

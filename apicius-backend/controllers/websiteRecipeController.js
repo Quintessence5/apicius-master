@@ -1,5 +1,5 @@
 const pool = require('../config/db');
-const { extractRecipeFromWebsite } = require('../services/websiteRecipeService');
+const { extractRecipeFromUrl } = require('../services/urlRecipeExtractor');
 const { matchIngredientsWithDatabase } = require('./videoRecipeController');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 const { translateRecipeToEnglish, sanitizeRecipe } = require('../services/videoToRecipeService'); 
@@ -47,7 +47,7 @@ const extractRecipeFromWebsiteHandler = async (req, res) => {
 
         // ----- Step 2: Extract recipe from website (service) -----
 console.log('🌐 Step 2: Extracting recipe from website...');
-const { recipe, imageUrl } = await extractRecipeFromWebsite(url);
+const { recipe, imageUrl } = await extractRecipeFromUrl(url);
 
 // ----- Step 2.5: Translate recipe to English if needed -----
 console.log('🌐 Step 2.5: Ensuring recipe is in English...');

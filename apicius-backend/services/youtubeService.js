@@ -13,8 +13,9 @@ const{
 const { extractVideoId, detectPlatform } = require('../services/utils/videoUtils');
 const { logConversion, logConversionError } = require('../services/conversionLogger');
 const { getYouTubeTranscript } = require('./youtubeAudioService');
-const { extractRecipeFromCreatorWebsite } = require('./utils/tiktokExtractor');
+const { extractRecipeFromCreatorWebsite } = require('./utils/tikTokExtractor');
 const { completeMissingMetadata } = require('./videoToRecipeService');
+const { getVideoDuration } = require('./utils/duration');
 
 // __________-------------Get YouTube Video Thumbnail-------------__________
 const getYouTubeThumbnail = (videoId) => {
@@ -187,7 +188,7 @@ const extractRecipeFromYoutube = async (req, res) => {
             console.log("✅ Sufficient ingredients/steps, skipping comment mining");
         }
 
-        // ----- NEW STEP 5b: Try creator's website -----
+        // ----- 5b: Try creator's website -----
         console.log("\n📼 Step 5b: Attempting to extract recipe from creator's website...");
         let websiteRecipeContent = "";
         if (extractedIngredients.length < 4 || !analysis.hasSteps) {
@@ -222,32 +223,31 @@ const extractRecipeFromYoutube = async (req, res) => {
             console.log("✅ Sufficient ingredients/steps, skipping website search");
         }
 
-        // 5c: If still insufficient, try audio transcription (more expensive)
-        console.log("\n📼 Step 5c: Checking if audio transcription is needed...");
-        if (extractedIngredients.length < 4 || !analysis.hasSteps) {
-            try {
-                console.log("   Downloading and transcribing audio...");
-                const audioResult = await getYouTubeTranscript(videoUrl);
-                if (audioResult.success && audioResult.transcript) {
-                    audioTranscriptText = audioResult.transcript;
-                    console.log(`✅ Audio transcript obtained. Length: ${audioTranscriptText.length} chars`);
-
-                    const audioIngredients = extractIngredientsFromText(audioTranscriptText);
-                    if (audioIngredients.length > 0) {
-                        console.log(`✅ Extracted ${audioIngredients.length} ingredients from audio transcript`);
-                        extractedIngredients = mergeIngredients(extractedIngredients, audioIngredients);
-                        console.log(`✅ Ingredients after merging audio: ${extractedIngredients.length}`);
-                    }
-                    // Full transcript will be passed as supplementalText
-                } else {
-                    console.warn("⚠️ Audio transcription returned no text");
-                }
-            } catch (audioError) {
-                console.warn("⚠️ Audio transcription failed (continuing):", audioError.message);
-            }
+        // Step 6: Try audio transcription
+        console.log("\n📼 Step 6: Checking if audio transcription is needed...");
+if (extractedIngredients.length < 4 || !analysis.hasSteps) {
+    try {
+        // Check duration
+        const duration = await getVideoDuration(videoUrl);
+        if (duration && duration > 180) {
+            console.log(`⏱️ Video duration ${duration}s > 180s, skipping audio transcription.`);
         } else {
-            console.log("✅ Sufficient ingredients/steps already, skipping audio transcription");
+            console.log("   Downloading and transcribing audio...");
+            const audioResult = await getYouTubeTranscript(videoUrl);
+            if (audioResult.success && audioResult.transcript) {
+                audioTranscriptText = audioResult.transcript;
+                console.log(`✅ Audio transcript obtained. Length: ${audioTranscriptText.length} chars`);
+                // ... rest
+            } else {
+                console.warn("⚠️ Audio transcription returned no text");
+            }
         }
+    } catch (audioError) {
+        console.warn(`⚠️ Audio transcription failed (continuing): ${audioError.message}`);
+    }
+} else {
+    console.log("✅ Sufficient ingredients/steps already, skipping audio transcription");
+}
 
         // ______Step 7: Generate recipe with LLM
         console.log("\n📼 Step 7: Generating complete recipe with Groq LLM...");
