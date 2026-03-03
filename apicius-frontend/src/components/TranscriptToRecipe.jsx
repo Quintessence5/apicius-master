@@ -24,6 +24,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
     const [videoThumbnail, setVideoThumbnail] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [imageFile, setImageFile] = useState(null);
+    const [selectedFileName, setSelectedFileName] = useState('');
     
     const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5010/api';
 
@@ -134,7 +135,7 @@ const TranscriptToRecipe = ({ onRecipeGenerated }) => {
             setStep('review');
 
             setTimeout(() => {
-                navigate('/recipe-review', {
+                navigate('/recipe-review/create', {
                     state: {
                         recipe: data.recipe,
                         ingredientMatches: data.ingredientMatches,
@@ -201,7 +202,7 @@ const handleExtractWebsite = async (e) => {
       // Wait a moment then redirect
       setTimeout(() => {
         console.log("🔀 Redirecting to review page...");
-        navigate('/recipe-review', {
+        navigate('/recipe-review/create', {
           state: {
             recipe: response.data.recipe,
             ingredientMatches: response.data.ingredientMatches,
@@ -291,7 +292,7 @@ const handleImageUpload = async (e) => {
       setSuccess('✅ Recipe extracted! Redirecting to review...');
 
       setTimeout(() => {
-        navigate('/recipe-review', {
+        navigate('/recipe-review/create', {
           state: {
             recipe: data.recipe,
             ingredientMatches: data.ingredientMatches,
@@ -319,7 +320,7 @@ const handleImageUpload = async (e) => {
     const handleReviewRecipe = () => {
         if (!generatedRecipe) return;
 
-        navigate('/recipe-review', {
+        navigate('/recipe-review/create', {
             state: {
                 recipe: generatedRecipe,
                 ingredientMatches: ingredientMatches,
@@ -362,7 +363,7 @@ const handleImageUpload = async (e) => {
                     ].map(tab => (
                         <button
                             key={tab.id}
-                            className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                            className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
                             onClick={() => setActiveTab(tab.id)}
                         >
                             {tab.label}
@@ -397,17 +398,33 @@ const handleImageUpload = async (e) => {
             {/* Image Tab – Placeholder */}
             {activeTab === 'image' && step === 'input' && (
   <form onSubmit={handleImageUpload} className="transcript-form">
-    <input
-      type="file"
-      accept="image/jpeg,image/png,image/webp"
-      onChange={(e) => setImageFile(e.target.files[0])}
-      disabled={loading}
-      className="transcript-input"
-    />
-    <button type="submit" disabled={loading} className="transcript-submit-btn">
+    <div className="file-upload-wrapper">
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={(e) => {
+          const file = e.target.files[0];
+          setImageFile(file);
+          setSelectedFileName(file ? file.name : '');
+        }}
+        disabled={loading}
+        className="transcript-input"
+        id="image-upload"
+      />
+      {selectedFileName && (
+        <div className="file-upload-success">
+          <span className="success-icon">✅</span>
+          <span className="file-name">{selectedFileName}</span>
+          <span className="success-text">Upload successful</span>
+        </div>
+      )}
+    </div>
+    <button type="submit" disabled={loading || !imageFile} className="transcript-submit-btn">
       {loading ? '🔄 Processing...' : '📸 Extract from Image'}
     </button>
-    <p className="tab-info">📸 Upload a clear image of a recipe (cookbook page, handwritten note, screenshot)</p>
+    <p className="tab-info">
+      📸 Upload a clear image of a recipe (cookbook page, handwritten note, screenshot)
+    </p>
   </form>
 )}
 

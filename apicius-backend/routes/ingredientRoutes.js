@@ -22,6 +22,11 @@ router.put('/prices/:ingredient_id', ingredientController.updatePrice);
 router.delete('/:id', ingredientController.deleteIngredient);
 
 router.get('/submissions/pending', ingredientController.getPendingSubmissions);
+router.post('/submissions/:id/match', ingredientController.matchSubmission);
+router.post('/submissions/:id/create', ingredientController.createAndMatch);
+router.post('/report', ingredientController.reportMismatch);
+
+// To delete ?
 router.post('/submissions/:id/approve', ingredientController.approveSubmission);
 router.delete('/submissions/:id/reject', ingredientController.rejectSubmission);
 

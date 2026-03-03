@@ -141,7 +141,7 @@ const AllIngredients = () => {
                       <button className="edit-btn" onClick={() => handleEdit(ingredient)}>
                         Edit
                       </button>
-                      <button className="delete-btn" onClick={() => handleDelete(ingredient.id)}>
+                      <button className="deletes-btn" onClick={() => handleDelete(ingredient.id)}>
                         Delete
                       </button>
                     </>

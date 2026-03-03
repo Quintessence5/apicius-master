@@ -92,55 +92,39 @@ exports.updateIngredient = async (req, res) => {
     }
   };
   
-  exports.deleteIngredient = async (req, res) => {
-    const { id } = req.params;
-    try {
-      await pool.query('DELETE FROM ingredients WHERE id = $1', [id]);
-      res.status(204).send();
-    } catch (error) {
-      console.error('Error deleting ingredient:', error);
-      res.status(500).json({ message: 'Failed to delete ingredient' });
-    }
-  };
+exports.deleteIngredient = async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  // GET submissions
-exports.getSubmissions = async (req, res) => {
-    try {
-      const result = await pool.query('SELECT * FROM ingredient_submissions');
-      res.status(200).json(result.rows);
-    } catch (error) {
-      console.error('Error fetching submissions:', error);
-      res.status(500).json({ message: 'Failed to get submissions' });
+    await client.query(
+      'UPDATE recipe_ingredients SET ingredient_id = NULL WHERE ingredient_id = $1',
+      [id]
+    );
+
+    // Now delete the ingredient
+    const result = await client.query(
+      'DELETE FROM ingredients WHERE id = $1 RETURNING *',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Ingredient not found' });
     }
-  };
-  
-  // Approve submission
-  exports.approveSubmission = async (req, res) => {
-    const { id } = req.params;
-    try {
-      // 1. Get submission
-      const submission = await pool.query(
-        'SELECT * FROM ingredient_submissions WHERE id = $1',
-        [id]
-      );
-      
-      // 2. Insert into ingredients
-      const ingredient = await pool.query(
-        `INSERT INTO ingredients(name, category, calories_per_100g)
-         VALUES($1, $2, $3) RETURNING *`,
-        [submission.rows[0].name, submission.rows[0].category, submission.rows[0].calories]
-      );
-  
-      // 3. Delete submission
-      await pool.query('DELETE FROM ingredient_submissions WHERE id = $1', [id]);
-  
-      res.status(200).json(ingredient.rows[0]);
-    } catch (error) {
-      console.error('Error approving submission:', error);
-      res.status(500).json({ message: 'Approval failed' });
-    }
-  };
-  
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Ingredient deleted successfully', ingredient: result.rows[0] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error deleting ingredient:', error);
+    res.status(500).json({ message: 'Failed to delete ingredient', error: error.message });
+  } finally {
+    client.release();
+  }
+};
+
   // Price endpoints
   exports.getPrices = async (req, res) => {
     try {
@@ -379,6 +363,44 @@ exports.uploadImage = async (req, res) => {
   }
 };
 
+  // GET submissions
+exports.getSubmissions = async (req, res) => {
+    try {
+      const result = await pool.query('SELECT * FROM ingredient_submissions');
+      res.status(200).json(result.rows);
+    } catch (error) {
+      console.error('Error fetching submissions:', error);
+      res.status(500).json({ message: 'Failed to get submissions' });
+    }
+  };
+  
+  // Approve submission
+  exports.approveSubmission = async (req, res) => {
+    const { id } = req.params;
+    try {
+      // 1. Get submission
+      const submission = await pool.query(
+        'SELECT * FROM ingredient_submissions WHERE id = $1',
+        [id]
+      );
+      
+      // 2. Insert into ingredients
+      const ingredient = await pool.query(
+        `INSERT INTO ingredients(name, category, calories_per_100g)
+         VALUES($1, $2, $3) RETURNING *`,
+        [submission.rows[0].name, submission.rows[0].category, submission.rows[0].calories]
+      );
+  
+      // 3. Delete submission
+      await pool.query('DELETE FROM ingredient_submissions WHERE id = $1', [id]);
+  
+      res.status(200).json(ingredient.rows[0]);
+    } catch (error) {
+      console.error('Error approving submission:', error);
+      res.status(500).json({ message: 'Approval failed' });
+    }
+  };
+
 // Get pending submissions
 exports.getPendingSubmissions = async (req, res) => {
     try {
@@ -392,6 +414,117 @@ exports.getPendingSubmissions = async (req, res) => {
     }
 };
 
+// Match submission with an existing ingredient
+exports.matchSubmission = async (req, res) => {
+  const { id } = req.params;
+  const { ingredientId } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Update submission status to approved and link ingredient
+    await client.query(
+      `UPDATE ingredient_submissions SET status = 'approved', approved_at = NOW(), ingredient_id = $1 WHERE id = $2`,
+      [ingredientId, id]
+    );
+
+    // Update any recipe_ingredients that had this submission's name to link to the matched ingredient
+    const submission = await client.query(
+      `SELECT name FROM ingredient_submissions WHERE id = $1`,
+      [id]
+    );
+    if (submission.rows.length > 0) {
+      const originalName = submission.rows[0].name;
+      await client.query(
+        `UPDATE recipe_ingredients SET ingredient_id = $1 WHERE ingredient_id IS NULL AND name = $2`,
+        [ingredientId, originalName]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(200).json({ message: 'Submission matched and approved' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error matching submission:', error);
+    res.status(500).json({ message: 'Failed to match submission' });
+  } finally {
+    client.release();
+  }
+};
+
+// Create a new ingredient from a submission and approve it
+exports.createAndMatch = async (req, res) => {
+  const { id } = req.params;
+  const { name, category } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Insert new ingredient
+    const newIng = await client.query(
+      `INSERT INTO ingredients (name, category) VALUES ($1, $2) RETURNING id`,
+      [name, category || 'Uncategorized']
+    );
+    const ingredientId = newIng.rows[0].id;
+
+    // Update submission
+    await client.query(
+      `UPDATE ingredient_submissions SET status = 'approved', approved_at = NOW(), ingredient_id = $1 WHERE id = $2`,
+      [ingredientId, id]
+    );
+
+    // Update recipe_ingredients
+    const submission = await client.query(
+      `SELECT name FROM ingredient_submissions WHERE id = $1`,
+      [id]
+    );
+    if (submission.rows.length > 0) {
+      const originalName = submission.rows[0].name;
+      await client.query(
+        `UPDATE recipe_ingredients SET ingredient_id = $1 WHERE ingredient_id IS NULL AND name = $2`,
+        [ingredientId, originalName]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ message: 'Ingredient created and submission approved', ingredientId });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creating and matching:', error);
+    res.status(500).json({ message: 'Failed to create ingredient' });
+  } finally {
+    client.release();
+  }
+};
+
+// Reject mismatch to send to submission
+exports.reportMismatch = async (req, res) => {
+    const { originalName, recipeId, ingredientId, note } = req.body;
+    try {
+        // Check if already pending
+        const existing = await pool.query(
+            `SELECT id FROM ingredient_submissions WHERE LOWER(name) = $1 AND status = 'pending'`,
+            [originalName.toLowerCase()]
+        );
+        if (existing.rows.length > 0) {
+            return res.status(200).json({ message: 'Ingredient already pending approval.' });
+        }
+
+        // Insert new submission (only fields that definitely exist)
+        await pool.query(
+            `INSERT INTO ingredient_submissions (name, category, status, created_at)
+             VALUES ($1, $2, 'pending', NOW())`,
+            [originalName, 'Uncategorized']
+        );
+
+        res.status(201).json({ message: 'Ingredient reported for review.' });
+    } catch (error) {
+        console.error('Error reporting ingredient:', error);
+        res.status(500).json({ message: 'Failed to report ingredient.' });
+    }
+};
+
+// To delete ????
 // Approve submission (create ingredient and update status)
 exports.approveSubmission = async (req, res) => {
     const { id } = req.params;

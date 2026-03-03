@@ -18,7 +18,8 @@ import CartPage from './components/cart';
 import apiClient from './services/apiClient';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import TranscriptPage from './pages/transcriptPage';
-import VideoRecipeReview from './pages/videoRecipeReview';
+import RecipeReviewCreate from './components/RecipeReviewCreate';
+import RecipeReviewEdit from './components/RecipeReviewEdit';
 
 const queryClient = new QueryClient();
 
@@ -123,7 +124,8 @@ const App = () => {
                     <Route path="/seasons/*" element={<ProtectedRoute user={user} loading={loading} ><SeasonalPage /></ProtectedRoute>  } />
                     <Route path="/timer" element={<ProtectedRoute user={user} loading={loading}> <TimerPage /> </ProtectedRoute>} />
                     <Route path="/cart" element={<ProtectedRoute user={user} loading={loading}> <CartPage /> </ProtectedRoute>} />
-                    <Route path="/recipe-review" element={<VideoRecipeReview />} />
+                    <Route path="/recipe-review/create" element={<ProtectedRoute user={user} loading={loading}><RecipeReviewCreate /></ProtectedRoute>} />
+                    <Route path="/recipe-review/edit" element={<ProtectedRoute user={user} loading={loading}><RecipeReviewEdit /></ProtectedRoute>} />
                 </Route>
             </Routes>
         </Router></QueryClientProvider>

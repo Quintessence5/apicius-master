@@ -379,15 +379,14 @@ if (extractedIngredients.length < 4) {
             await fs.mkdir(thumbDir, { recursive: true });
             const savedThumbPath = await downloadThumbnail(videoUrl, thumbDir);
             if (savedThumbPath) {
-                const relativePath = savedThumbPath.replace(path.join(__dirname, '..'), '');
-                videoThumbnail = relativePath;
-                finalRecipe.image_path = relativePath;
-                console.log(`   ✅ Thumbnail saved to: ${relativePath}`);
-            } else {
-                console.log("   ⚠️ Thumbnail download failed, using fallback URL.");
-                videoThumbnail = await getInstagramThumbnail(videoUrl) || instagramMetadata.thumbnail;
-                finalRecipe.image_path = videoThumbnail;
-            }
+    // Store the full absolute path
+    videoThumbnail = savedThumbPath;
+    finalRecipe.image_path = savedThumbPath;
+    console.log(`   ✅ Thumbnail saved to: ${savedThumbPath}`);
+} else {
+    videoThumbnail = await getInstagramThumbnail(videoUrl) || instagramMetadata.thumbnail;
+    finalRecipe.image_path = videoThumbnail;
+}
         } catch (thumbError) {
             console.warn("   ⚠️ Thumbnail processing error, using fallback:", thumbError.message);
             videoThumbnail = await getInstagramThumbnail(videoUrl) || instagramMetadata.thumbnail;

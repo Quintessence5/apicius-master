@@ -179,17 +179,17 @@ const getRecipeById = async (req, res) => {
     const { id } = req.params;
     try {
         const recipeResult = await pool.query(`
-            SELECT r.id, r.title, r.notes, r.prep_time, r.cook_time, r.total_time, r.difficulty, 
-                   r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, r.portions, r.public,
-                   r.thumbnail_url, ri.quantity, ri.unit, ri.section, 
-                   i.id AS ingredient_id, i.name AS ingredient_name, i.calories_per_100g, 
-                   i.protein, i.lipids, i.carbohydrates, i.saturated_fat, i.trans_fat, 
-                   i.cholesterol, i.sodium, i.fibers, i.sugars, i.added_sugars, i.allergies, i.form
-            FROM recipes r
-            LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
-            LEFT JOIN ingredients i ON ri.ingredient_id = i.id
-            WHERE r.id = $1;
-        `, [id]);
+    SELECT r.id, r.title, r.notes, r.prep_time, r.cook_time, r.total_time, r.difficulty, 
+           r.course_type, r.meal_type, r.cuisine_type, r.source, r.steps, r.image_path, r.portions, r.public,
+           r.thumbnail_url, ri.quantity, ri.unit, ri.section, ri.original_name, ri.name AS display_name,
+           i.id AS ingredient_id, i.name AS ingredient_name, i.calories_per_100g, 
+           i.protein, i.lipids, i.carbohydrates, i.saturated_fat, i.trans_fat, 
+           i.cholesterol, i.sodium, i.fibers, i.sugars, i.added_sugars, i.allergies, i.form
+    FROM recipes r
+    LEFT JOIN recipe_ingredients ri ON r.id = ri.recipe_id
+    LEFT JOIN ingredients i ON ri.ingredient_id = i.id
+    WHERE r.id = $1;
+`, [id]);
 
         if (recipeResult.rows.length === 0) {
             console.log(`No recipe found with ID: ${id}`);
@@ -225,14 +225,16 @@ const getRecipeById = async (req, res) => {
 
         // Process Ingredients & Nutrition Data
         recipeResult.rows.forEach(row => {
-    if (row.ingredient_name) {
+    // Include ingredient if we have either a matched name or a display name
+    if (row.ingredient_name || row.display_name) {
         recipe.ingredients.push({
             ingredient_id: row.ingredient_id,
-            ingredient_name: row.ingredient_name,
+            ingredient_name: row.ingredient_name || row.display_name,
             quantity: row.quantity,
             unit: row.unit,
             form: row.form,
-            section: row.section || 'Main'
+            section: row.section || 'Main',
+            original_name: row.original_name
         });
 
                 // Calculate Nutrition Facts per Recipe
@@ -429,54 +431,89 @@ if (typeof ingredients === "object" && !Array.isArray(ingredients)) {
 if (Array.isArray(ingredients) && ingredients.length > 0) {
     console.log(`🔄 Updating ${ingredients.length} ingredients...`);
 
+    // Delete all existing ingredients for this recipe
+    await pool.query('DELETE FROM recipe_ingredients WHERE recipe_id = $1', [id]);
+
     for (const ingredient of ingredients) {
-        if (!ingredient.ingredientId && !ingredient.name) continue;
+        if (!ingredient.name) continue; // need at least a display name
 
-        let ingredientId = ingredient.ingredientId;
+        const section = ingredient.section || 'Main';
+        const originalName = ingredient.originalName || ingredient.name;
 
-        // Insert ingredient if it doesn't exist
-        if (!ingredientId) {
-            const ingredientResult = await pool.query(
-                `INSERT INTO ingredients (name) VALUES ($1) ON CONFLICT (name) DO NOTHING RETURNING id`,
-                [ingredient.name]
-            );
-
-            ingredientId = ingredientResult.rows[0]?.id;
-
-            if (!ingredientId) {
-                const existing = await pool.query(
-                    `SELECT id FROM ingredients WHERE name = $1`,
-                    [ingredient.name]
-                );
-                ingredientId = existing.rows[0]?.id;
-            }
-        }
-
-        if (ingredientId) {
-            const section = ingredient.section || 'Main';
-
+        if (ingredient.ingredientId) {
+            // Linked to existing ingredient
             const existing = await pool.query(
                 `SELECT * FROM recipe_ingredients WHERE recipe_id = $1 AND ingredient_id = $2`,
-                [id, ingredientId]
+                [id, ingredient.ingredientId]
             );
 
             if (existing.rows.length > 0) {
-                // Update existing
                 await pool.query(
                     `UPDATE recipe_ingredients 
-                     SET quantity = $1, unit = $2, section = $3 
-                     WHERE recipe_id = $4 AND ingredient_id = $5`,
-                    [ingredient.quantity || null, ingredient.unit || null, section, id, ingredientId]
+                     SET quantity = $1, unit = $2, section = $3, original_name = $4
+                     WHERE recipe_id = $5 AND ingredient_id = $6`,
+                    [
+                        ingredient.quantity || null,
+                        ingredient.unit || null,
+                        section,
+                        originalName,
+                        id,
+                        ingredient.ingredientId
+                    ]
                 );
-                console.log(`✅ Updated ingredient: ${ingredient.name || ingredientId} (section: ${section})`);
+                console.log(`✅ Updated linked ingredient: ${ingredient.name}`);
             } else {
-                // Insert new
                 await pool.query(
-                    `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, section)
-                     VALUES ($1, $2, $3, $4, $5)`,
-                    [id, ingredientId, ingredient.quantity || null, ingredient.unit || null, section]
+                    `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, name, quantity, unit, section, original_name)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [
+                        id,
+                        ingredient.ingredientId,
+                        ingredient.name,
+                        ingredient.quantity || null,
+                        ingredient.unit || null,
+                        section,
+                        originalName
+                    ]
                 );
-                console.log(`✅ Added ingredient: ${ingredient.name || ingredientId} (section: ${section})`);
+                console.log(`✅ Added linked ingredient: ${ingredient.name}`);
+            }
+        } else {
+            // Unmatched ingredient – store with ingredient_id = NULL
+            const existing = await pool.query(
+                `SELECT * FROM recipe_ingredients WHERE recipe_id = $1 AND ingredient_id IS NULL AND name = $2`,
+                [id, ingredient.name]
+            );
+
+            if (existing.rows.length > 0) {
+                await pool.query(
+                    `UPDATE recipe_ingredients 
+                     SET quantity = $1, unit = $2, section = $3, original_name = $4
+                     WHERE recipe_id = $5 AND ingredient_id IS NULL AND name = $6`,
+                    [
+                        ingredient.quantity || null,
+                        ingredient.unit || null,
+                        section,
+                        originalName,
+                        id,
+                        ingredient.name
+                    ]
+                );
+                console.log(`✅ Updated unmatched ingredient: ${ingredient.name}`);
+            } else {
+                await pool.query(
+                    `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, name, quantity, unit, section, original_name)
+                     VALUES ($1, NULL, $2, $3, $4, $5, $6)`,
+                    [
+                        id,
+                        ingredient.name,
+                        ingredient.quantity || null,
+                        ingredient.unit || null,
+                        section,
+                        originalName
+                    ]
+                );
+                console.log(`✅ Added unmatched ingredient: ${ingredient.name}`);
             }
         }
     }

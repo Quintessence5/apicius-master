@@ -1,70 +1,440 @@
+/*_____________-------------Header------------________________*/
 .recipe-details-page {
     max-width: 100%;
     font-family: Arial, sans-serif;
 }
 
 .recipe-headerzz {
-    position: relative;
-    margin-left: -6%;
-    width: 111%;
+    width: 100%;
+    height: 40rem;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f5f5f5; 
+    margin: 0;
+    position: relative;
 }
 
 .recipe-imagezz {
-    max-width: 100%;
-    height: auto;
-    object-fit: cover;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    height: 100%;
+    object-fit: cover; 
+    display: block;
 }
+
 
 .recipe-title-container {
     position: absolute;
-    bottom: 0%;
-    width: 100%;
-    text-align: left;
+    bottom: 0;
+    left: 0;
+    right: 0;
     background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.7));
     color: white;
-    padding: 1rem 0;
+    padding: 2rem 3rem;
 }
 
 .recipe-titlezz {
     font-size: 3rem;
     text-align: left;
     color: #FFFFFF;
-    margin-left: 3.5rem;
+    margin-left: 0rem;
     margin-bottom: -0.5rem;
+}
+
+.subtitle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 0.5rem;
 }
 
 .recipe-subtitle {
     font-size: 1.4rem;
-    margin-left: 3.5rem;
+    margin-top: 2rem;
 }
 
+.recipe-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: -1rem;     
+    margin-bottom: 0rem;
+    border: none !important;
+}
+
+.recipe-actions button {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    outline: none;
+    box-shadow: #3d3d3d 1px 1px 3px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    white-space: nowrap;
+}
+.recipe-actions {
+    border: none !important;
+}
+
+.timer-btn { background-color: #fcba58; color: white; }
+.timer-btn:hover { background-color: #f78a04; color: rgb(255, 255, 255);}
+.edit-recipe-btn { background-color: #ff9800; color: white; }
+.edit-recipe-btn:hover { background-color: #e68900; }
+.add-to-cart-btn { background-color: #28a745; color: white; }
+.add-to-cart-btn:hover { background-color: #218838; }
+
+/*_____________-------------Star Rating styling------------________________*/
+.star-rating-container {
+    margin-bottom: -1.5rem;
+    margin-top: 2rem;
+    margin-left: 2rem;
+    display: flex;
+    justify-content: left;
+}
+
+
+/*_____________-------------Metadata------------________________*/
+.metadata-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    justify-content: center;
+    margin: 1rem 0; 
+}
+
+.metadata-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f0f0;
+    border-radius: 20px;
+    padding: 0.4rem 1rem;
+    font-size: 0.95rem;
+    color: #333;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.metadata-tag:hover {
+    background-color: #e0e0e0;
+}
+
+.source-tag {
+    cursor: pointer;
+    background-color: #e8f0fe;
+}
+
+.source-icon {
+    margin-right: 0.3rem;
+    font-size: 1rem;
+}
+
+.tag-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #777;
+    margin-right: 0.5rem;
+    font-weight: 600;
+}
+
+.tag-value {
+    font-weight: 900;
+}
+
+
+/*_____________-------------Allergies------------________________*/
+.allergies-line {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 3rem;
+    flex-wrap: wrap;
+}
+
+.allergies-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.allergy-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.allergy-tag {
+    background-color: #fce4e4;
+    color: #d32f2f;
+    border-radius: 20px;
+    padding: 0.3rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+
+/*_____________-------------Portion & Units------------________________*/
+/* Portions line */
+.portions-unit-line {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+/* Portion control with multiplier buttons */
+.portion-control {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.portion-label {
+    font-weight: 600;
+    color: #555;
+}
+
+.portion-value {
+    font-size: 1.2rem;
+    font-weight: 500;
+    min-width: 2rem;
+    text-align: center;
+}
+
+.multiplier-container {
+    display: inline-flex;
+    border: 2px solid #ddd;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #f8f9fa;
+}
+
+.multiplier-btn {
+    padding: 0.4rem 1rem;       /* match unit button padding */
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+    margin: 0;                   /* remove any default margins */
+}
+
+.multiplier-btn:not(:last-child) {
+    border-right: 2px solid #ddd;
+}
+
+.multiplier-btn.active {
+    background: #007bff;
+    color: white;
+    border-right-color: #007bff;
+}
+
+/* Remove old portion editing styles */
+.portion-editor,
+.portion-display,
+.edit-portion-btn,
+.portion-btn,
+.confirm-btn,
+.cancel-btn {
+    display: none; /* hide old elements */
+}
+
+/* Unit Switch */
+.unit-switches-container {
+    display: flex;
+    gap: 10rem;
+    justify-content: center;
+    margin: 1.5rem 0;
+}
+
+.unit-switches-centered {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.unit-btns-container {
+    display: inline-flex;
+    border: 2px solid #ddd;
+    border-radius: 1rem;
+    overflow: hidden;
+    background: #f8f9fa;
+}
+
+.unit-title {
+    font-size: 0.9rem;
+    color: #8b8989;
+    font-weight: 600;
+}
+
+.unit-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.unit-btn {
+    padding: 0.4rem 1rem;
+    border: none;
+    background: none;
+    color: #444;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    position: relative;
+    margin-left: -0.1rem;
+    margin-right: -0.04rem;
+    transition: background 0.2s;
+}
+
+.unit-btn:not(:last-child) {
+    border-right: 1px solid #ddd;
+}
+
+.unit-btn:hover {
+    background: #ffffffc2;
+    border-radius: 0rem;
+}
+
+.unit-btn.active {
+    background: #007bff;
+    border-radius: 0px;
+    font-weight: bold;
+    color: white;
+}
+
+.unit-btn.active:hover {
+    background: #0069d9;
+}
+
+
+/*_____________-------------Ingredients------------________________*/
+/* Ingredient list */
+.ingredient-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ingredient-item {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0.2rem 0 !important;
+    border-bottom: 1px solid #eee !important;
+    background: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+.ingredient-item:last-child {
+    border-bottom: none !important;
+}
+
+.ingredient-text {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+    font-size: 1rem;
+}
+
+/* Info icon */
+.original-name-tooltip {
+    cursor: help;
+    color: #666;
+    font-size: 1.2rem;
+    margin-left: 0.25rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.info-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+    color: #b8b5b5;
+}
+
+/* Report button (only for unmatched ingredients) */
+.report-btn {
+    background: #ff444470;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.report-btn:hover {
+    background: #cc0000;
+}
+
+
+/* Popup styling */
+.ingredient-popup {
+    position: absolute;
+    left: 30%;
+    margin-left: 0.5rem;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 0.5rem 1rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    z-index: 100;
+    min-width: 250px;
+}
+
+.confirm-btn {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+}
+
+.confirm-btn:hover {
+    background: #45a049;
+}
+
+.cancel-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.cancel-btn:hover {
+    background: #da190b;
+}
+
+/*_____________-------------Recipe------------________________*/
 .recipe-info {
-    padding: 20px;
+    padding: 10px;
 }
 
 h3 {
-    margin-top: 20px;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    font-size: 1.7rem;
 }
 
 .steps-list  {
     list-style-type:decimal;
     margin-left: 1.2rem;
-    margin-top: -0.5rem;
+    margin-top: -1rem;
     padding: 0;
-}
-
-.ingredient-list, .allergy-list  {
-    list-style-type:circle;
-    margin-left: 1rem;
-    margin-top: -0.5rem;
-    padding: 0;
-}
-
-.ingredient-list li, .steps-list li, .allergy-list li {
-    padding: 4px 0;
 }
 
 .ingredients-section,
@@ -81,39 +451,7 @@ h3 {
     border-bottom: 2px solid #e8f0fe;
 }
 
-.source-field {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 1rem 0;
-}
 
-.source-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    background: #f5f5f5;
-    transition: all 0.3s ease;
-    font-weight: 500;
-}
-
-.source-link:hover {
-    background: #e8f0fe;
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.source-icon {
-    font-size: 1.2rem;
-    display: inline-block;
-}
-
-.source-name {
-    font-weight: 600;
-}
 
 .step-duration {
     display: inline-block;
@@ -126,7 +464,7 @@ h3 {
 }
 
 
-/* ----------------- Nutrition Table ------------------ */
+/*_____________-------------Nutrition Table------------________________*/
 .nutrition-table {
     width: 90%;
     border-collapse: collapse;
@@ -244,226 +582,76 @@ h3 {
     text-align: right;
 }
 
-.recipe-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
-  }
-  
-  .add-to-cart-btn {
-    position: absolute;
-    top: 1rem;
-    right: 13rem;
-    background-color: #28a745;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    font-size: 1rem;
-    margin-top: 4rem;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-}
-  
-  .add-to-cart-btn:hover {
-    background-color: #218838;
-  }  
 
-.edit-recipe-btn {
-    position: absolute;
-    top: 1rem;
-    right: 2rem;
-    background-color: #ff9800;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    font-size: 1rem;
-    margin-top: 4rem;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-}
 
-.timer-btn {
-    position: absolute;
-    top: 1rem;
-    right: 7rem;
-    background-color: #fcba58;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    font-size: 1rem;
-    margin-top: 4rem;
-
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background 0.3s ease;
-}
-
-.edit-recipe-btn:hover {
-    background-color: #e68900;
-}
-
-/* ______________________Unit Switches Container______________________ */
-.unit-switches-container {
-    display: flex;
-    gap: 10rem;
-    justify-content: center;
-    margin: 1.5rem 0;
-}
-
-.unit-group {
+/*_____________-------------Pop-up------------________________*/
+.popup-content {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.5rem;
+    flex: 1;
 }
 
-.unit-title {
+.popup-label {
+    font-size: 0.55rem;
+    color: #bdbaba;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.popup-original {
+    font-size: 0.95rem;
+    color: #333;
+    font-weight: 500;
+}
+
+/*_____________-------------Tab Navigation------------________________*/
+.tab-navigation {
+    display: flex;
+    gap: 0;
+    margin: 1.5rem 0 0.5rem 0;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 0.5rem;
+    width: 100%;
+}
+
+.tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 0.5rem 0;
     font-size: 1rem;
-    color: #999;
+    font-weight: 500;
+    color: #666 !important; /* visible grey for inactive */
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    position: relative;
+}
+
+.tab-btn:hover {
+    color: #717171;
+    background-color: #87afff;
+    border: none;
+}
+
+.tab-btn.active {
+    color: #007bff !important;
+    background-color: rgba(112, 161, 246, 0.121) !important;
+    font-weight: 800;
+    
+}
+
+.tab.nutrition {
+    color: #007bff;
     font-weight: 800;
 }
 
-.unit-btns-container {
-    border: 2px solid #ddd;
-    border-radius: 1rem;
-    display: inline-flex;
-    background: #f8f9fa;
-    overflow: hidden;
-}
-
-.unit-btn {
-    padding: 0.4rem 0.8rem;
-    border: none;
-    background: none;
-    color: #444;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    margin-left: -0.1rem;
-    margin-right: -0.04rem;
-}
-
-.unit-btn:not(:last-child) {
-    border-right: 1px solid #ddd;
-}
-
-.unit-btn:hover {
-    background: #ffffffc2;
-    border-radius: 0rem;
-}
-
-.unit-btn.active {
-    background: #007bff;
-    border-radius: 0px;
-    font-weight: bold;
-    color: white;
-}
-
-.unit-btn.active:hover {
-    background: #0069d9;
-}
-
-/* ______________________Portion Control______________________ */
-.portion-control {
-    margin: 1rem 0;
-    padding: 0.5rem;
-    border: 0px solid #eee;
-    border-radius: 4px;
-}
-
-.portion-header {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.portion-header strong {
-    font-size: 1.2rem;
-    color: #000000; 
-    font-weight: bold;
-    margin-right: 0.5rem; 
-    margin-left: -0.5rem; 
-    align-self: center;
-    white-space: nowrap;
-}
-
-.portion-display {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-}
-
-.portion-number {
-    font-size: 1.1rem;
-    font-weight: 500;
-    text-align: center;
-}
-
-.edit-portion-btn {
-    padding: 0.2rem 0.35rem;
-    font-size: 0.7rem;
-    background: #f0f0f0;
-    border: 1px solid #ddd;
-    border-radius: 0.5rem;
-    cursor: pointer;
-}
-
-.edit-portion-btn:hover {
-    background: #fbd1aa;
-    border-color: #ccc;
-}
-
-.portion-editor {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.portion-input {
-    width: 50px;
-    text-align: center;
-    padding: 0.25rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-}
-
-.portion-btn {
-    padding: 0.25rem 0.5rem;
-    background: #f0f0f0;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.confirm-btn {
-    background: #4CAF50;
-    color: white;
-    border: none;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    margin-left: 0.5rem;
-}
-
-.confirm-btn:hover {
-    background: #45a049;
-}
-
-.cancel-btn {
-    background: #f44336;
-    color: white;
-    border: none;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-}
-
-.cancel-btn:hover {
-    background: #da190b;
-}
-
-.portion-input::-webkit-outer-spin-button,
-.portion-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -0.5rem;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: #007bff;
 }

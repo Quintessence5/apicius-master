@@ -10,9 +10,7 @@ const { logConversion, logConversionError } = require('./conversionLogger');
 const UPLOAD_TEMP_DIR = path.join(__dirname, '../uploads/temp');
 const UPLOAD_RECIPE_DIR = path.join(__dirname, '../uploads/recipe');
 
-/**
- * Main endpoint: POST /api/transcripts/extract-from-image
- */
+
 async function extractRecipeFromImageHandler(req, res) {
   const startTime = Date.now();
   let conversionId = null;
@@ -66,6 +64,18 @@ async function extractRecipeFromImageHandler(req, res) {
     // For images we don't have a rich text source, but we can pass the raw recipe as combined text
     const combinedText = JSON.stringify(rawRecipe); // crude, but works
     recipe = await completeMissingMetadata(recipe, combinedText, recipe.title || 'Image Recipe');
+
+    // Validate that we actually got a recipe
+    function isValidRecipe(recipe) {
+      const hasTitle = recipe.title && recipe.title.trim().length > 0;
+      const hasIngredients = recipe.ingredients && recipe.ingredients.length > 0;
+      const hasSteps = recipe.steps && recipe.steps.length > 0;
+      return hasTitle && (hasIngredients || hasSteps);
+    }
+
+    if (!isValidRecipe(recipe)) {
+      throw new Error('No recipe could be extracted from the image. Please try a clearer image.');
+    } 
 
     // 7. Move image to permanent location (recipe thumbnails)
     await fs.mkdir(UPLOAD_RECIPE_DIR, { recursive: true });

@@ -636,6 +636,7 @@
     top: 100%;
     left: 0;
     right: 0;
+    z-index: 1000 !important;
     background: white;
     border: 1px solid #ddd;
     border-top: none;
@@ -644,6 +645,16 @@
     overflow-y: auto;
     z-index: 1000;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Ensure the dropdown is not clipped by parent overflow */
+.ingredient-selector {
+    overflow: visible !important;
+}
+
+/* If the parent ingredient-item has any overflow hidden, override */
+.ingredient-item {
+    overflow: visible !important;
 }
 
 .search-result-item {
@@ -691,6 +702,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.6rem 0.8rem;
+    z-index: 10;
     background: #f0fff4;
     border: 1px solid #28a745;
     border-radius: 4px;
@@ -705,7 +717,8 @@
     border: none;
     color: #28a745;
     cursor: pointer;
-    font-size: 1.2rem;
+    font-size: 0.8rem;
+    font-weight: 100;
     padding: 0;
     margin-left: 0.5rem;
     transition: transform 0.2s;
@@ -717,16 +730,56 @@
 
 /* Update ingredient item layout for better spacing */
 .ingredient-item {
-    display: grid;
+    display: flex !important;
     grid-template-columns: 30px 2fr 1fr 1fr 100px;
-    align-items: start;
+    align-items: center !important;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    transform: none !important;
+}
+
+.ingredient-delete-btn {
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #dc3545;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ingredient-delete-btn:hover {
+    background: #fee;
+    transform: scale(1.1);
+}
+
+/* Adjust the ingredient-item grid to accommodate the delete button */
+.ingredient-item {
+    display: flex !important;  /* change from grid to flex for more flexibility */
+    align-items: center !important;
     gap: 1rem;
     padding: 1rem;
     background: white;
     border: 2px solid #ddd;
     border-radius: 6px;
     transition: all 0.3s ease;
+    flex-wrap: wrap; /* allow wrapping on small screens */
 }
+
+/* Ensure each child has appropriate min-width if needed */
+.ingredient-icon { flex: 0 0 auto; }
+.ingredient-selector { flex: 2 1 200px; }
+.ingredient-quantity { flex: 1 1 80px; }
+.ingredient-unit { flex: 1 1 120px; }
+.match-status { flex: 0 0 auto; }
+.ingredient-delete-btn { flex: 0 0 auto; }
 
 /* Responsive ingredient items */
 @media (max-width: 1024px) {

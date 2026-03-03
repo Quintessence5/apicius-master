@@ -1,6 +1,36 @@
 const pool = require('../config/db');
 const { synonymMap } = require('../services/utils/synonymMap');
 
+// Helper: Convert quantity string to a number (handles ranges and fractions)
+const sanitizeQuantity = (quantityStr) => {
+    if (!quantityStr) return null;
+    const str = quantityStr.toString().trim();
+    
+    // Handle ranges like "60-65" → average
+    const rangeMatch = str.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (rangeMatch) {
+        const low = parseFloat(rangeMatch[1]);
+        const high = parseFloat(rangeMatch[2]);
+        return ((low + high) / 2).toFixed(2); // keep two decimals
+    }
+    
+    // Handle fractions like "1/2" → 0.5
+    const fractionMatch = str.match(/^(\d+)\/(\d+)$/);
+    if (fractionMatch) {
+        const num = parseFloat(fractionMatch[1]);
+        const den = parseFloat(fractionMatch[2]);
+        if (den !== 0) return (num / den).toFixed(2);
+    }
+    
+    // Handle simple numbers (including decimals)
+    const parsed = parseFloat(str);
+    if (!isNaN(parsed)) return parsed.toFixed(2);
+    
+    // If all else fails, log warning and return null
+    console.warn(`⚠️ Could not parse quantity: "${quantityStr}"`);
+    return null;
+};
+
 // __________-------------Match ingredients with database-------------__________
 const matchIngredientsWithDatabase = async (ingredients) => {
     try {
@@ -118,24 +148,6 @@ const matchSingleIngredient = async (ingredient) => {
             return { ...ingredient, dbId: result.rows[0].id, dbName: result.rows[0].name, found: true, icon: '✅', matchType: 'similar' };
         }
 
-        // --- No match found ---
-        // Check if this ingredient already has a pending submission
-        const pendingCheck = await pool.query(
-            `SELECT id FROM ingredient_submissions WHERE LOWER(name) = $1 AND status = 'pending' LIMIT 1`,
-            [searchName]
-        );
-        if (pendingCheck.rows.length === 0) {
-            // Insert into submissions table for admin review
-            await pool.query(
-                `INSERT INTO ingredient_submissions (name, category, status, created_at)
-                 VALUES ($1, $2, 'pending', NOW())`,
-                [ingredient.name, ingredient.section || 'Uncategorized']
-            );
-            console.log(`   📝 Added "${ingredient.name}" to submissions for review.`);
-        } else {
-            console.log(`   ⏳ "${ingredient.name}" already pending approval.`);
-        }
-
         return {
             ...ingredient,
             dbId: null,
@@ -244,30 +256,48 @@ const saveRecipeFromVideo = async (req, res) => {
 
         console.log(`🔍 Inserting recipe with thumbnail: ${videoThumbnail || 'null'}`);
 
-        // Insert recipe WITH thumbnail URL
-        const recipeResult = await pool.query(
-            `INSERT INTO recipes (title, steps, notes, prep_time, cook_time, total_time, difficulty, 
-            course_type, meal_type, cuisine_type, public, source, portions, thumbnail_url)
-            VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) 
-            RETURNING id`,
-            [
-                title,
-                JSON.stringify(steps),
-                notes || null,
-                parseInt(prep_time) || null,
-                parseInt(cook_time) || null,
-                total_time,
-                difficulty || 'Medium',
-                course_type || 'Main Course',
-                meal_type || 'Dinner',
-                cuisine_type || 'Homemade',
-                false,
-                sourceUrl,
-                servings || null,
-                videoThumbnail || null 
-            ]
-        );
+        // Determine where to store the thumbnail
+let imagePath = null;
+let thumbnailUrl = null;
 
+if (videoThumbnail) {
+    if (videoThumbnail.startsWith('http')) {
+        thumbnailUrl = videoThumbnail; // YouTube URL
+    } else {
+        imagePath = videoThumbnail; // Local file path from TikTok/Instagram
+    }
+}
+
+console.log(`🔍 Inserting recipe with thumbnail: ${videoThumbnail || 'null'}`);
+console.log(`   → image_path: ${imagePath}`);
+console.log(`   → thumbnail_url: ${thumbnailUrl}`);
+
+// Insert recipe with both columns (only one will be non-null)
+const recipeResult = await pool.query(
+    `INSERT INTO recipes (
+        title, steps, notes, prep_time, cook_time, total_time, difficulty,
+        course_type, meal_type, cuisine_type, public, source, portions,
+        image_path, thumbnail_url
+    ) VALUES ($1, $2::jsonb, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    RETURNING id`,
+    [
+        title,
+        JSON.stringify(steps),
+        notes || null,
+        parseInt(prep_time) || null,
+        parseInt(cook_time) || null,
+        total_time,
+        difficulty || 'Medium',
+        course_type || 'Main Course',
+        meal_type || 'Dinner',
+        cuisine_type || 'Homemade',
+        false,
+        sourceUrl,
+        servings || null,
+        imagePath,
+        thumbnailUrl
+    ]
+);
         const recipeId = recipeResult.rows[0].id;
         const savedThumbnail = recipeResult.rows[0].thumbnail_url;
         
@@ -275,32 +305,63 @@ const saveRecipeFromVideo = async (req, res) => {
         console.log(`✅ Thumbnail saved: ${savedThumbnail || 'None'}`);
 
         let savedCount = 0;
-        if (ingredients && ingredients.length > 0) {
+const unmatchedIngredients = [];
+
+if (ingredients && ingredients.length > 0) {
     console.log(`🔗 Linking ${ingredients.length} ingredients...`);
     for (const ingredient of ingredients) {
         if (!ingredient.name || ingredient.name.trim().length === 0) continue;
 
         let ingredientId = null;
-        // Try to match the ingredient (reuse matchSingleIngredient or a simpler lookup)
-        const match = await matchSingleIngredient(ingredient); // careful: this may insert submission again
+        // Try to match the ingredient (use matchSingleIngredient but without submission)
+        const match = await matchSingleIngredient(ingredient);
         if (match.found) {
             ingredientId = match.dbId;
         } else {
-            // No match – we still want to save the ingredient text in recipe_ingredients
-            console.log(`   ℹ️ "${ingredient.name}" will be stored as text (no DB link).`);
+            // No match – we'll save the ingredient text and remember for submission later
+            unmatchedIngredients.push(ingredient);
         }
 
         const normalizedUnit = normalizeUnit(ingredient.unit) || ingredient.unit;
         await pool.query(
-            `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, name, quantity, unit, section)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [recipeId, ingredientId, ingredient.name, ingredient.quantity || null, normalizedUnit, ingredient.section || 'Main']
+            `INSERT INTO recipe_ingredients (recipe_id, ingredient_id, name, original_name, quantity, unit, section)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+                recipeId,
+                ingredientId,
+                ingredient.name, // display name (could be matched DB name or original)
+                ingredient.originalName || ingredient.name, // store original extracted name
+                sanitizeQuantity(ingredient.quantity),
+                normalizedUnit,
+                ingredient.section || 'Main'
+            ]
         );
         savedCount++;
     }
 }
-        console.log(`✅ ${savedCount} ingredients linked`);
+console.log(`✅ ${savedCount} ingredients linked`);
 
+// After all ingredients are saved, handle submissions for unmatched ones
+for (const ingredient of unmatchedIngredients) {
+    const originalName = ingredient.originalName || ingredient.name;
+    const searchName = originalName.toLowerCase().trim();
+
+    // Check if already pending
+    const pendingCheck = await pool.query(
+        `SELECT id FROM ingredient_submissions WHERE LOWER(name) = $1 AND status = 'pending' LIMIT 1`,
+        [searchName]
+    );
+    if (pendingCheck.rows.length === 0) {
+        await pool.query(
+            `INSERT INTO ingredient_submissions (name, category, status, created_at)
+             VALUES ($1, $2, 'pending', NOW())`,
+            [originalName, ingredient.section || 'Uncategorized']
+        );
+        console.log(`   📝 Added "${originalName}" to submissions for review.`);
+    } else {
+        console.log(`   ⏳ "${originalName}" already pending approval.`);
+    }
+}
         // Update conversion status
         if (conversionId) {
             await pool.query(

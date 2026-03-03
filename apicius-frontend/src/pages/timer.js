@@ -8,12 +8,19 @@ const TimerPage = () => {
     const navigate = useNavigate();
     const steps = location.state?.steps || [];
     const recipeName = location.state?.recipeName || '';
+
+    // Convert recipe steps to timer objects using actual durations
+    const initialTimers = steps.map((step, index) => {        // Convert minutes to seconds (if duration_minutes exists, else 0)
+        const durationSeconds = step.duration_minutes ? step.duration_minutes * 60 : 0;
+        return {
+            id: index + 1,
+            duration: durationSeconds,
+            description: step.instruction || step, // fallback to step if no instruction
+        };
+    });
+
     const [currentTimerIndex, setCurrentTimerIndex] = useState(0);
-    const [timers, setTimers] = useState(steps.map((step, index) => ({ 
-        id: index + 1, 
-        duration: 150, // Default duration for recipe steps (2 minutes 30 seconds)
-        description: step 
-    })));
+    const [timers, setTimers] = useState(initialTimers);
     const [showAddTimerForm, setShowAddTimerForm] = useState(false);
     const [newTimerHours, setNewTimerHours] = useState(0);
     const [newTimerMinutes, setNewTimerMinutes] = useState(2);
@@ -25,12 +32,11 @@ const TimerPage = () => {
     const [editingIndex, setEditingIndex] = useState(null);
     const [editFormData, setEditFormData] = useState({ duration: 0, description: '' });
 
-    
     const handleStartCooking = () => {
         setShowRecap(false);
         setCurrentTimerIndex(0);
     };
-    
+
     const handleLetItCook = () => {
         setCookingTimers(prev => [...new Set([...prev, currentTimerIndex])]);
         handleNext();
@@ -63,8 +69,8 @@ const TimerPage = () => {
 
     const handleEditTimer = (index) => {
         const updatedTimers = [...timers];
-        updatedTimers[index] = { 
-            ...updatedTimers[index], 
+        updatedTimers[index] = {
+            ...updatedTimers[index],
             duration: editFormData.duration,
             description: editFormData.description
         };
@@ -102,17 +108,24 @@ const TimerPage = () => {
         setCookingTimers(prev => prev.filter(i => i !== index));
     };
 
+    const formatTime = (seconds) => {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return hours > 0 ? `${hours}h ${minutes}m ${secs}s` : `${minutes}m ${secs}s`;
+    };
+
     return (
         <div className={`timer-page ${showRecap ? 'recap-mode' : ''}`}>
             {/* Recap Page */}
             {showRecap ? (
                 <div className="recap-container">
                     <h2 className="recap-title">
-                      <span className="regular-text">Cooking Plan for</span> <br />
-                      <span className="bold-text">{recipeName}</span>
+                        <span className="regular-text">Cooking Plan for</span> <br />
+                        <span className="bold-text">{recipeName}</span>
                     </h2>
-            <div className="recap-steps-grid">
-                {timers.map((timer, index) => (
+                    <div className="recap-steps-grid">
+                        {timers.map((timer, index) => (
                             <div key={index} className="recap-step-card">
                                 {editingIndex === index ? (
                                     <div className="edit-step-form">
@@ -138,8 +151,8 @@ const TimerPage = () => {
                                                         const minutes = parseInt(e.target.value) || 0;
                                                         setEditFormData(prev => ({
                                                             ...prev,
-                                                            duration: Math.floor(prev.duration / 3600) * 3600 + 
-                                                                minutes * 60 + 
+                                                            duration: Math.floor(prev.duration / 3600) * 3600 +
+                                                                minutes * 60 +
                                                                 (prev.duration % 60)
                                                         }));
                                                     }}
@@ -153,63 +166,61 @@ const TimerPage = () => {
                                                         const seconds = parseInt(e.target.value) || 0;
                                                         setEditFormData(prev => ({
                                                             ...prev,
-                                                            duration: Math.floor(prev.duration / 3600) * 3600 + 
-                                                                Math.floor((prev.duration % 3600) / 60) * 60 + 
+                                                            duration: Math.floor(prev.duration / 3600) * 3600 +
+                                                                Math.floor((prev.duration % 3600) / 60) * 60 +
                                                                 seconds
                                                         }));
                                                     }}
                                                 />
                                             </div>
                                         </div>
-                                <input
-                                    type="text"
-                                    value={timer.description}
-                                    onChange={(e) => 
-                                        handleEditTimer(index, timer.duration, e.target.value)
-                                    }
-                                    className="step-description-input"
-                                />
-                                <div className="edit-form-actions">
+                                        <input
+                                            type="text"
+                                            value={editFormData.description}
+                                            onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                                            className="step-description-input"
+                                        />
+                                        <div className="edit-form-actions">
                                             <button onClick={() => handleEditTimer(index)}>Save</button>
                                             <button onClick={() => setEditingIndex(null)}>Cancel</button>
-                                </div>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="step-header">
-                                    <span className="step-number">Step {timer.id}</span>
-                                        <span className="step-description">{timer.description}</span>
-                                </div>
-                                <div className="step-controls">
-                                    <div className="step-duration-review">
-                                        <span className="duration-label">Duration:</span>
-                                        <span className="duration-value">
-                                            {formatTime(timer.duration)}
-                                        </span>
+                                        </div>
                                     </div>
-                                    <button
-                                        className="edit-step-button"
-                                        onClick={() => handleEditStart(index)}
-                                    >
-                                        Edit
-                                    </button>
-                                </div>
-                            </>
-                        )}
+                                ) : (
+                                    <>
+                                        <div className="step-header">
+                                            <span className="step-number">Step {timer.id}</span>
+                                            <span className="step-description">{timer.description}</span>
+                                        </div>
+                                        <div className="step-controls">
+                                            <div className="step-duration-review">
+                                                <span className="duration-label">Duration:</span>
+                                                <span className="duration-value">
+                                                    {formatTime(timer.duration)}
+                                                </span>
+                                            </div>
+                                            <button
+                                                className="edit-step-button"
+                                                onClick={() => handleEditStart(index)}
+                                            >
+                                                Edit
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        ))}
                     </div>
-                ))}
-            </div>
-            <div className="recap-actions">
-                <button className="start-cooking-button" onClick={handleStartCooking}>
-                    Start Cooking
-                </button>
-            </div>
-        </div>
+                    <div className="recap-actions">
+                        <button className="start-cooking-button" onClick={handleStartCooking}>
+                            Start Cooking
+                        </button>
+                    </div>
+                </div>
             ) : (
                 /* Timer Interface */
                 <>
-                <h2 className="recap-title">
-                      <span className="bold-text">{recipeName}</span>
+                    <h2 className="recap-title">
+                        <span className="bold-text">{recipeName}</span>
                     </h2>
                     <div className="add-timer-section">
                         {showAddTimerForm ? (
@@ -276,7 +287,7 @@ const TimerPage = () => {
                                         </span>
                                     </div>
                                 )}
-                                
+
                                 <div className="current-step">
                                     <div className="step-info">
                                         <span>Step {timers[currentTimerIndex].id} - {timers[currentTimerIndex].description}</span>
@@ -342,13 +353,6 @@ const TimerPage = () => {
             )}
         </div>
     );
-};
-
-const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return hours > 0 ? `${hours}h ${minutes}m ${secs}s` : `${minutes}m ${secs}s`;
 };
 
 export default TimerPage;

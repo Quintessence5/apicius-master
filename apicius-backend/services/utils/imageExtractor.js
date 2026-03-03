@@ -20,7 +20,31 @@ async function extractWithOpenAIVision(imagePath, mimeType) {
     const imageBuffer = await fs.readFile(imagePath);
     const base64Image = imageBuffer.toString('base64');
 
-    const systemPrompt = `You are an expert recipe parser. Extract the recipe from the provided image. The image may be a cookbook page, handwritten note, or screenshot. Return a JSON object following this exact structure:
+    const systemPrompt = `You are an expert recipe parser. Extract the recipe from the provided image. The image may be a cookbook page, handwritten note, or screenshot. 
+- Your goal: Extract ingredients, steps, timing, temperature, and other cooking parameters
+**Title & Description**
+   - Infer a clear, concise recipe title (max 255 characters)
+   - Write a short description if possible (max 1000 characters)
+**STEPS MUST BE COMPREHENSIVE AND SECTIONED:**
+    - Write clear, numbered, chronological cooking steps
+    - Group steps into logical sections (for example, "Prepare", "Assemble", "Cook", "Finish", "Garnish")
+    - Each section should have a descriptive title
+    - Each step within a section should be 2-3 sentences with actionable details.
+    - If the description given is more than 2 sentences divide it more to keep each step short and actionna
+    - Include specific techniques and warnings (e.g., "Don't overmix", "until smooth and lump-free")
+    - Include timing/duration when relevant (stored in "duration_minutes" field)
+    - Include temperature ranges when applicable
+    - Provide sub-details using bullet points within step instructions
+
+**Important:** 
+- If the recipe text is not in English, translate it to English.
+- Format the recipe in a modern, step‑by‑step style with clear sections.
+- Group ingredients under section headings (e.g., "Cake Batter", "Frosting") if they appear in the image.
+- Use metric units (g, kg, ml, l, tsp, tbsp, pc) whenever possible; if only imperial units are present, keep them.
+- Convert fractions to decimals (e.g., "1/2" → "0.5").
+- Steps must be chronological, with section headings. Include durations (in minutes) if mentioned.
+- Extract servings, prep/cook/total times, difficulty, course/meal/cuisine types if present; otherwise set to null.
+- Return a JSON object following this exact structure:
 
 {
   "title": "Recipe Name",
@@ -52,19 +76,12 @@ async function extractWithOpenAIVision(imagePath, mimeType) {
   ]
 }
 
-Rules:
-- Use metric units (g, kg, ml, l, tsp, tbsp, pc) if available. If only imperial, keep them.
-- Convert fractions to decimals (e.g., "1/2" → "0.5").
-- Group ingredients into sections exactly as they appear.
-- Steps must be chronological, with section headings. Include durations if mentioned.
-- Extract servings, prep/cook/total times, difficulty, course/meal/cuisine types if present.
-- If any field is missing, set it to null (do not omit).
-- Output ONLY the JSON, no extra text.`;
+Output ONLY the JSON, no extra text.`;
 
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4-vision-preview',
+        model: 'gpt-4o', // updated model (vision-capable)
         messages: [
           { role: 'system', content: systemPrompt },
           {
@@ -112,11 +129,16 @@ Rules:
 }
 
 /**
- * Fallback: OCR with Tesseract + LLM
+ * Fallback: OCR with Tesseract + LLM (only if tesseract.js is installed)
  * @param {string} imagePath - Path to the image file
  * @returns {Promise<Object|null>} Recipe object or null
  */
 async function extractWithOcrAndLLM(imagePath) {
+  if (!Tesseract) {
+    console.log('⚠️ Tesseract not available – skipping OCR fallback');
+    return null;
+  }
+
   try {
     console.log('🔍 Running OCR with Tesseract...');
     const { data: { text } } = await Tesseract.recognize(imagePath, 'eng', {
@@ -129,8 +151,25 @@ async function extractWithOcrAndLLM(imagePath) {
 
     console.log(`✅ OCR extracted ${text.length} characters`);
 
-    // Use existing LLM function from videoToRecipeService
-    const recipe = await generateRecipeWithLLM(text, 'Image Recipe', null, [], '', '');
+    // Add instruction to translate and format in the supplemental parameter
+    const supplemental = `IMPORTANT: 
+- If the recipe text is not in English, translate it to English.
+- Format the recipe in a modern, step‑by‑step style with clear sections.
+- Group ingredients under section headings if present.
+- Convert fractions to decimals.
+- Use metric units where possible.`;
+
+    // Use existing LLM function with supplemental instruction
+    const recipe = await generateRecipeWithLLM(
+      text,                 // description (the OCR text)
+      'Image Recipe',       // title (will be overridden)
+      null,                 // channel
+      [],                   // extractedIngredients (empty, we rely on LLM)
+      '',                   // topCommentsText
+      supplemental,         // supplemental instruction
+      ''                    // audioTranscriptText
+    );
+
     return recipe;
   } catch (error) {
     console.error('❌ OCR + LLM fallback failed:', error.message);
@@ -139,20 +178,34 @@ async function extractWithOcrAndLLM(imagePath) {
 }
 
 /**
- * Main extraction function – tries vision first, then OCR+LLM
+ * Main extraction function – tries OCR first (cost-effective), then Vision.
  * @param {string} imagePath - Path to the image file
  * @param {string} mimeType - MIME type of the image
  * @returns {Promise<Object>} Extracted recipe (raw, not yet sanitized)
  */
 async function extractRecipeFromImage(imagePath, mimeType) {
-  // Try primary vision API
-  let recipe = await extractWithOpenAIVision(imagePath, mimeType);
-  if (recipe) return recipe;
+  let recipe = null;
 
-  // Fallback to OCR + LLM
-  console.log('⚠️ Vision API failed, falling back to OCR + LLM');
-  recipe = await extractWithOcrAndLLM(imagePath);
-  if (recipe) return recipe;
+  // Try OCR first (if Tesseract available)
+  if (Tesseract) {
+    console.log('🔍 Attempting OCR first (cost-effective)...');
+    recipe = await extractWithOcrAndLLM(imagePath);
+    // If OCR produced a reasonable recipe (at least 3 ingredients and some steps), return it
+    if (recipe && recipe.ingredients && recipe.ingredients.length >= 3 && recipe.steps && recipe.steps.length > 0) {
+      console.log('✅ OCR + LLM produced a valid recipe');
+      return recipe;
+    } else {
+      console.log('⚠️ OCR result insufficient, falling back to Vision API');
+    }
+  } else {
+    console.log('⚠️ Tesseract not installed, skipping OCR');
+  }
+
+  // Try Vision API (if key is available)
+  if (process.env.OPENAI_API_KEY) {
+    recipe = await extractWithOpenAIVision(imagePath, mimeType);
+    if (recipe) return recipe;
+  }
 
   throw new Error('All extraction methods failed');
 }

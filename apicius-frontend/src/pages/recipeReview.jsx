@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import '../styles/videoRecipeReview.css';
+import '../styles/recipeReview.css';
+
 
 // ────────────────────────────────────────────────
 // Small presentational components
@@ -18,6 +19,7 @@ const MetaField = ({ label, value, onChange, type = "text", placeholder }) => (
     />
   </div>
 );
+
 
 const SelectField = ({ label, value, onChange, options, required = false }) => (
   <div className="form-group">
@@ -68,13 +70,13 @@ const IngredientSearchInput = ({ value, onChange, onFocus, results, onSelect, se
 // Main Component
 // ────────────────────────────────────────────────
 
-const VideoRecipeReview = () => {
+const RecipeReview = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { recipe, ingredientMatches, conversionId, videoTitle, videoThumbnail } =
+  const { recipe, ingredientMatches, conversionId, videoTitle, videoThumbnail, recipeId } =
     location.state || {};
 
-    console.log('🎬 VideoRecipeReview received state:', {
+  console.log('🎬 VideoRecipeReview received state:', {
     recipe: recipe?.title,
     conversionId,
     videoTitle,
@@ -96,6 +98,17 @@ const VideoRecipeReview = () => {
   const difficultyLevels = ['Very Easy', 'Easy', 'Medium', 'Hard', 'Very Hard'];
 
   // ─── Data fetching ───────────────────────────────────────
+  // Normalize recipe data to ensure servings/portions consistency
+useEffect(() => {
+    if (recipe) {
+        setEditedRecipe({
+            ...recipe,
+            servings: recipe.portions || recipe.servings,
+            portions: recipe.portions || recipe.servings,
+        });
+    }
+}, [recipe]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -127,27 +140,39 @@ const VideoRecipeReview = () => {
   }, []);
 
   // ─── Initialize local ingredients state ──────────────────
-  useEffect(() => {
+useEffect(() => {
     if (!editedRecipe.ingredients) return;
 
     const initIngredients = editedRecipe.ingredients.map((ing) => {
-      const match = ingredientMatches?.all?.find((m) => m.name === ing.name) || null;
-      return {
-        name: ing.name,
-        quantity: ing.quantity,
-        unit: ing.unit || '',
-        section: ing.section,
-        ingredientId: match?.dbId || null,
-        ingredientName: match?.dbName || ing.name,
-        form: match?.form || 'unknown',
-        locked: false,
-        dbMatch: match,
-      };
+        // Determine original name (use original_name if available, else fallback to name)
+        const originalName = ing.original_name || ing.name;
+        // Find match in ingredientMatches by original name
+        const match = ingredientMatches?.all?.find((m) => m.name === originalName) || null;
+        // Determine display name: use matched DB name, or ingredient_name if available, else original name
+        const displayName = match?.dbName || ing.ingredient_name || originalName;
+        // Determine ingredient ID: use matched DB ID, or ingredient_id if available
+        const ingredientId = match?.dbId || ing.ingredient_id || null;
+
+        return {
+            name: originalName, // original name (fallback display)
+            quantity: ing.quantity,
+            unit: ing.unit || '',
+            section: ing.section,
+            ingredientId: ingredientId,
+            ingredientName: displayName, // display name (matched or original)
+            originalName: originalName,
+            form: match?.form || ing.form || 'unknown',
+            locked: false,
+            dbMatch: match,
+        };
     });
 
     setIngredients(initIngredients);
-  }, [editedRecipe.ingredients, ingredientMatches]);
+}, [editedRecipe.ingredients, ingredientMatches]);
 
+const deleteIngredient = (index) => {
+    setIngredients(prev => prev.filter((_, i) => i !== index));
+};
   // ─── Handlers ────────────────────────────────────────────
   const updateIngredient = useCallback((index, updates) => {
     setIngredients((prev) =>
@@ -189,15 +214,15 @@ const VideoRecipeReview = () => {
     setSearchingIndex(null);
   };
 
-  const clearIngredientSelection = (index) => {
+const clearIngredientSelection = (index) => {
     const ing = ingredients[index];
     updateIngredient(index, {
-      ingredientId: null,
-      ingredientName: ing.name,
-      dbMatch: null,
+        ingredientId: null,
+        ingredientName: ing.originalName,
+        dbMatch: null,
     });
     setSearchResults((prev) => ({ ...prev, [index]: [] }));
-  };
+};
 
   const handleRecipeChange = (field, value) => {
     setEditedRecipe((prev) => ({ ...prev, [field]: value }));
@@ -273,46 +298,57 @@ const VideoRecipeReview = () => {
     setError('');
     setSuccess('');
 
-    const missing = ingredients.filter((i) => !i.ingredientId);
-    if (missing.length > 0) {
-      setError(`Please select DB match for: ${missing.map((i) => i.name).join(', ')}`);
-      setLoading(false);
-      return;
-    }
-
     const finalIngredients = ingredients.map((ing) => ({
-      name: ing.ingredientName,
-      quantity: ing.quantity,
-      unit: ing.unit,
-      section: ing.section,
-      ingredientId: ing.ingredientId,
+        name: ing.ingredientName,
+        originalName: ing.originalName,
+        quantity: ing.quantity,
+        unit: ing.unit,
+        section: ing.section,
+        ingredientId: ing.ingredientId,
     }));
 
-    console.log('💾 About to save recipe with:', {
-        title: editedRecipe.title,
-        conversionId,
-        videoThumbnail: videoThumbnail || 'null'
-      });
-    console.log('📸 Sending thumbnail to backend:', videoThumbnail);
+    // Prepare the base recipe data
+    const recipeData = {
+        ...editedRecipe,
+        ingredients: finalIngredients,
+        // Ensure portions is set for update, servings for create (both may be present)
+        portions: editedRecipe.servings || editedRecipe.portions,
+        servings: editedRecipe.servings || editedRecipe.portions,
+    };
 
     try {
-      const res = await axios.post('/api/transcripts/save-recipe', {
-        generatedRecipe: { ...editedRecipe, ingredients: finalIngredients },
-        conversionId,
-        userId: null,
-        videoThumbnail: videoThumbnail,
-      });
+        let res;
+        if (recipeId) {
+            // Update existing recipe – send portions (backend expects portions)
+            const { servings, ...updateData } = recipeData; // remove servings to avoid confusion
+            res = await axios.put(`/api/recipes/${recipeId}`, {
+                ...updateData,
+                portions: recipeData.portions,
+            });
+        } else {
+            // Create new recipe – wrap in generatedRecipe and send servings (backend expects servings in generatedRecipe)
+            res = await axios.post('/api/transcripts/save-recipe', {
+                generatedRecipe: {
+                    ...editedRecipe,
+                    servings: recipeData.servings,
+                    ingredients: finalIngredients,
+                },
+                conversionId,
+                userId: null,
+                videoThumbnail,
+            });
+        }
 
-      if (res.data.success) {
-        setSuccess(`Recipe "${editedRecipe.title}" saved!`);
-        setTimeout(() => navigate('/all-recipes'), 1800);
-      }
+        if (res.data.success || res.status === 200) {
+            setSuccess(`Recipe "${editedRecipe.title}" saved!`);
+            setTimeout(() => navigate('/all-recipes'), 1800);
+        }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save recipe');
+        setError(err.response?.data?.message || 'Failed to save recipe');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   if (!recipe) {
     return (
@@ -492,6 +528,15 @@ const VideoRecipeReview = () => {
                   <span className="match-status">
                     {ing.ingredientId ? '✅ Selected' : '⚠️ Select ingredient'}
                   </span>
+
+<button
+    className="ingredient-delete-btn"
+    onClick={() => deleteIngredient(idx)}
+    type="button"
+    title="Remove ingredient"
+>
+    🗑️
+</button>
                 </div>
               );
             })}
@@ -677,4 +722,4 @@ const VideoRecipeReview = () => {
   );
 };
 
-export default VideoRecipeReview;
+export default RecipeReview;

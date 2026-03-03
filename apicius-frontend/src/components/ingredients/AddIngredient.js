@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import apiClient from '../../services/apiClient';
 
-
 const AddIngredient = () => {
-  // Manual form state
-  const [formData, setFormData] = useState({
-    name: '',
+  const location = useLocation();
+  const navigate = useNavigate();
+  const initialName = location.state?.initialName || '';
+  const fromSubmission = location.state?.fromSubmission || null;
+
+const [formData, setFormData] = useState({
+    name: initialName,
     average_weight: '',
     category: '',
     calories_per_100g: '',
@@ -58,8 +62,15 @@ const AddIngredient = () => {
     try {
       const response = await apiClient.post('/ingredients', processedData);
       if (response.status === 201) {
-        alert('Ingredient added successfully!');
-        setFormData({
+  alert('Ingredient added successfully!');
+  if (fromSubmission) {
+    await apiClient.post(`/ingredients/submissions/${fromSubmission}/match`, {
+      ingredientId: response.data.id
+    });
+    alert('Submission approved and linked!');
+    navigate('/ingredients/submissions');
+  } else {
+    setFormData({
           name: '',
           average_weight: '',
           category: '',
@@ -80,7 +91,7 @@ const AddIngredient = () => {
           intolerance: ''
         });
       }
-    } catch (error) {
+    }} catch (error) {
       alert('Error adding ingredient: ' + (error.response?.data?.message || error.message));
     }
   };

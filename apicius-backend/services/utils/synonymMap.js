@@ -7,7 +7,7 @@ const synonymGroups = {
     "chocolate dark couverture", "chocolate couverture dark", "dark chocolate couverture", "dark chocolate 50%", "chocolate 50%", "chocolate bittersweet", "bittersweet chocolate", "chocolate bars", "chocolate bar","bar chocolate","bars chocolate"
   ],
   "cocoa powder unsweetened": [
-    "bitter cocoa powder", "unsweetened cocoa powder", "cocoa unsweetened", "cocoa bitter", "bitter cocoa", "cocoa powder","powder cocoa"
+    "bitter cocoa powder", "unsweetened cocoa powder", "cocoa unsweetened", "cocoa bitter", "bitter cocoa", "cocoa powder","powder cocoa","powder cocoa natural","cocoa powder natural"
   ],
   "Cream 30% fat": [
     "heavy whipping cream", "whipping cream","cream heavy whipping", "cream heavy", "heavy cream", "double cream", "full cream", "cream heavy"
@@ -20,6 +20,9 @@ const synonymGroups = {
   ],
   "oil vegetable": [
     "vegetable oil", "neutral vegetable","seed oil","neutral oil","oil neutral", "oil seeds"
+  ],
+  "butter unsalted": [
+    "unsalted butter", "butter unsalted", "butter", "soft butter", "unsalted soft butter", "unsalted butter softened", "butter unsalted softened", "softened unsalted butter", "softened butter unsalted"
   ]
 };
 
